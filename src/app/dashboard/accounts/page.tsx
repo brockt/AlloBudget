@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState }s from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { AddAccountForm } from "@/components/accounts/add-account-form";
 import { AccountList } from "@/components/accounts/account-list";

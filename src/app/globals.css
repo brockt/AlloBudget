@@ -8,78 +8,78 @@
 
 @layer base {
   :root {
-    --background: 200 17% 96%; /* Light Soft Gray */
-    --foreground: 210 10% 20%; /* Dark Gray for text */
-    --card: 0 0% 100%;
-    --card-foreground: 210 10% 20%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 210 10% 20%;
-    --primary: 174 44% 51%; /* Calm Teal */
-    --primary-foreground: 0 0% 100%; /* White */
-    --secondary: 200 17% 80%; /* Lighter Soft Gray for interactive secondary */
-    --secondary-foreground: 210 10% 20%;
-    --muted: 200 17% 90%; /* Soft Gray */
-    --muted-foreground: 210 10% 45%;
-    --accent: 45 100% 65%; /* Amber */
-    --accent-foreground: 30 80% 10%; /* Dark brown/black for text on accent */
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 200 17% 85%; /* Soft Gray for borders */
-    --input: 200 17% 85%;
-    --ring: 174 44% 51%; /* Calm Teal for rings */
-    --chart-1: 174 44% 51%; /* Calm Teal */
-    --chart-2: 45 100% 65%; /* Amber */
-    --chart-3: 200 17% 60%; /* Medium Soft Gray */
-    --chart-4: 174 44% 70%; /* Lighter Calm Teal */
-    --chart-5: 45 100% 80%; /* Lighter Amber */
+    --background: 200, 17%, 96%; /* Light Soft Gray */
+    --foreground: 210, 10%, 20%; /* Dark Gray for text */
+    --card: 0, 0%, 100%;
+    --card-foreground: 210, 10%, 20%;
+    --popover: 0, 0%, 100%;
+    --popover-foreground: 210, 10%, 20%;
+    --primary: 174, 44%, 51%; /* Calm Teal */
+    --primary-foreground: 0, 0%, 100%; /* White */
+    --secondary: 200, 17%, 80%; /* Lighter Soft Gray for interactive secondary */
+    --secondary-foreground: 210, 10%, 20%;
+    --muted: 200, 17%, 90%; /* Soft Gray */
+    --muted-foreground: 210, 10%, 45%;
+    --accent: 45, 100%, 65%; /* Amber */
+    --accent-foreground: 30, 80%, 10%; /* Dark brown/black for text on accent */
+    --destructive: 0, 84.2%, 60.2%;
+    --destructive-foreground: 0, 0%, 98%;
+    --border: 200, 17%, 85%; /* Soft Gray for borders */
+    --input: 200, 17%, 85%;
+    --ring: 174, 44%, 51%; /* Calm Teal for rings */
+    --chart-1: 174, 44%, 51%; /* Calm Teal */
+    --chart-2: 45, 100%, 65%; /* Amber */
+    --chart-3: 200, 17%, 60%; /* Medium Soft Gray */
+    --chart-4: 174, 44%, 70%; /* Lighter Calm Teal */
+    --chart-5: 45, 100%, 80%; /* Lighter Amber */
     --radius: 0.5rem;
 
     /* Sidebar specific theme variables */
-    --sidebar-background: 200 17% 94%; /* Lighter Soft Gray */
-    --sidebar-foreground: 210 10% 25%; 
-    --sidebar-primary: 174 44% 51%; /* Calm Teal for active/accented item */
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 174 30% 88%; /* Light Teal hover or Soft Gray: 200 17% 88% */
-    --sidebar-accent-foreground: 174 44% 30%; /* Darker Teal for text on hover */
-    --sidebar-border: 200 17% 85%;
-    --sidebar-ring: 174 44% 51%;
+    --sidebar-background: 200, 17%, 94%; /* Lighter Soft Gray */
+    --sidebar-foreground: 210, 10%, 25%; 
+    --sidebar-primary: 174, 44%, 51%; /* Calm Teal for active/accented item */
+    --sidebar-primary-foreground: 0, 0%, 100%;
+    --sidebar-accent: 174, 30%, 88%; /* Light Teal hover or Soft Gray: 200, 17%, 88% */
+    --sidebar-accent-foreground: 174, 44%, 30%; /* Darker Teal for text on hover */
+    --sidebar-border: 200, 17%, 85%;
+    --sidebar-ring: 174, 44%, 51%;
   }
 
   .dark {
-    --background: 210 10% 10%; /* Dark Gray */
-    --foreground: 200 15% 90%; /* Light Gray for text */
-    --card: 210 10% 15%;
-    --card-foreground: 200 15% 90%;
-    --popover: 210 10% 15%;
-    --popover-foreground: 200 15% 90%;
-    --primary: 174 44% 51%; /* Calm Teal */
-    --primary-foreground: 0 0% 100%;
-    --secondary: 210 10% 25%; /* Darker Soft Gray for interactive secondary */
-    --secondary-foreground: 200 15% 90%;
-    --muted: 210 10% 25%; /* Darker Soft Gray */
-    --muted-foreground: 200 15% 60%;
-    --accent: 45 100% 65%; /* Amber */
-    --accent-foreground: 30 80% 10%; 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 210 10% 30%; /* Darker Soft Gray for borders */
-    --input: 210 10% 30%;
-    --ring: 174 44% 51%;
-    --chart-1: 174 44% 51%;
-    --chart-2: 45 100% 65%;
-    --chart-3: 200 17% 50%;
-    --chart-4: 174 44% 30%;
-    --chart-5: 45 100% 45%;
+    --background: 210, 10%, 10%; /* Dark Gray */
+    --foreground: 200, 15%, 90%; /* Light Gray for text */
+    --card: 210, 10%, 15%;
+    --card-foreground: 200, 15%, 90%;
+    --popover: 210, 10%, 15%;
+    --popover-foreground: 200, 15%, 90%;
+    --primary: 174, 44%, 51%; /* Calm Teal */
+    --primary-foreground: 0, 0%, 100%;
+    --secondary: 210, 10%, 25%; /* Darker Soft Gray for interactive secondary */
+    --secondary-foreground: 200, 15%, 90%;
+    --muted: 210, 10%, 25%; /* Darker Soft Gray */
+    --muted-foreground: 200, 15%, 60%;
+    --accent: 45, 100%, 65%; /* Amber */
+    --accent-foreground: 30, 80%, 10%; 
+    --destructive: 0, 62.8%, 30.6%;
+    --destructive-foreground: 0, 0%, 98%;
+    --border: 210, 10%, 30%; /* Darker Soft Gray for borders */
+    --input: 210, 10%, 30%;
+    --ring: 174, 44%, 51%;
+    --chart-1: 174, 44%, 51%;
+    --chart-2: 45, 100%, 65%;
+    --chart-3: 200, 17%, 50%;
+    --chart-4: 174, 44%, 30%;
+    --chart-5: 45, 100%, 45%;
 
     /* Sidebar specific theme variables for dark mode */
-    --sidebar-background: 210 10% 12%; 
-    --sidebar-foreground: 200 15% 85%;
-    --sidebar-primary: 174 44% 51%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 174 30% 25%; /* Darker Teal hover */
-    --sidebar-accent-foreground: 174 44% 70%; /* Lighter Teal for text on hover */
-    --sidebar-border: 210 10% 25%;
-    --sidebar-ring: 174 44% 51%;
+    --sidebar-background: 210, 10%, 12%; 
+    --sidebar-foreground: 200, 15%, 85%;
+    --sidebar-primary: 174, 44%, 51%;
+    --sidebar-primary-foreground: 0, 0%, 100%;
+    --sidebar-accent: 174, 30%, 25%; /* Darker Teal hover */
+    --sidebar-accent-foreground: 174, 44%, 70%; /* Lighter Teal for text on hover */
+    --sidebar-border: 210, 10%, 25%;
+    --sidebar-ring: 174, 44%, 51%;
   }
 }
 
