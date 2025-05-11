@@ -1,3 +1,4 @@
+
 "use client";
 
 import { AddTransactionForm } from "@/components/transactions/add-transaction-form";
@@ -39,7 +40,7 @@ export default function NewTransactionPage() {
         title="New Transaction"
         description="Record a new income or expense."
         actions={
-          <Link href="/transactions" passHref>
+          <Link href="/dashboard/transactions" passHref>
             <Button variant="outline">
               <ArrowLeft className="mr-2 h-4 w-4" /> Back to Transactions
             </Button>

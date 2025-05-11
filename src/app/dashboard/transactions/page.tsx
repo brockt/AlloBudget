@@ -1,3 +1,4 @@
+
 "use client";
 
 import { TransactionList } from "@/components/transactions/transaction-list";
@@ -26,7 +27,7 @@ export default function TransactionsPage() {
         title="All Transactions"
         description="A complete history of your financial activities."
         actions={
-          <Link href="/transactions/new" passHref>
+          <Link href="/dashboard/transactions/new" passHref>
             <Button>
               <PlusCircle className="mr-2 h-4 w-4" /> Add New Transaction
             </Button>

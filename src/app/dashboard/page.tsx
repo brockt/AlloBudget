@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useAppContext } from "@/context/AppContext";
@@ -9,9 +10,9 @@ import { DollarSign, Landmark, Mails, ArrowRightLeft, PlusCircle, TrendingUp, Ba
 import { ScrollArea } from "@/components/ui/scroll-area";
 import Image from "next/image";
 import { Skeleton } from "@/components/ui/skeleton";
-import SpendingByEnvelopeChart from "@/components/charts/spending-by-envelope-chart"; // Placeholder, will create next
-import RecentTransactionsList from "@/components/transactions/recent-transactions-list"; // Placeholder
-import EnvelopeSummaryList from "@/components/envelopes/envelope-summary-list"; // Placeholder
+import SpendingByEnvelopeChart from "@/components/charts/spending-by-envelope-chart"; 
+import RecentTransactionsList from "@/components/transactions/recent-transactions-list"; 
+import EnvelopeSummaryList from "@/components/envelopes/envelope-summary-list"; 
 
 export default function DashboardPage() {
   const { accounts, envelopes, transactions, getAccountBalance, isLoading } = useAppContext();
@@ -42,7 +43,7 @@ export default function DashboardPage() {
         title="Dashboard"
         description="Your financial overview at a glance."
         actions={
-          <Link href="/transactions/new" passHref>
+          <Link href="/dashboard/transactions/new" passHref>
             <Button>
               <PlusCircle className="mr-2 h-4 w-4" /> Add Transaction
             </Button>

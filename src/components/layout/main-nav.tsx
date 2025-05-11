@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -9,7 +10,7 @@ import {
   ArrowRightLeft,
   BarChart3,
   Settings,
-  Wallet, // Corrected: Wallet Minimal is not a valid icon name. Used Wallet instead.
+  Wallet,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -20,12 +21,12 @@ import {
 } from "@/components/ui/sidebar"; // Use existing sidebar components
 
 export const navItems = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/accounts", label: "Accounts", icon: Landmark },
-  { href: "/envelopes", label: "Envelopes", icon: Mails },
-  { href: "/transactions", label: "Transactions", icon: ArrowRightLeft },
-  { href: "/reports", label: "Reports", icon: BarChart3 },
-  // { href: "/settings", label: "Settings", icon: Settings }, // Example for future
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/dashboard/accounts", label: "Accounts", icon: Landmark },
+  { href: "/dashboard/envelopes", label: "Envelopes", icon: Mails },
+  { href: "/dashboard/transactions", label: "Transactions", icon: ArrowRightLeft },
+  { href: "/dashboard/reports", label: "Reports", icon: BarChart3 },
+  // { href: "/dashboard/settings", label: "Settings", icon: Settings }, // Example for future
 ];
 
 export function MainNav() {
@@ -38,7 +39,7 @@ export function MainNav() {
           <Link href={item.href} legacyBehavior passHref>
             <SidebarMenuButton
               asChild
-              isActive={pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href))}
+              isActive={pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href))}
               tooltip={{ children: item.label, side: "right", align: "center" }}
               className="justify-start"
             >

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useAppContext } from "@/context/AppContext";
@@ -16,7 +17,7 @@ export default function EnvelopeSummaryList() {
     return (
       <div className="text-center py-6">
         <p className="text-muted-foreground">No envelopes configured.</p>
-        <Link href="/envelopes" passHref className="mt-2">
+        <Link href="/dashboard/envelopes" passHref className="mt-2">
           <Button variant="link" className="text-primary">Set up your envelopes</Button>
         </Link>
       </div>
@@ -53,7 +54,7 @@ export default function EnvelopeSummaryList() {
       </ScrollArea>
       {envelopes.length > 0 && (
          <div className="text-center mt-2">
-          <Link href="/envelopes" passHref>
+          <Link href="/dashboard/envelopes" passHref>
             <Button variant="link" className="text-sm text-primary">
               View All Envelopes <ArrowRight className="ml-1 h-4 w-4" />
             </Button>

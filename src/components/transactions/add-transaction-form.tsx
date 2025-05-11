@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useForm, Controller } from "react-hook-form";
@@ -74,7 +75,7 @@ export function AddTransactionForm({ defaultAccountId, onSuccess, navigateToTran
         date: format(new Date(), "yyyy-MM-dd") // Reset date to today
     });
     if (onSuccess) onSuccess();
-    if (navigateToTransactions) router.push("/transactions");
+    if (navigateToTransactions) router.push("/dashboard/transactions");
   }
 
   return (

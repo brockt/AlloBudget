@@ -1,14 +1,8 @@
+
 "use client";
 
 import { useAppContext } from "@/context/AppContext";
-import { TransactionRow } from "./transaction-row"; // Assuming TransactionRow can be reused or a simplified version
-import {
-  Table,
-  TableBody,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { TableCell, TableRow, Table, TableBody, TableHead, TableHeader } from "@/components/ui/table"; // Added TableCell, TableRow imports
 import { ScrollArea } from "@/components/ui/scroll-area";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -19,7 +13,7 @@ interface RecentTransactionsListProps {
 }
 
 export default function RecentTransactionsList({ limit = 5 }: RecentTransactionsListProps) {
-  const { transactions } = useAppContext();
+  const { transactions, accounts } = useAppContext(); // Added accounts for name lookup
 
   const recentTransactions = transactions.slice(0, limit);
 
@@ -27,7 +21,7 @@ export default function RecentTransactionsList({ limit = 5 }: RecentTransactions
     return (
       <div className="text-center py-6">
         <p className="text-muted-foreground">No recent transactions.</p>
-        <Link href="/transactions/new" passHref className="mt-2">
+        <Link href="/dashboard/transactions/new" passHref className="mt-2">
           <Button variant="link" className="text-primary">Add your first transaction</Button>
         </Link>
       </div>
@@ -52,7 +46,7 @@ export default function RecentTransactionsList({ limit = 5 }: RecentTransactions
                  <TableCell>
                     <div className="font-medium">{transaction.description}</div>
                     <div className="text-xs text-muted-foreground">
-                        {useAppContext().accounts.find(a => a.id === transaction.accountId)?.name || ''}
+                        {accounts.find(a => a.id === transaction.accountId)?.name || ''}
                     </div>
                  </TableCell>
                  <TableCell className="text-center hidden sm:table-cell">
@@ -68,7 +62,7 @@ export default function RecentTransactionsList({ limit = 5 }: RecentTransactions
       </ScrollArea>
       {transactions.length > limit && (
         <div className="text-center mt-2">
-          <Link href="/transactions" passHref>
+          <Link href="/dashboard/transactions" passHref>
             <Button variant="link" className="text-sm text-primary">
               View All Transactions <ArrowRight className="ml-1 h-4 w-4" />
             </Button>

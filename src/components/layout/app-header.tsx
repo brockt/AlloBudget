@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -13,7 +14,7 @@ export function AppHeader() {
           <div className="md:hidden">
             <SidebarTrigger />
           </div>
-          <Link href="/" className="flex items-center space-x-2 text-lg font-bold text-primary">
+          <Link href="/dashboard" className="flex items-center space-x-2 text-lg font-bold text-primary">
             <Coins className="h-7 w-7" />
             <span className="hidden sm:inline-block">Pocket Budgeteer</span>
           </Link>
