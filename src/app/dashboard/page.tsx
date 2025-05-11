@@ -28,7 +28,7 @@ export default function DashboardPage() {
     return (
       <div className="space-y-6">
         <PageHeader title="Dashboard" description="Welcome back to Pocket Budgeteer!" />
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="grid grid-cols-2 gap-6"> {/* Changed md:grid-cols-2 to grid-cols-2 */}
           <Skeleton className="h-32 rounded-lg" />
           <Skeleton className="h-32 rounded-lg" />
         </div>
@@ -83,7 +83,7 @@ export default function DashboardPage() {
         }
       />
 
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid grid-cols-2 gap-6"> {/* Changed md:grid-cols-2 to grid-cols-2 */}
         <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Balance</CardTitle>
@@ -106,15 +106,15 @@ export default function DashboardPage() {
             <div className={`text-2xl font-bold ${availableToSpend < 0 ? 'text-destructive' : ''}`}>
               ${availableToSpend.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
-            <p className="text-xs text-muted-foreground">Total balance minus total budgeted in envelopes</p>
+            <p className="text-xs text-muted-foreground">Total balance minus total budgeted</p>
           </CardContent>
         </Card>
       </div>
       
       <Card className="shadow-lg">
         <CardHeader>
-          <CardTitle>Envelope Balances</CardTitle>
-          <CardDescription>Track your spending against budgets for all envelopes.</CardDescription>
+          <CardTitle>All Envelopes</CardTitle>
+          <CardDescription>Track your spending against budgets for all your envelopes.</CardDescription>
         </CardHeader>
         <CardContent>
           <EnvelopeSummaryList />
