@@ -13,7 +13,7 @@ export const envelopeSchema = z.object({
   name: z.string().min(1, "Envelope name is required.").max(100, "Name too long."),
   budgetAmount: z.preprocess(
     (val) => Number(String(val)), // Convert to number
-    z.number().positive("Budget amount must be positive.")
+    z.number().min(0, "Budget amount must be zero or positive.") // Changed from .positive()
   ),
 });
 
@@ -33,3 +33,4 @@ export const transactionSchema = z.object({
 
 // Ensure envelopeId is present if type is expense and an envelope is selected (or make it more complex)
 // For now, basic schema. If type is expense, envelopeId is highly recommended.
+
