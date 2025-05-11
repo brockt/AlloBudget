@@ -9,7 +9,7 @@ import {
   ArrowRightLeft,
   BarChart3,
   Settings,
-  Wallet Minimal, // Assuming Wallet is the intended icon; using Wallet Minimal
+  Wallet, // Corrected: Wallet Minimal is not a valid icon name. Used Wallet instead.
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
