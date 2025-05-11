@@ -34,12 +34,17 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       const storedData = localStorage.getItem(LOCAL_STORAGE_KEY);
       if (storedData) {
         const parsedData = JSON.parse(storedData);
-        setAccounts(parsedData.accounts || []);
-        setEnvelopes(parsedData.envelopes || []);
-        setTransactions(parsedData.transactions || []);
+        // Validate that parsed data components are arrays
+        setAccounts(Array.isArray(parsedData.accounts) ? parsedData.accounts : []);
+        setEnvelopes(Array.isArray(parsedData.envelopes) ? parsedData.envelopes : []);
+        setTransactions(Array.isArray(parsedData.transactions) ? parsedData.transactions : []);
       }
     } catch (error) {
       console.error("Failed to load data from localStorage", error);
+      // Ensure states are default empty arrays in case of error
+      setAccounts([]);
+      setEnvelopes([]);
+      setTransactions([]);
     } finally {
       setIsLoading(false);
     }
@@ -140,3 +145,4 @@ export const useAppContext = () => {
   }
   return context;
 };
+
