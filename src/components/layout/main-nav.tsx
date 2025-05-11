@@ -6,11 +6,9 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   Landmark,
-  Mails,
   ArrowRightLeft,
   BarChart3,
   Settings,
-  Wallet,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -23,7 +21,6 @@ import {
 export const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/dashboard/accounts", label: "Accounts", icon: Landmark },
-  { href: "/dashboard/envelopes", label: "Envelopes", icon: Mails },
   { href: "/dashboard/transactions", label: "Transactions", icon: ArrowRightLeft },
   { href: "/dashboard/reports", label: "Reports", icon: BarChart3 },
   // { href: "/dashboard/settings", label: "Settings", icon: Settings }, // Example for future

@@ -4,9 +4,6 @@
 import { useAppContext } from "@/context/AppContext";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { ArrowRight, Mails } from "lucide-react";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 
 
@@ -17,9 +14,7 @@ export default function EnvelopeSummaryList() {
     return (
       <div className="text-center py-6">
         <p className="text-muted-foreground">No envelopes configured.</p>
-        <Link href="/dashboard/envelopes" passHref className="mt-2">
-          <Button variant="link" className="text-primary">Set up your envelopes</Button>
-        </Link>
+        <p className="text-sm text-muted-foreground mt-1">Add an envelope using the button in the page header.</p>
       </div>
     );
   }
@@ -28,7 +23,7 @@ export default function EnvelopeSummaryList() {
 
   return (
     <div className="space-y-3">
-      <ScrollArea className="h-auto max-h-[300px]">
+      <ScrollArea className="h-auto max-h-[500px]">
         <ul className="space-y-3 pr-2">
           {envelopes.map(envelope => {
             const spent = getEnvelopeSpending(envelope.id, currentMonthPeriod);
@@ -52,15 +47,6 @@ export default function EnvelopeSummaryList() {
           })}
         </ul>
       </ScrollArea>
-      {envelopes.length > 0 && (
-         <div className="text-center mt-2">
-          <Link href="/dashboard/envelopes" passHref>
-            <Button variant="link" className="text-sm text-primary">
-              View All Envelopes <ArrowRight className="ml-1 h-4 w-4" />
-            </Button>
-          </Link>
-        </div>
-      )}
     </div>
   );
 }
