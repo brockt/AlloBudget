@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useAppContext } from "@/context/AppContext";
@@ -10,9 +9,10 @@ import { ArrowRight } from "lucide-react";
 
 interface RecentTransactionsListProps {
   limit?: number;
+  showViewAllLink?: boolean; // New prop
 }
 
-export default function RecentTransactionsList({ limit = 5 }: RecentTransactionsListProps) {
+export default function RecentTransactionsList({ limit = 5, showViewAllLink = true }: RecentTransactionsListProps) {
   const { transactions, accounts } = useAppContext(); // Added accounts for name lookup
 
   const recentTransactions = transactions.slice(0, limit);
@@ -21,9 +21,11 @@ export default function RecentTransactionsList({ limit = 5 }: RecentTransactions
     return (
       <div className="text-center py-6">
         <p className="text-muted-foreground">No recent transactions.</p>
-        <Link href="/dashboard/transactions/new" passHref className="mt-2">
-          <Button variant="link" className="text-primary">Add your first transaction</Button>
-        </Link>
+        {showViewAllLink && (
+          <Link href="/dashboard/transactions/new" passHref className="mt-2">
+            <Button variant="link" className="text-primary">Add your first transaction</Button>
+          </Link>
+        )}
       </div>
     );
   }
@@ -60,7 +62,7 @@ export default function RecentTransactionsList({ limit = 5 }: RecentTransactions
           </TableBody>
         </Table>
       </ScrollArea>
-      {transactions.length > limit && (
+      {showViewAllLink && transactions.length > limit && (
         <div className="text-center mt-2">
           <Link href="/dashboard/transactions" passHref>
             <Button variant="link" className="text-sm text-primary">
