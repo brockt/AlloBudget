@@ -2,14 +2,14 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation"; // Keep usePathname
+import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   Landmark,
   ArrowRightLeft,
   BarChart3,
   Users,
-  Package,
+  Package, // Corrected icon name
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -37,6 +37,7 @@ export function MainNav() {
      if (isMobile) {
       setOpenMobile(false); // Close mobile sidebar after navigation link is clicked
     }
+     // No change needed for desktop sidebar behavior (it should stay open)
   }
 
   return (
@@ -44,13 +45,14 @@ export function MainNav() {
       {navItems.map((item) => (
         <SidebarMenuItem key={item.href}>
           {/* SidebarMenuButton handles its own Tooltip internally via the tooltip prop */}
+          {/* Use asChild to pass props down to Link */}
           <SidebarMenuButton
-            asChild // Pass props down to the Link component
+            asChild
             isActive={pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href))}
-            tooltip={{ children: item.label, side: "right", align: "center" }} // Configure the tooltip here
+            tooltip={{ children: item.label, side: "right", align: "center" }}
             className="justify-start"
           >
-            {/* Link renders the underlying <a> tag */}
+            {/* Link handles the navigation and receives the click handler */}
             <Link href={item.href} onClick={handleLinkClick}>
               {/* Content goes inside the Link */}
               <item.icon className="h-5 w-5" />
@@ -64,4 +66,3 @@ export function MainNav() {
     </SidebarMenu>
   );
 }
-
