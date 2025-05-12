@@ -271,7 +271,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       type: 'expense',
       description: description || `Transfer to ${toEnvelope.name}`,
       date,
-      isTransfer: false, // Envelope transfers are not inter-account transfers for income reporting
+      isTransfer: false, // Envelope transfers are not inter-account transfers for income/spending reporting
     };
     addTransaction(expenseTransaction);
 
@@ -283,7 +283,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       type: 'income',
       description: description || `Transfer from ${fromEnvelope.name}`,
       date,
-      isTransfer: false, // Envelope transfers are not inter-account transfers for income reporting
+      isTransfer: false, // Envelope transfers are not inter-account transfers for income/spending reporting
     };
     addTransaction(incomeTransaction);
 
@@ -469,10 +469,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
     return transactions.reduce((total, tx) => {
       const txDate = parseISO(tx.date);
-       // Exclude expense transactions that are part of an inter-account transfer (optional, typically transfers are neutral for spending reports)
-       // For now, we keep them as they do represent money leaving an account, even if it goes to another owned account.
-       // If these should also be excluded, add `&& !tx.isTransfer`
-      if (tx.type === 'expense' && isValid(txDate) && isWithinInterval(txDate, { start: monthStart, end: monthEnd })) {
+       // Exclude expense transactions that are part of an inter-account transfer
+      if (tx.type === 'expense' && !tx.isTransfer && isValid(txDate) && isWithinInterval(txDate, { start: monthStart, end: monthEnd })) {
         const amount = typeof tx.amount === 'number' && !isNaN(tx.amount) ? tx.amount : 0;
         return total + amount;
       }
@@ -547,3 +545,4 @@ export const useAppContext = () => {
   }
   return context;
 };
+
