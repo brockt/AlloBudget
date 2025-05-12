@@ -124,9 +124,10 @@ export default function EnvelopeSummaryList() {
                                               <div className="flex-1 min-w-0">
                                                 <div className="flex items-center">
                                                     <span className="font-medium truncate block text-sm" title={envelope.name}>{envelope.name}</span>
-                                                    {envelope.estimatedAmount !== undefined && (
-                                                        <Tooltip delayDuration={300}> {/* Add slight delay */}
-                                                            <TooltipTrigger> {/* Removed asChild */}
+                                                    {/* Show Info icon and tooltip only if estimatedAmount is a valid number */}
+                                                    {typeof envelope.estimatedAmount === 'number' && isFinite(envelope.estimatedAmount) && (
+                                                        <Tooltip delayDuration={300}>
+                                                            <TooltipTrigger>
                                                                 <Info className="ml-1.5 h-3.5 w-3.5 text-muted-foreground cursor-help" />
                                                             </TooltipTrigger>
                                                             <TooltipContent side="top">
@@ -186,3 +187,4 @@ export default function EnvelopeSummaryList() {
     </TooltipProvider>
   );
 }
+
