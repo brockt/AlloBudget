@@ -1,13 +1,24 @@
 
 "use client";
 
+import { useState } from "react";
 import { useAppContext } from "@/context/AppContext";
 import { Progress } from "@/components/ui/progress";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import type { Envelope } from "@/types";
-import { CalendarClock } from 'lucide-react'; // Import icon
+import { CalendarClock, Pencil } from 'lucide-react'; // Import icon
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { EditEnvelopeForm } from "./edit-envelope-form"; // Import the new edit form
 
 // Function to get the ordinal suffix for a day number
 function getDaySuffix(day: number): string {
@@ -22,6 +33,8 @@ function getDaySuffix(day: number): string {
 
 export default function EnvelopeSummaryList() {
   const { envelopes, getEnvelopeSpending } = useAppContext();
+  const [editingEnvelope, setEditingEnvelope] = useState<Envelope | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   if (envelopes.length === 0) {
     return (
@@ -65,8 +78,13 @@ export default function EnvelopeSummaryList() {
   });
   const defaultOpenCategory = categories.length > 0 ? [categories[0]] : [];
 
+  const handleEditClick = (envelope: Envelope) => {
+    setEditingEnvelope(envelope);
+    setIsEditDialogOpen(true);
+  };
 
   return (
+    <>
      <ScrollArea className="h-auto max-h-[600px]"> {/* Adjust max height if needed */}
         <Accordion type="multiple" defaultValue={defaultOpenCategory} className="w-full">
             {categories.map(category => (
@@ -83,8 +101,19 @@ export default function EnvelopeSummaryList() {
                                 const dueDateString = envelope.dueDate ? `${envelope.dueDate}${getDaySuffix(envelope.dueDate)}` : '';
 
                                 return (
-                                    <li key={envelope.id} className="text-sm p-2.5 rounded-md border bg-card hover:bg-muted/50 transition-colors">
-                                        <div className="flex justify-between items-start mb-1">
+                                    <li key={envelope.id} className="text-sm p-2.5 rounded-md border bg-card hover:bg-muted/50 transition-colors group relative">
+                                        {/* Edit Button - positioned top right */}
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="absolute top-1 right-1 h-6 w-6 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity focus:opacity-100"
+                                            onClick={() => handleEditClick(envelope)}
+                                            aria-label={`Edit ${envelope.name}`}
+                                        >
+                                            <Pencil className="h-4 w-4" />
+                                        </Button>
+
+                                        <div className="flex justify-between items-start mb-1 pr-8"> {/* Added padding-right */}
                                           <div className="flex-1 min-w-0">
                                             <span className="font-medium truncate block" title={envelope.name}>{envelope.name}</span>
                                             {dueDateString && (
@@ -110,6 +139,27 @@ export default function EnvelopeSummaryList() {
                 </AccordionItem>
             ))}
         </Accordion>
-    </ScrollArea>
+      </ScrollArea>
+
+      {/* Edit Envelope Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Edit Envelope</DialogTitle>
+            <DialogDescription>
+              Modify the details for the envelope "{editingEnvelope?.name}".
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            {editingEnvelope && (
+              <EditEnvelopeForm
+                envelope={editingEnvelope}
+                onSuccess={() => setIsEditDialogOpen(false)}
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

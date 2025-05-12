@@ -19,6 +19,7 @@ interface AppContextType {
   addTransaction: (transactionData: TransactionFormData) => void;
   addPayee: (payeeData: PayeeFormData) => void;
   addCategory: (categoryName: string) => void; // Added addCategory function
+  updateEnvelope: (envelopeData: Partial<Envelope> & { id: string }) => void; // Added updateEnvelope function
   deleteTransaction: (transactionId: string) => void; // Example delete
   getAccountBalance: (accountId: string) => number;
   getAccountById: (accountId: string) => Account | undefined; // Added function definition
@@ -151,6 +152,15 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setEnvelopes(prev => [...prev, newEnvelope]);
   };
 
+  const updateEnvelope = (envelopeData: Partial<Envelope> & { id: string }) => {
+    setEnvelopes(prevEnvelopes =>
+      prevEnvelopes.map(env =>
+        env.id === envelopeData.id ? { ...env, ...envelopeData } : env
+      )
+    );
+  };
+
+
   const addTransaction = (transactionData: TransactionFormData) => {
      // Basic check for payeeId, although schema validation should handle this
     if (!transactionData.payeeId) {
@@ -203,7 +213,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
     return transactions.reduce((balance, tx) => {
       if (tx.accountId === accountId) {
-        return tx.type === 'income' ? balance + tx.amount : balance - tx.amount;
+        // Ensure amount is positive regardless of transaction type for calculation
+        const absoluteAmount = Math.abs(tx.amount);
+        return tx.type === 'income' ? balance + absoluteAmount : balance - absoluteAmount;
       }
       return balance;
     }, account.initialBalance);
@@ -249,6 +261,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       addTransaction,
       addPayee,
       addCategory, // Expose addCategory
+      updateEnvelope, // Expose updateEnvelope
       deleteTransaction,
       getAccountBalance,
       getAccountById, // Expose getAccountById
@@ -268,3 +281,4 @@ export const useAppContext = () => {
   }
   return context;
 };
+
