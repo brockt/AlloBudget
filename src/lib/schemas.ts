@@ -46,38 +46,37 @@ export const envelopeSchema = z.object({
 
 export const transactionSchema = z.object({
   accountId: z.string().min(1, "Account is required."),
-  // Ensure envelopeId is treated as optional, allowing null or undefined.
-  // Transform empty strings from the select (if they occur) to null.
   envelopeId: z.string().optional().nullable().transform(val => val === "" ? null : val),
-  // Make payeeId mandatory
-  payeeId: z.string().min(1, "Payee is required."), // Removed optional() and nullable(), added min(1)
+  payeeId: z.string().min(1, "Payee is required."),
   amount: z.preprocess(
     (val) => Number(String(val)),
     z.number().positive("Amount must be positive.")
   ),
   type: z.enum(['income', 'expense'], { required_error: "Transaction type is required." }),
-  description: z.string().max(200, "Description too long.").optional(), // Description remains optional
-  // Validate that the date string is in 'yyyy-MM-dd' format and represents a valid date
+  description: z.string().max(200, "Description too long.").optional(),
   date: z.string().refine((dateString) => {
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(dateString)) return false; // Check basic format
-      const date = parseISO(dateString); // Use parseISO which is stricter for yyyy-MM-dd
-      return isValid(date); // Check if it's a valid date object
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(dateString)) return false;
+      const date = parseISO(dateString);
+      return isValid(date);
     }, {
       message: "Invalid date format. Please use YYYY-MM-DD.",
   }),
-  // Add createdAt for completeness if needed elsewhere, though not in form
-  // createdAt: z.string().optional(), // Typically set server-side or in context
+}).superRefine((data, ctx) => {
+  if (data.type === 'expense' && (!data.envelopeId || data.envelopeId.trim() === "")) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Envelope is required for expense transactions.",
+      path: ['envelopeId'],
+    });
+  }
+  // For income transactions, envelopeId should not be set.
+  // The form logic already clears envelopeId when type is 'income'.
+  // If an envelopeId is somehow passed for an income transaction, it will be ignored by app logic.
 });
 
 
 export const payeeSchema = z.object({
   name: z.string().min(1, "Payee name is required.").max(100, "Name too long."),
   category: z.string().max(100, "Category too long.").optional(),
-  // Add createdAt for completeness if needed elsewhere, though not in form
-  // createdAt: z.string().optional(), // Typically set server-side or in context
 });
-
-// Ensure envelopeId is present if type is expense and an envelope is selected (or make it more complex)
-// For now, basic schema. If type is expense, envelopeId is highly recommended.
-
 

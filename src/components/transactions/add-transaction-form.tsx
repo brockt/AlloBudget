@@ -67,12 +67,11 @@ export function AddTransactionForm({ defaultAccountId, onSuccess, navigateToTran
     // Ensure the date string is valid before passing to context
     const transactionDataWithParsedDate: TransactionFormData = {
         ...values,
-        // Description will be "" if empty, or undefined if field was absent (not typical for controlled form)
-        // Zod schema .optional() handles this.
-        description: values.description || undefined, // Ensure undefined if empty string for clarity, though schema handles ""
-        // Pass payeeId (will be string, as it's required)
+        description: values.description || undefined, 
         payeeId: values.payeeId,
-        date: values.date // Already validated by Zod schema to be a parseable date string
+        // If type is income, ensure envelopeId is null/undefined, otherwise use value from form
+        envelopeId: values.type === 'income' ? null : values.envelopeId, 
+        date: values.date 
     }
     addTransaction(transactionDataWithParsedDate);
     toast({
@@ -80,13 +79,13 @@ export function AddTransactionForm({ defaultAccountId, onSuccess, navigateToTran
       description: `Transaction for $${values.amount} has been successfully added.`,
     });
     form.reset({
-        accountId: form.getValues('accountId'), // Keep account if selected
+        accountId: form.getValues('accountId'), 
         amount: 0,
-        description: "", // Reset description to empty string
-        type: form.getValues('type'), // Keep type
-        envelopeId: form.getValues('type') === 'income' ? null : form.getValues('envelopeId'), // Reset envelope only if type was income, default to null
-        payeeId: "", // Reset payee to empty string
-        date: format(new Date(), "yyyy-MM-dd") // Reset date to today
+        description: "", 
+        type: form.getValues('type'), 
+        envelopeId: form.getValues('type') === 'income' ? null : (envelopes.length > 0 && form.getValues('type') === 'expense' ? form.getValues('envelopeId') : null), // Reset or keep envelope based on type and availability
+        payeeId: "", 
+        date: format(new Date(), "yyyy-MM-dd")
     });
     if (onSuccess) onSuccess();
     if (navigateToTransactions) router.push("/dashboard/transactions");
@@ -106,8 +105,10 @@ export function AddTransactionForm({ defaultAccountId, onSuccess, navigateToTran
                   onValueChange={(value) => {
                     field.onChange(value as TransactionType);
                     if (value === 'income') {
-                      form.setValue('envelopeId', null); // Clear envelope for income, set to null
-                     // Keep payeeId as it is now mandatory for both types
+                      form.setValue('envelopeId', null); 
+                    } else {
+                        // If switching to expense and no envelope is selected, or no envelopes exist,
+                        // RHF will use the default (null) or current value. Zod validation will catch it.
                     }
                   }}
                   defaultValue={field.value}
@@ -165,9 +166,9 @@ export function AddTransactionForm({ defaultAccountId, onSuccess, navigateToTran
             <FormItem>
               <FormLabel>Payee</FormLabel>
               <Select
-                onValueChange={field.onChange} // Zod handles validation for empty string
-                value={field.value ?? ""} // Use controlled value
-                required // Mark as required for clarity, though Zod handles validation
+                onValueChange={field.onChange} 
+                value={field.value ?? ""} 
+                required 
               >
                 <FormControl>
                   <SelectTrigger>
@@ -194,27 +195,27 @@ export function AddTransactionForm({ defaultAccountId, onSuccess, navigateToTran
             name="envelopeId"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Envelope (Optional)</FormLabel>
-                 {/* Use field.value directly which will be string | null | undefined */}
-                 {/* Pass undefined or null to Select onValueChange if no envelope is selected */}
+                <FormLabel>Envelope</FormLabel>
                 <Select
-                  onValueChange={(value) => field.onChange(value || null)} // Ensure empty string selection results in null
-                  value={field.value ?? ""} // Pass "" only if value is null/undefined for Select state
+                  onValueChange={(value) => field.onChange(value || null)} 
+                  value={field.value ?? ""} 
+                  required // Mark as required for expense
                 >
                   <FormControl>
                     <SelectTrigger>
-                       {/* Placeholder is shown when value is null/undefined */}
-                      <SelectValue placeholder="Select an envelope (or none)" />
+                      <SelectValue placeholder="Select an envelope" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                     {/* Placeholder handles the "None" state */}
-                     {envelopes.length === 0 && <SelectItem value="no-envelopes-placeholder" disabled>No envelopes available</SelectItem>}
-                    {envelopes.map(envelope => (
-                      <SelectItem key={envelope.id} value={envelope.id}>
-                        {envelope.name}
-                      </SelectItem>
-                    ))}
+                     {envelopes.length === 0 ? (
+                        <div className="px-2 py-1.5 text-sm text-muted-foreground text-center">No envelopes available.</div>
+                     ) : (
+                        envelopes.map(envelope => (
+                          <SelectItem key={envelope.id} value={envelope.id}>
+                            {envelope.name}
+                          </SelectItem>
+                        ))
+                     )}
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -246,7 +247,7 @@ export function AddTransactionForm({ defaultAccountId, onSuccess, navigateToTran
               <FormControl>
                 <Input placeholder="e.g., Groceries, Salary" {...field} value={field.value ?? ""} />
               </FormControl>
-              <FormMessage /> {/* Will show zod error if .max(200) is violated */}
+              <FormMessage /> 
             </FormItem>
           )}
         />
@@ -268,7 +269,6 @@ export function AddTransactionForm({ defaultAccountId, onSuccess, navigateToTran
                       )}
                     >
                       {field.value ? (
-                        // Use parseISO before formatting to handle potential string input
                         format(parseISO(field.value), "PPP")
                       ) : (
                         <span>Pick a date</span>
@@ -280,7 +280,6 @@ export function AddTransactionForm({ defaultAccountId, onSuccess, navigateToTran
                 <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="single"
-                    // Handle selected potentially being invalid on initial load if default value isn't correct format
                     selected={field.value ? parseISO(field.value) : undefined}
                     onSelect={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")}
                     initialFocus
@@ -292,7 +291,15 @@ export function AddTransactionForm({ defaultAccountId, onSuccess, navigateToTran
           )}
         />
 
-        <Button type="submit" className="w-full sm:w-auto" disabled={payees.length === 0 || accounts.length === 0}> {/* Disable if no payees or accounts */}
+        <Button 
+          type="submit" 
+          className="w-full sm:w-auto" 
+          disabled={
+            payees.length === 0 || 
+            accounts.length === 0 ||
+            (form.getValues('type') === 'expense' && envelopes.length === 0)
+          }
+        >
           <PlusCircle className="mr-2 h-4 w-4" /> Add Transaction
         </Button>
       </form>
