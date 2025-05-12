@@ -3,12 +3,11 @@
 
 import { useState } from "react";
 import { useAppContext } from "@/context/AppContext";
-import { Progress } from "@/components/ui/progress";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { format, startOfMonth, endOfMonth } from "date-fns";
+import { startOfMonth, endOfMonth } from "date-fns";
 import type { Envelope } from "@/types";
-import { CalendarClock, Pencil } from 'lucide-react';
+import { Pencil, GripVertical } from 'lucide-react'; // Added GripVertical for drag handle
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -16,26 +15,37 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
-  DialogTrigger,
 } from "@/components/ui/dialog";
-import { EditEnvelopeForm } from "./edit-envelope-form"; // Import the new edit form
-import Link from "next/link"; // Import Link for navigation
-
-// Function to get the ordinal suffix for a day number
-function getDaySuffix(day: number): string {
-  if (day > 3 && day < 21) return 'th';
-  switch (day % 10) {
-    case 1: return 'st';
-    case 2: return 'nd';
-    case 3: return 'rd';
-    default: return 'th';
-  }
-}
+import { EditEnvelopeForm } from "./edit-envelope-form";
+import Link from "next/link";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { SortableEnvelopeItem } from './sortable-envelope-item'; // Import the new sortable item component
 
 export default function EnvelopeSummaryList() {
-  const { envelopes, getEnvelopeSpending, getEnvelopeBalanceWithRollover } = useAppContext(); // Use both functions
+  const { envelopes, updateEnvelopeOrder, getEnvelopeSpending, getEnvelopeBalanceWithRollover } = useAppContext();
   const [editingEnvelope, setEditingEnvelope] = useState<Envelope | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   if (envelopes.length === 0) {
     return (
@@ -46,9 +56,7 @@ export default function EnvelopeSummaryList() {
     );
   }
 
-  const currentMonthPeriod = { start: startOfMonth(new Date()), end: endOfMonth(new Date()) };
-
-  // Group envelopes by category
+  // Group envelopes by category (order within category depends on the main envelopes array order)
   const groupedEnvelopes = envelopes.reduce((acc, envelope) => {
     const category = envelope.category || "Uncategorized";
     if (!acc[category]) {
@@ -58,107 +66,80 @@ export default function EnvelopeSummaryList() {
     return acc;
   }, {} as Record<string, Envelope[]>);
 
-  // Sort envelopes within each category by dueDate (ascending, undefined last)
-  Object.keys(groupedEnvelopes).forEach(category => {
-    groupedEnvelopes[category].sort((a, b) => {
-      const dueDateA = a.dueDate ?? Infinity; // Treat undefined as very large
-      const dueDateB = b.dueDate ?? Infinity;
-      if (dueDateA !== dueDateB) {
-        return dueDateA - dueDateB;
-      }
-      // Secondary sort by name if due dates are the same or both undefined
-      return a.name.localeCompare(b.name);
-    });
-  });
 
-  // Determine default open categories (e.g., the first one)
+  // Sort categories alphabetically, placing "Uncategorized" last
   const categories = Object.keys(groupedEnvelopes).sort((a, b) => {
-    if (a === "Uncategorized") return 1; // Put Uncategorized last
+    if (a === "Uncategorized") return 1;
     if (b === "Uncategorized") return -1;
-    return a.localeCompare(b); // Sort other categories alphabetically
+    return a.localeCompare(b);
   });
   const defaultOpenCategory = categories.length > 0 ? [categories[0]] : [];
 
   const handleEditClick = (event: React.MouseEvent, envelope: Envelope) => {
-    event.stopPropagation(); // Prevent link navigation when clicking edit
-    event.preventDefault(); // Prevent link navigation when clicking edit
+    event.stopPropagation();
+    event.preventDefault();
     setEditingEnvelope(envelope);
     setIsEditDialogOpen(true);
   };
 
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const originalEnvelopes = [...envelopes]; // Get a copy of the current envelopes array
+
+      const oldIndex = originalEnvelopes.findIndex(env => env.id === active.id);
+      const newIndex = originalEnvelopes.findIndex(env => env.id === over.id);
+
+      if (oldIndex !== -1 && newIndex !== -1) {
+        const reorderedEnvelopes = arrayMove(originalEnvelopes, oldIndex, newIndex);
+        // Call the context function to update the state and persist
+        updateEnvelopeOrder(reorderedEnvelopes);
+      } else {
+        console.error("Could not find dragged items in the original array during drag end");
+      }
+    }
+  }
+
+
   return (
-    <> {/* Use a fragment to wrap multiple top-level elements */}
-     <ScrollArea className="h-auto max-h-[600px]"> {/* Adjust max height if needed */}
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragEnd={handleDragEnd}
+    >
+      <ScrollArea className="h-auto max-h-[600px]">
         <Accordion type="multiple" defaultValue={defaultOpenCategory} className="w-full">
-            {categories.map(category => (
-                <AccordionItem value={category} key={category}>
-                    <AccordionTrigger className="text-lg font-semibold px-1 hover:no-underline">
-                        {category} ({groupedEnvelopes[category].length})
-                    </AccordionTrigger>
-                    <AccordionContent>
-                        <ul className="space-y-3 pl-1 pr-2">
-                            {groupedEnvelopes[category].map(envelope => {
-                                const spentThisMonth = getEnvelopeSpending(envelope.id, currentMonthPeriod);
-                                // Calculate progress based on this month's spending vs budget
-                                const progress = envelope.budgetAmount > 0 ? (spentThisMonth / envelope.budgetAmount) * 100 : 0;
-                                // Get the total available balance including rollover
-                                const availableBalance = getEnvelopeBalanceWithRollover(envelope.id);
-                                const dueDateString = envelope.dueDate ? `${envelope.dueDate}${getDaySuffix(envelope.dueDate)}` : '';
-                                // Check if estimatedAmount exists and is a valid number (not null/undefined/NaN)
-                                const hasEstimatedAmount = typeof envelope.estimatedAmount === 'number' && !isNaN(envelope.estimatedAmount);
+          {categories.map(category => {
+            const categoryEnvelopes = groupedEnvelopes[category];
+            const envelopeIds = categoryEnvelopes.map(env => env.id); // Get IDs for SortableContext
 
-                                return (
-                                    // Wrap the list item content with Link
-                                     <li key={envelope.id} className="group relative">
-                                        <Link href={`/dashboard/envelopes/${envelope.id}/transactions`} passHref className="block p-2.5 rounded-md border bg-card hover:bg-muted/50 transition-colors cursor-pointer">
-                                            {/* Edit Button - positioned top right */}
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="absolute top-1 right-1 h-6 w-6 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity focus:opacity-100 z-10" // Ensure button is above link
-                                                onClick={(e) => handleEditClick(e, envelope)}
-                                                aria-label={`Edit ${envelope.name}`}
-                                            >
-                                                <Pencil className="h-4 w-4" />
-                                            </Button>
-
-                                            <div className="flex justify-between items-start mb-1 pr-8"> {/* Added padding-right */}
-                                              <div className="flex-1 min-w-0">
-                                                <div className="flex items-baseline"> {/* Use baseline alignment */}
-                                                    <span className="font-medium truncate block text-sm" title={envelope.name}>{envelope.name}</span>
-                                                    {/* Display estimated amount directly if it exists */}
-                                                    {hasEstimatedAmount && (
-                                                       <span className="ml-1.5 text-xs text-muted-foreground">
-                                                          (Est: ${envelope.estimatedAmount?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
-                                                       </span>
-                                                    )}
-                                                </div>
-                                                {dueDateString && (
-                                                  <span className="text-xs text-muted-foreground flex items-center mt-0.5">
-                                                    <CalendarClock className="mr-1 h-3 w-3" /> Due: {dueDateString}
-                                                  </span>
-                                                )}
-                                              </div>
-                                              {/* Display the available balance including rollover */}
-                                              <span className={`font-semibold text-sm ${availableBalance < 0 ? 'text-destructive' : 'text-green-600 dark:text-green-500'}`}>
-                                                  ${availableBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                              </span>
-                                            </div>
-                                            {/* Progress bar still reflects this month's spending */}
-                                            <Progress value={Math.min(progress, 100)} className="h-2" />
-                                            <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                                            {/* Show spending for the current month */}
-                                            <span>Spent (Month): ${spentThisMonth.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                                            <span>Budget (Month): ${envelope.budgetAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                                            </div>
-                                        </Link>
-                                    </li>
-                                );
-                            })}
-                        </ul>
-                    </AccordionContent>
-                </AccordionItem>
-            ))}
+            return (
+              <AccordionItem value={category} key={category}>
+                <AccordionTrigger className="text-lg font-semibold px-1 hover:no-underline">
+                  {category} ({categoryEnvelopes.length})
+                </AccordionTrigger>
+                <AccordionContent>
+                  {/* SortableContext wraps the list for drag-and-drop */}
+                  <SortableContext
+                    items={envelopeIds}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    <ul className="space-y-3 pl-1 pr-2">
+                      {categoryEnvelopes.map(envelope => (
+                        <SortableEnvelopeItem
+                          key={envelope.id}
+                          id={envelope.id}
+                          envelope={envelope}
+                          onEditClick={(e) => handleEditClick(e, envelope)}
+                        />
+                      ))}
+                    </ul>
+                  </SortableContext>
+                </AccordionContent>
+              </AccordionItem>
+            );
+          })}
         </Accordion>
       </ScrollArea>
 
@@ -181,6 +162,7 @@ export default function EnvelopeSummaryList() {
           </div>
         </DialogContent>
       </Dialog>
-    </> // Close the fragment
+    </DndContext>
   );
 }
+

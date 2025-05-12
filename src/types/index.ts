@@ -92,3 +92,35 @@ export interface TransferAccountFundsFormData {
     description?: string;
 }
 
+export interface AppContextType {
+  accounts: Account[];
+  envelopes: Envelope[];
+  transactions: Transaction[];
+  payees: Payee[];
+  categories: string[]; // Added categories state
+  addAccount: (accountData: AccountFormData) => void;
+  updateAccount: (accountData: AccountWithId) => void; // Added updateAccount function
+  addEnvelope: (envelopeData: EnvelopeFormData) => void;
+  addTransaction: (transactionData: TransactionFormData) => void;
+  addPayee: (payeeData: PayeeFormData) => void;
+  addCategory: (categoryName: string) => void; // Added addCategory function
+  updateEnvelope: (envelopeData: Partial<Envelope> & { id: string }) => void; // Added updateEnvelope function
+  updateEnvelopeOrder: (reorderedEnvelopes: Envelope[]) => void; // Added updateEnvelopeOrder function
+  deleteTransaction: (transactionId: string) => void; // Example delete
+  transferBetweenEnvelopes: (data: TransferEnvelopeFundsFormData) => void; // New function
+  transferBetweenAccounts: (data: TransferAccountFundsFormData) => void; // Function to transfer between accounts
+  getAccountBalance: (accountId: string) => number;
+  getAccountById: (accountId: string) => Account | undefined; // Added function definition
+  getEnvelopeById: (envelopeId: string) => Envelope | undefined; // Added function definition
+  getEnvelopeSpending: (envelopeId: string, period?: { start: Date, end: Date }) => number;
+  getEnvelopeBalanceWithRollover: (envelopeId: string) => number; // Function for balance including rollover
+  getPayeeTransactions: (payeeId: string) => Transaction[]; // Added function to get payee transactions
+  // New calculation functions
+  getMonthlyIncomeTotal: () => number;
+  getMonthlySpendingTotal: () => number;
+  getTotalMonthlyBudgeted: () => number;
+  getYtdIncomeTotal: () => number;
+  isLoading: boolean;
+}
+
+
