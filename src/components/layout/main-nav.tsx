@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect } from "react"; // Import useEffect
+import { useEffect } from "react";
 import {
   LayoutDashboard,
   Landmark,
@@ -31,15 +31,13 @@ export const navItems = [
 
 export function MainNav() {
   const pathname = usePathname();
-  // Get openMobile state as well for the useEffect dependency
-  const { setOpenMobile, isMobile, openMobile } = useSidebar(); 
+  const { setOpenMobile, isMobile, openMobile, setOpen } = useSidebar(); 
 
   // Close mobile sidebar on route change if it was open
   useEffect(() => {
     if (isMobile && openMobile) {
       setOpenMobile(false);
     }
-    // Add all relevant dependencies for the effect
   }, [pathname, isMobile, openMobile, setOpenMobile]);
 
   return (
@@ -52,11 +50,14 @@ export function MainNav() {
             tooltip={{ children: item.label, side: "right", align: "center" }}
             className="justify-start"
             onClick={() => { 
-              // Attempt to close immediately on click for better responsiveness
+              // Only handle mobile sidebar closing here
               if (isMobile) {
                 setOpenMobile(false); 
               }
-              // Link component will handle navigation
+              // Desktop sidebar toggle is handled by SidebarRail or keyboard shortcut.
+              // If the menu should also close on desktop after navigation, add:
+              // else { setOpen(false); } 
+              // However, typically desktop sidebars stay open or are manually toggled.
             }}
           >
             <Link href={item.href}>
