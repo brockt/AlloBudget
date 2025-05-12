@@ -1,4 +1,5 @@
 
+
 import { z } from 'zod';
 
 // Define standard account types
@@ -29,6 +30,7 @@ export const envelopeSchema = z.object({
     (val) => Number(String(val)), // Convert to number
     z.number().min(0, "Budget amount must be non-negative.") // Allow 0 budget
   ),
+  category: z.string().max(100, "Category too long.").optional(), // Optional category field
 });
 
 export const transactionSchema = z.object({
@@ -54,3 +56,5 @@ export const payeeSchema = z.object({
 // For now, basic schema. If type is expense, envelopeId is highly recommended.
 
 
+
+```

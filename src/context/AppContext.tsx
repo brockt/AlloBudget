@@ -79,8 +79,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const addEnvelope = (envelopeData: EnvelopeFormData) => {
     const newEnvelope: Envelope = {
-      ...envelopeData,
       id: crypto.randomUUID(),
+      name: envelopeData.name,
+      budgetAmount: envelopeData.budgetAmount,
+      ...(envelopeData.category && { category: envelopeData.category }), // Conditionally add category
       createdAt: formatISO(new Date()),
     };
     setEnvelopes(prev => [...prev, newEnvelope]);
@@ -110,7 +112,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const deleteTransaction = (transactionId: string) => {
     setTransactions(prev => prev.filter(t => t.id !== transactionId));
   };
-  
+
   const getAccountBalance = useCallback((accountId: string): number => {
     const account = accounts.find(acc => acc.id === accountId);
     if (!account) return 0;
@@ -125,10 +127,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const getEnvelopeSpending = useCallback((envelopeId: string, period?: { start: Date, end: Date }): number => {
     const targetPeriod = period || { start: startOfMonth(new Date()), end: endOfMonth(new Date()) };
-    
+
     return transactions
-      .filter(tx => 
-        tx.envelopeId === envelopeId && 
+      .filter(tx =>
+        tx.envelopeId === envelopeId &&
         tx.type === 'expense' &&
         isWithinInterval(new Date(tx.date), targetPeriod)
       )
@@ -137,13 +139,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
 
   return (
-    <AppContext.Provider value={{ 
-      accounts, 
-      envelopes, 
-      transactions, 
+    <AppContext.Provider value={{
+      accounts,
+      envelopes,
+      transactions,
       payees, // Expose payees
-      addAccount, 
-      addEnvelope, 
+      addAccount,
+      addEnvelope,
       addTransaction,
       addPayee, // Expose addPayee
       deleteTransaction,
@@ -164,3 +166,4 @@ export const useAppContext = () => {
   return context;
 };
 
+```

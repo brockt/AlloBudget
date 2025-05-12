@@ -1,4 +1,5 @@
 
+
 export interface Account {
   id: string;
   name: string;
@@ -12,6 +13,7 @@ export interface Envelope {
   id: string;
   name: string;
   budgetAmount: number; // Typically monthly budget
+  category?: string; // Optional category
   createdAt: string;
 }
 
@@ -45,6 +47,7 @@ export interface AccountFormData {
 export interface EnvelopeFormData {
   name: string;
   budgetAmount: number;
+  category?: string; // Optional category
 }
 
 export interface TransactionFormData {
@@ -60,3 +63,5 @@ export interface PayeeFormData {
   name: string;
   category?: string;
 }
+
+```

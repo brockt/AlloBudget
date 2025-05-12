@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useForm } from "react-hook-form";
@@ -33,11 +34,17 @@ export function AddEnvelopeForm({ onSuccess }: AddEnvelopeFormProps) {
     defaultValues: {
       name: "",
       budgetAmount: 0,
+      category: "", // Default empty category
     },
   });
 
   function onSubmit(values: z.infer<typeof envelopeSchema>) {
-    addEnvelope(values as EnvelopeFormData);
+    const dataToAdd: EnvelopeFormData = {
+      name: values.name,
+      budgetAmount: values.budgetAmount,
+      ...(values.category && { category: values.category }), // Only include category if provided
+    };
+    addEnvelope(dataToAdd);
     toast({
       title: "Envelope Added",
       description: `Envelope "${values.name}" has been successfully added.`,
@@ -75,6 +82,19 @@ export function AddEnvelopeForm({ onSuccess }: AddEnvelopeFormProps) {
             </FormItem>
           )}
         />
+        <FormField
+          control={form.control}
+          name="category"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Category (Optional)</FormLabel>
+              <FormControl>
+                <Input placeholder="e.g., Housing, Food, Fun Money" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
         <Button type="submit" className="w-full sm:w-auto">
           <PlusCircle className="mr-2 h-4 w-4" /> Add Envelope
         </Button>
@@ -82,3 +102,5 @@ export function AddEnvelopeForm({ onSuccess }: AddEnvelopeFormProps) {
     </Form>
   );
 }
+
+```

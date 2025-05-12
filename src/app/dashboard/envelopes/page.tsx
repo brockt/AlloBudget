@@ -4,7 +4,7 @@
 import { useState } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Package } from "lucide-react"; // Using Package as a placeholder for envelope icon
+import { PlusCircle, Package } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -14,7 +14,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { AddEnvelopeForm } from "@/components/envelopes/add-envelope-form";
-import EnvelopeSummaryList from "@/components/envelopes/envelope-summary-list"; // Reuse summary list for now
+import EnvelopeSummaryList from "@/components/envelopes/envelope-summary-list";
 import { useAppContext } from "@/context/AppContext";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -49,7 +49,7 @@ export default function EnvelopesPage() {
     <div className="space-y-6">
       <PageHeader
         title="Envelopes"
-        description="Manage your budget categories (envelopes)."
+        description="Manage your budget categories (envelopes), grouped by category."
         actions={
           <Dialog open={isAddEnvelopeDialogOpen} onOpenChange={setIsAddEnvelopeDialogOpen}>
             <DialogTrigger asChild>
@@ -61,7 +61,7 @@ export default function EnvelopesPage() {
               <DialogHeader>
                 <DialogTitle>Add New Envelope</DialogTitle>
                 <DialogDescription>
-                  Define a new category for your budget.
+                  Define a new category for your budget and assign it to a category.
                 </DialogDescription>
               </DialogHeader>
               <div className="py-4">
@@ -72,14 +72,11 @@ export default function EnvelopesPage() {
         }
       />
 
+      {/* Use Card for consistency, but remove internal header/description as grouping handles it */}
       <Card className="shadow-lg">
-        <CardHeader>
-          <CardTitle>All Envelopes</CardTitle>
-          <CardDescription>View and manage your budget envelopes.</CardDescription>
-        </CardHeader>
-        <CardContent>
+        <CardContent className="pt-4"> {/* Add some padding */}
           {envelopes.length > 0 ? (
-            <EnvelopeSummaryList /> // Reuse the summary list component for now
+            <EnvelopeSummaryList /> // Use the updated list component
           ) : (
             <div className="flex flex-col items-center justify-center h-48 text-center border-2 border-dashed rounded-lg p-4">
               <Package className="h-12 w-12 text-muted-foreground mb-3" />
@@ -92,3 +89,5 @@ export default function EnvelopesPage() {
     </div>
   );
 }
+
+```
