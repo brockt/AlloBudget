@@ -2,17 +2,10 @@
 "use client";
 
 import Link from "next/link";
-import { Coins, Settings } from "lucide-react"; // Added Settings icon
+import { Coins } from "lucide-react"; // Removed Settings icon import
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+// Removed DropdownMenu related imports
 import { Button } from "@/components/ui/button";
 
 export function AppHeader() {
@@ -30,41 +23,7 @@ export function AppHeader() {
         </div>
 
         <div className="flex items-center space-x-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <Settings className="h-5 w-5" />
-                <span className="sr-only">Settings</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Manage</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <Link href="/dashboard/accounts" passHref legacyBehavior>
-                <DropdownMenuItem asChild>
-                  <a>Accounts</a>
-                </DropdownMenuItem>
-              </Link>
-               {/* Assuming an envelopes page will exist */}
-              <Link href="/dashboard/envelopes" passHref legacyBehavior>
-                 <DropdownMenuItem asChild>
-                   <a>Envelopes</a>
-                </DropdownMenuItem>
-              </Link>
-              <Link href="/dashboard/transactions" passHref legacyBehavior>
-                 <DropdownMenuItem asChild>
-                   <a>Transactions</a>
-                </DropdownMenuItem>
-              </Link>
-              {/* Assuming a payees page will exist */}
-              <Link href="/dashboard/payees" passHref legacyBehavior>
-                 <DropdownMenuItem asChild disabled>
-                   <a>Payees (Coming Soon)</a>
-                 </DropdownMenuItem>
-              </Link>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
+          {/* Removed Settings DropdownMenu */}
           <ThemeToggle />
           {/* User profile/actions could go here */}
         </div>
