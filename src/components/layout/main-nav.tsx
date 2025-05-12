@@ -8,7 +8,7 @@ import {
   Landmark,
   ArrowRightLeft,
   BarChart3,
-  Settings,
+  Users, // Added Users icon for Payees
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -16,18 +16,27 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
-} from "@/components/ui/sidebar"; // Use existing sidebar components
+  useSidebar, // Import the useSidebar hook
+} from "@/components/ui/sidebar";
 
 export const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/dashboard/accounts", label: "Accounts", icon: Landmark },
+  { href: "/dashboard/envelopes", label: "Envelopes", icon: Landmark }, // Added Envelopes link
   { href: "/dashboard/transactions", label: "Transactions", icon: ArrowRightLeft },
+  { href: "/dashboard/payees", label: "Payees", icon: Users }, // Added Payees link
   { href: "/dashboard/reports", label: "Reports", icon: BarChart3 },
-  // { href: "/dashboard/settings", label: "Settings", icon: Settings }, // Example for future
 ];
 
 export function MainNav() {
   const pathname = usePathname();
+  const { setOpenMobile, isMobile } = useSidebar(); // Get mobile state and setter
+
+  const handleLinkClick = () => {
+    if (isMobile) {
+      setOpenMobile(false); // Close mobile sidebar on link click
+    }
+  };
 
   return (
     <SidebarMenu>
@@ -39,6 +48,7 @@ export function MainNav() {
               isActive={pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href))}
               tooltip={{ children: item.label, side: "right", align: "center" }}
               className="justify-start"
+              onClick={handleLinkClick} // Add onClick handler here
             >
               <a>
                 <item.icon className="h-5 w-5" />
@@ -53,3 +63,4 @@ export function MainNav() {
     </SidebarMenu>
   );
 }
+
