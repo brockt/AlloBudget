@@ -35,7 +35,7 @@ export function MainNav() {
 
   const handleLinkClick = () => {
     // Check if it's mobile and the function exists before calling
-    if (isMobile && typeof setOpenMobile === 'function') {
+    if (isMobile) {
       setOpenMobile(false); // Close mobile sidebar on link click
     }
   };
@@ -46,9 +46,8 @@ export function MainNav() {
         <SidebarMenuItem key={item.href}>
           {/* Apply onClick directly to Link component */}
           <Link href={item.href}
-                legacyBehavior
                 passHref
-                onClick={handleLinkClick}
+                onClick={handleLinkClick} // Add onClick here
           >
             <SidebarMenuButton
               asChild
@@ -57,7 +56,8 @@ export function MainNav() {
               className="justify-start"
               // onClick handler removed from here, handled by Link now
             >
-              <a>
+              {/* The underlying anchor tag receives the click from the Link */}
+               <a>
                 <item.icon className="h-5 w-5" />
                 <span className="group-data-[collapsible=icon]:hidden">
                   {item.label}
