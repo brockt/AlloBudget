@@ -1,11 +1,17 @@
+
 "use client";
 
 import { useAppContext } from "@/context/AppContext";
 import { AccountCard } from "./account-card";
 import { Landmark } from "lucide-react";
 import Image from "next/image";
+import type { Account } from "@/types"; // Import Account type
 
-export function AccountList() {
+interface AccountListProps {
+  onEditAccount: (account: Account) => void; // Callback to handle editing an account
+}
+
+export function AccountList({ onEditAccount }: AccountListProps) {
   const { accounts } = useAppContext();
 
   if (accounts.length === 0) {
@@ -29,7 +35,7 @@ export function AccountList() {
   return (
     <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
       {accounts.map((account) => (
-        <AccountCard key={account.id} account={account} />
+        <AccountCard key={account.id} account={account} onEdit={() => onEditAccount(account)} />
       ))}
     </div>
   );

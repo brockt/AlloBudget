@@ -46,6 +46,10 @@ export interface AccountFormData {
   type?: string;
 }
 
+// For updating an account, ensure ID is present
+export type AccountWithId = Partial<AccountFormData> & { id: string };
+
+
 export interface EnvelopeFormData {
   name: string;
   budgetAmount: number;
@@ -78,3 +82,4 @@ export interface TransferEnvelopeFundsFormData {
   date: string; // ISO string date
   description?: string;
 }
+

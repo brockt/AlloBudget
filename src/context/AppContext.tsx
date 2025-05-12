@@ -3,7 +3,7 @@
 
 import type { ReactNode } from 'react';
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import type { Account, Envelope, Transaction, Payee, AccountFormData, EnvelopeFormData, TransactionFormData, PayeeFormData, TransferEnvelopeFundsFormData } from '@/types';
+import type { Account, Envelope, Transaction, Payee, AccountFormData, EnvelopeFormData, TransactionFormData, PayeeFormData, TransferEnvelopeFundsFormData, AccountWithId } from '@/types';
 // Use parseISO and isValid for robust date handling
 // Import differenceInCalendarMonths for rollover calculation
 import { formatISO, startOfMonth, endOfMonth, isWithinInterval, parseISO, isValid, differenceInCalendarMonths, startOfDay } from 'date-fns';
@@ -15,6 +15,7 @@ interface AppContextType {
   payees: Payee[];
   categories: string[]; // Added categories state
   addAccount: (accountData: AccountFormData) => void;
+  updateAccount: (accountData: AccountWithId) => void; // Added updateAccount function
   addEnvelope: (envelopeData: EnvelopeFormData) => void;
   addTransaction: (transactionData: TransactionFormData) => void;
   addPayee: (payeeData: PayeeFormData) => void;
@@ -154,6 +155,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       createdAt: formatISO(new Date()),
     };
     setAccounts(prev => [...prev, newAccount]);
+  };
+
+  const updateAccount = (accountData: AccountWithId) => {
+    setAccounts(prevAccounts =>
+      prevAccounts.map(acc =>
+        acc.id === accountData.id ? { ...acc, ...accountData } : acc
+      )
+    );
   };
 
   const addEnvelope = (envelopeData: EnvelopeFormData) => {
@@ -428,6 +437,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       payees,
       categories,
       addAccount,
+      updateAccount,
       addEnvelope,
       addTransaction,
       addPayee,
