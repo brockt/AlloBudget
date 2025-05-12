@@ -31,14 +31,9 @@ export const navItems = [
 
 export function MainNav() {
   const pathname = usePathname();
-  const { setOpenMobile, isMobile } = useSidebar();
+  const { setOpenMobile, isMobile } = useSidebar(); // Use useSidebar hook
 
-  const handleLinkClick = () => {
-     if (isMobile) {
-      setOpenMobile(false); // Close mobile sidebar after navigation link is clicked
-    }
-     // No change needed for desktop sidebar behavior (it should stay open)
-  }
+  // Removed handleLinkClick function
 
   return (
     <SidebarMenu>
@@ -51,9 +46,15 @@ export function MainNav() {
             isActive={pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href))}
             tooltip={{ children: item.label, side: "right", align: "center" }}
             className="justify-start"
+            onClick={() => { // Add onClick directly to the button
+              if (isMobile) {
+                setOpenMobile(false); // Close mobile sidebar
+              }
+              // Link's default navigation will still happen
+            }}
           >
-            {/* Link handles the navigation and receives the click handler */}
-            <Link href={item.href} onClick={handleLinkClick}>
+            {/* Link handles the navigation */}
+            <Link href={item.href}>
               {/* Content goes inside the Link */}
               <item.icon className="h-5 w-5" />
               <span className="group-data-[collapsible=icon]:hidden">
@@ -66,3 +67,4 @@ export function MainNav() {
     </SidebarMenu>
   );
 }
+
