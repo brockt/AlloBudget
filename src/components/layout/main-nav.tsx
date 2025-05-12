@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from "next/link";
@@ -32,33 +31,31 @@ export const navItems = [
 
 export function MainNav() {
   const pathname = usePathname();
-  const { setOpenMobile, isMobile, openMobile } = useSidebar();
+  const { isMobile, setOpenMobile } = useSidebar(); // Get isMobile and setOpenMobile
 
-  // This effect can still be useful if direct URL changes happen while mobile menu is open
-  useEffect(() => {
-    if (isMobile && openMobile) {
-      // Potentially close on route change if needed, but rely on Sheet behavior first.
-      // setOpenMobile(false); // Consider removing or commenting this out if Sheet handles it
-    }
-  }, [pathname, isMobile, openMobile, setOpenMobile]); // Added setOpenMobile to dependencies
+  // // Effect to close mobile menu on route change (rely on Sheet's internal behavior first)
+  // useEffect(() => {
+  //   if (isMobile) {
+  //     // console.log("Route changed, closing mobile menu if open");
+  //     // setOpenMobile(false); // Re-enable if Sheet doesn't close automatically
+  //   }
+  // }, [pathname, isMobile, setOpenMobile]);
 
   return (
     <SidebarMenu>
       {navItems.map((item) => (
         <SidebarMenuItem key={item.href}>
+          {/* SidebarMenuButton now wraps the Link and handles the click */}
           <SidebarMenuButton
-            asChild
+            asChild // Important: This tells the button to render its child (Link) instead of a <button>
             isActive={pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href))}
             tooltip={{ children: item.label, side: "right", align: "center" }}
             className="justify-start"
-            // Removed the explicit onClick={...} from SidebarMenuButton
+             // onClick handler is now inside SidebarMenuButton and calls setOpenMobile(false) if mobile
           >
-            {/* The Link component wraps the visual button content */}
-            {/* Removed the onClick from Link as well. Rely on Sheet's internal close triggers. */}
-            <Link href={item.href} >
+            <Link href={item.href}>
               <item.icon className="h-5 w-5" />
-              {/* Ensure text span is correctly controlled by group state */}
-              <span className="group-data-[collapsible=icon]:hidden ml-2"> {/* Added margin */}
+              <span className="group-data-[collapsible=icon]:hidden ml-2">
                 {item.label}
               </span>
             </Link>

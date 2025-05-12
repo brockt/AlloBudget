@@ -1,4 +1,3 @@
-
 "use client"
 
 import * as React from "react"
@@ -58,7 +57,7 @@ const SidebarProvider = React.forwardRef<
 >(
   (
     {
-      defaultOpen = true,
+      defaultOpen = false, // Default to false as set in layout
       open: openProp,
       onOpenChange: setOpenProp,
       className,
@@ -69,25 +68,33 @@ const SidebarProvider = React.forwardRef<
     ref
   ) => {
     const isMobile = useIsMobile()
-    // Mobile sidebar state is separate
-    const [openMobile, setOpenMobile] = React.useState(false);
+    const [openMobile, setOpenMobile] = React.useState(false); // Mobile state separate
 
-    const getInitialOpenState = React.useCallback(() => {
-      if (typeof window !== "undefined") {
-        const cookieValue = document.cookie
-          .split("; ")
-          .find((row) => row.startsWith(`${SIDEBAR_COOKIE_NAME}=`))
-          ?.split("=")[1]
-        if (cookieValue !== undefined) {
-          return cookieValue === "true"
+    // Initialize desktop state with defaultOpen
+    const [_open, _setOpen] = React.useState(defaultOpen)
+    const open = openProp ?? _open // Use controlled prop if available
+
+    // Client-side effect to read cookie and potentially override initial state
+    React.useEffect(() => {
+        // Only run this on the client and if the component is uncontrolled
+        if (typeof window !== "undefined" && openProp === undefined) {
+            const cookieValue = document.cookie
+                .split("; ")
+                .find((row) => row.startsWith(`${SIDEBAR_COOKIE_NAME}=`))
+                ?.split("=")[1];
+
+            const cookieOpenState = cookieValue === "true";
+
+            // If cookie exists and differs from the current state (initially defaultOpen), update the state
+            if (cookieValue !== undefined && cookieOpenState !== _open) {
+                 // console.log(`Client mount: Cookie found (${cookieValue}), setting state to ${cookieOpenState}`);
+                _setOpen(cookieOpenState);
+            }
         }
-      }
-      return defaultOpen
-    }, [defaultOpen]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [openProp]); // _open is not needed, we only want to run once on mount for uncontrolled
 
-    const [_open, _setOpen] = React.useState(getInitialOpenState)
-    const open = openProp ?? _open // Desktop sidebar state
-
+    // Callback to set desktop state and update cookie
     const setOpen = React.useCallback(
       (value: boolean | ((prevState: boolean) => boolean)) => {
         const newOpenState = typeof value === "function" ? value(open) : value
@@ -103,24 +110,16 @@ const SidebarProvider = React.forwardRef<
       [setOpenProp, open]
     )
 
-    // Effect to update _open if getInitialOpenState changes (e.g. on client mount after SSR)
-    // This ensures the cookie is preferred once client-side.
-    React.useEffect(() => {
-        const initialState = getInitialOpenState();
-        if (_open !== initialState && !openProp) { // only if uncontrolled
-            _setOpen(initialState);
-        }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [getInitialOpenState, openProp]); // _open is intentionally not in deps to avoid loop with setOpen
-
+    // Toggle function for both mobile and desktop
     const toggleSidebar = React.useCallback(() => {
       if (isMobile) {
         setOpenMobile((current) => !current) // Toggle mobile state
       } else {
-        setOpen((current) => !current) // Toggle desktop state
+        setOpen((current) => !current) // Toggle desktop state (uses the setOpen that updates cookie)
       }
     }, [isMobile, setOpen, setOpenMobile])
 
+    // Keyboard shortcut
     React.useEffect(() => {
       const handleKeyDown = (event: KeyboardEvent) => {
         if (
@@ -136,17 +135,17 @@ const SidebarProvider = React.forwardRef<
       return () => window.removeEventListener("keydown", handleKeyDown)
     }, [toggleSidebar])
 
-    // Desktop state based on `open`
+    // Derive desktop state ('expanded'/'collapsed') from the 'open' state variable
     const state = open ? "expanded" : "collapsed"
 
     const contextValue = React.useMemo<SidebarContext>(
       () => ({
-        state,
-        open,
-        setOpen,
+        state, // Desktop state
+        open,  // Desktop open state
+        setOpen, // Desktop setter (updates cookie)
         isMobile,
-        openMobile, // Pass mobile state
-        setOpenMobile, // Pass mobile state setter
+        openMobile, // Mobile open state
+        setOpenMobile, // Mobile setter (no cookie needed)
         toggleSidebar,
       }),
       [state, open, setOpen, isMobile, openMobile, setOpenMobile, toggleSidebar]
@@ -225,7 +224,7 @@ const Sidebar = React.forwardRef<
             data-sidebar="sidebar"
             data-mobile="true"
             className={cn(
-              "w-[--sidebar-width] bg-sidebar p-0 text-sidebar-foreground", // Base mobile styles
+              "w-[--sidebar-width] bg-sidebar p-0 text-sidebar-foreground flex flex-col", // Base mobile styles + flex column
                "sm:max-w-sm", // From original SheetContent variants
                className // Allow overrides
               )}
@@ -242,7 +241,8 @@ const Sidebar = React.forwardRef<
             <RadixUiSheetHeader className="sr-only">
               <RadixUiSheetTitle>Navigation Menu</RadixUiSheetTitle>
             </RadixUiSheetHeader>
-            <div className="flex h-full w-full flex-col">{children}</div>
+            {/* Remove the extra div, SheetContent is already the flex container */}
+            {children}
           </RadixSheetContent>
         </Sheet>
       )
@@ -584,8 +584,10 @@ const sidebarMenuButtonVariants = cva(
 )
 
 const SidebarMenuButton = React.forwardRef<
-  HTMLButtonElement, // Default element is button
-  React.ButtonHTMLAttributes<HTMLButtonElement> & { // Use ButtonHTMLAttributes
+  // The element type depends on asChild. It could be button or the child's type.
+  // We'll use HTMLButtonElement as a base, but acknowledge it might change.
+  HTMLButtonElement,
+  React.ButtonHTMLAttributes<HTMLButtonElement> & {
     asChild?: boolean
     isActive?: boolean
     tooltip?: string | React.ComponentProps<typeof TooltipContent>
@@ -599,28 +601,37 @@ const SidebarMenuButton = React.forwardRef<
       size = "default",
       tooltip,
       className,
-      children, // Explicitly include children
+      children,
+      onClick, // Capture onClick
       ...props
     },
     ref
   ) => {
-    const Comp = asChild ? Slot : "button" // Comp can be button or Slot
-    const { isMobile, state } = useSidebar()
+    const Comp = asChild ? Slot : "button"
+    const { isMobile, state, setOpenMobile } = useSidebar(); // Get setOpenMobile
+
+    const handleClick = (event: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
+        if (isMobile) {
+            setOpenMobile(false); // Close mobile sheet on click
+        }
+        onClick?.(event); // Call original onClick if provided
+    };
 
     const buttonContent = (
         <Comp
-            ref={ref} // Forward ref correctly
+            ref={ref}
             data-sidebar="menu-button"
             data-size={size}
             data-active={isActive}
-            className={cn(sidebarMenuButtonVariants({ variant, size, className }))} // Pass className here
+            className={cn(sidebarMenuButtonVariants({ variant, size, className }))}
+            onClick={handleClick} // Use the combined click handler
             {...props}
         >
             {children}
         </Comp>
     );
 
-    if (!tooltip || (state === "expanded" && !isMobile)) { // Don't show tooltip if expanded on desktop
+    if (!tooltip || (state === "expanded" && !isMobile)) {
         return buttonContent;
     }
 
@@ -633,11 +644,10 @@ const SidebarMenuButton = React.forwardRef<
 
     return (
       <Tooltip>
-        <TooltipTrigger asChild>{buttonContent}</TooltipTrigger> {/* Use asChild here */}
+        <TooltipTrigger asChild>{buttonContent}</TooltipTrigger>
         <TooltipContent
           side="right"
           align="center"
-          //hidden={state !== "collapsed" || isMobile} // Redundant check, tooltip only rendered when needed
           {...tooltipProps}
         />
       </Tooltip>
@@ -760,8 +770,9 @@ const SidebarMenuSubItem = React.forwardRef<
 SidebarMenuSubItem.displayName = "SidebarMenuSubItem"
 
 const SidebarMenuSubButton = React.forwardRef<
+  // Can be 'a' or Slot child
   HTMLAnchorElement,
-  React.AnchorHTMLAttributes<HTMLAnchorElement> & { // Use AnchorHTMLAttributes
+  React.AnchorHTMLAttributes<HTMLAnchorElement> & {
     asChild?: boolean
     size?: "sm" | "md"
     isActive?: boolean
