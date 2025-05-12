@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
-import { Sheet, SheetContent, SheetHeader as RadixUiSheetHeader, SheetTitle as RadixUiSheetTitle } from "@/components/ui/sheet" // Added RadixUiSheetHeader and RadixUiSheetTitle
+import { Sheet, SheetContent, SheetHeader as RadixUiSheetHeader, SheetTitle as RadixUiSheetTitle } from "@/components/ui/sheet"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   Tooltip,
@@ -29,9 +29,9 @@ const SIDEBAR_KEYBOARD_SHORTCUT = "b"
 type SidebarContext = {
   state: "expanded" | "collapsed"
   open: boolean
-  setOpen: (open: boolean) => void
+  setOpen: (open: boolean | ((prevState: boolean) => boolean)) => void
   openMobile: boolean
-  setOpenMobile: (open: boolean) => void
+  setOpenMobile: (open: boolean | ((prevState: boolean) => boolean)) => void
   isMobile: boolean
   toggleSidebar: () => void
 }
@@ -70,33 +70,55 @@ const SidebarProvider = React.forwardRef<
     const isMobile = useIsMobile()
     const [openMobile, setOpenMobile] = React.useState(false)
 
-    // This is the internal state of the sidebar.
-    // We use openProp and setOpenProp for control from outside the component.
-    const [_open, _setOpen] = React.useState(defaultOpen)
-    const open = openProp ?? _open
-    const setOpen = React.useCallback(
-      (value: boolean | ((value: boolean) => boolean)) => {
-        const openState = typeof value === "function" ? value(open) : value
-        if (setOpenProp) {
-          setOpenProp(openState)
-        } else {
-          _setOpen(openState)
+    const getInitialOpenState = React.useCallback(() => {
+      if (typeof window !== "undefined") {
+        const cookieValue = document.cookie
+          .split("; ")
+          .find((row) => row.startsWith(`${SIDEBAR_COOKIE_NAME}=`))
+          ?.split("=")[1]
+        if (cookieValue !== undefined) {
+          return cookieValue === "true"
         }
+      }
+      return defaultOpen
+    }, [defaultOpen]);
 
-        // This sets the cookie to keep the sidebar state.
-        document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`
+    const [_open, _setOpen] = React.useState(getInitialOpenState)
+    const open = openProp ?? _open
+
+    const setOpen = React.useCallback(
+      (value: boolean | ((prevState: boolean) => boolean)) => {
+        const newOpenState = typeof value === "function" ? value(open) : value
+        if (setOpenProp) {
+          setOpenProp(newOpenState)
+        } else {
+          _setOpen(newOpenState)
+        }
+        if (typeof window !== "undefined") {
+          document.cookie = `${SIDEBAR_COOKIE_NAME}=${newOpenState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`
+        }
       },
       [setOpenProp, open]
     )
+    
+    // Effect to update _open if getInitialOpenState changes (e.g. on client mount after SSR)
+    // This ensures the cookie is preferred once client-side.
+    React.useEffect(() => {
+        const initialState = getInitialOpenState();
+        if (_open !== initialState && !openProp) { // only if uncontrolled
+            _setOpen(initialState);
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [getInitialOpenState, openProp]); // _open is intentionally not in deps to avoid loop with setOpen
 
-    // Helper to toggle the sidebar.
     const toggleSidebar = React.useCallback(() => {
-      return isMobile
-        ? setOpenMobile((open) => !open)
-        : setOpen((open) => !open)
+      if (isMobile) {
+        setOpenMobile((current) => !current)
+      } else {
+        setOpen((current) => !current)
+      }
     }, [isMobile, setOpen, setOpenMobile])
 
-    // Adds a keyboard shortcut to toggle the sidebar.
     React.useEffect(() => {
       const handleKeyDown = (event: KeyboardEvent) => {
         if (
@@ -112,8 +134,6 @@ const SidebarProvider = React.forwardRef<
       return () => window.removeEventListener("keydown", handleKeyDown)
     }, [toggleSidebar])
 
-    // We add a state so that we can do data-state="expanded" or "collapsed".
-    // This makes it easier to style the sidebar with Tailwind classes.
     const state = open ? "expanded" : "collapsed"
 
     const contextValue = React.useMemo<SidebarContext>(
@@ -537,8 +557,8 @@ const sidebarMenuButtonVariants = cva(
 )
 
 const SidebarMenuButton = React.forwardRef<
-  HTMLButtonElement,
-  React.ComponentProps<"button"> & {
+  HTMLButtonElement, // Changed to HTMLButtonElement as default, Link is handled by asChild
+  React.ComponentProps<"button"> & { // Changed to React.ComponentProps<"button">
     asChild?: boolean
     isActive?: boolean
     tooltip?: string | React.ComponentProps<typeof TooltipContent>
@@ -552,42 +572,47 @@ const SidebarMenuButton = React.forwardRef<
       size = "default",
       tooltip,
       className,
+      children, // Explicitly include children
       ...props
     },
     ref
   ) => {
-    const Comp = asChild ? Slot : "button"
+    const Comp = asChild ? Slot : "button" // Comp can be button or Slot
     const { isMobile, state } = useSidebar()
 
-    const button = (
-      <Comp
-        ref={ref}
-        data-sidebar="menu-button"
-        data-size={size}
-        data-active={isActive}
-        className={cn(sidebarMenuButtonVariants({ variant, size }), className)}
-        {...props}
-      />
-    )
+    const buttonContent = (
+        <Comp
+            ref={ref as any} // Use as any if Comp can be 'a' and ref is for HTMLButtonElement
+            data-sidebar="menu-button"
+            data-size={size}
+            data-active={isActive}
+            className={cn(sidebarMenuButtonVariants({ variant, size }), className)}
+            {...props}
+        >
+            {children}
+        </Comp>
+    );
+
 
     if (!tooltip) {
-      return button
+      return buttonContent;
     }
 
+    let tooltipProps: React.ComponentProps<typeof TooltipContent>;
     if (typeof tooltip === "string") {
-      tooltip = {
-        children: tooltip,
-      }
+      tooltipProps = { children: tooltip };
+    } else {
+      tooltipProps = tooltip;
     }
 
     return (
       <Tooltip>
-        <TooltipTrigger asChild>{button}</TooltipTrigger>
+        <TooltipTrigger asChild={Comp === Slot}>{buttonContent}</TooltipTrigger>
         <TooltipContent
           side="right"
           align="center"
           hidden={state !== "collapsed" || isMobile}
-          {...tooltip}
+          {...tooltipProps}
         />
       </Tooltip>
     )
