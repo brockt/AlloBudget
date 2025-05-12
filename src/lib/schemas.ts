@@ -49,14 +49,14 @@ export const transactionSchema = z.object({
   // Ensure envelopeId is treated as optional, allowing null or undefined.
   // Transform empty strings from the select (if they occur) to null.
   envelopeId: z.string().optional().nullable().transform(val => val === "" ? null : val),
-  // Add optional payeeId
-  payeeId: z.string().optional().nullable().transform(val => val === "" ? null : val),
+  // Make payeeId mandatory
+  payeeId: z.string().min(1, "Payee is required."), // Removed optional() and nullable(), added min(1)
   amount: z.preprocess(
     (val) => Number(String(val)),
     z.number().positive("Amount must be positive.")
   ),
   type: z.enum(['income', 'expense'], { required_error: "Transaction type is required." }),
-  description: z.string().max(200, "Description too long.").optional(), // Made description optional
+  description: z.string().max(200, "Description too long.").optional(), // Description remains optional
   // Validate that the date string is in 'yyyy-MM-dd' format and represents a valid date
   date: z.string().refine((dateString) => {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(dateString)) return false; // Check basic format

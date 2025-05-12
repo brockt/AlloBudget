@@ -13,7 +13,7 @@ export interface Envelope {
   id: string;
   name: string;
   budgetAmount: number; // Typically monthly budget
-  category?: string; // Optional category
+  category: string; // Category is mandatory
   dueDate?: number; // Optional: Day of the month (1-31)
   createdAt: string;
 }
@@ -24,10 +24,10 @@ export interface Transaction {
   id: string;
   accountId: string;
   envelopeId?: string; // Optional, as income might not have an envelope or expenses not yet categorized
-  payeeId?: string; // Optional: Link to a payee
+  payeeId: string; // Mandatory: Link to a payee
   amount: number;
   type: TransactionType;
-  description?: string; // Made description optional
+  description?: string; // Description remains optional
   date: string; // ISO string date
   createdAt: string;
 }
@@ -56,10 +56,10 @@ export interface EnvelopeFormData {
 export interface TransactionFormData {
   accountId: string;
   envelopeId?: string | null; // Allow null
-  payeeId?: string | null; // Allow null
+  payeeId: string; // Made mandatory, cannot be null
   amount: number;
   type: TransactionType;
-  description?: string; // Made description optional
+  description?: string; // Description remains optional
   date: string; // Should be string for form input, then parsed
 }
 

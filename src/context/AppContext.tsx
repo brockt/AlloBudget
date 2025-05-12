@@ -22,6 +22,7 @@ interface AppContextType {
   deleteTransaction: (transactionId: string) => void; // Example delete
   getAccountBalance: (accountId: string) => number;
   getEnvelopeSpending: (envelopeId: string, period?: { start: Date, end: Date }) => number;
+  getPayeeTransactions: (payeeId: string) => Transaction[]; // Added function to get payee transactions
   isLoading: boolean;
 }
 
@@ -58,20 +59,27 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
         const validTransactions = Array.isArray(parsedData.transactions)
           ? parsedData.transactions.filter((tx: any): tx is Transaction => {
-              if (!tx || typeof tx.id !== 'string' || typeof tx.accountId !== 'string' || typeof tx.amount !== 'number' || typeof tx.type !== 'string' || !['income', 'expense'].includes(tx.type) || typeof tx.description !== 'string' || typeof tx.date !== 'string' || typeof tx.createdAt !== 'string') {
-                 console.warn(`Invalid structure found in stored transaction ${tx?.id}. Filtering out.`);
+              // Basic structure validation
+              if (!tx || typeof tx.id !== 'string' || typeof tx.accountId !== 'string' || typeof tx.amount !== 'number' || typeof tx.type !== 'string' || !['income', 'expense'].includes(tx.type) || typeof tx.date !== 'string' || typeof tx.createdAt !== 'string') {
+                 console.warn(`Invalid structure base found in stored transaction ${tx?.id}. Filtering out.`);
                  return false;
               }
-              // Check if envelopeId exists and is a string, or if it's null/undefined
+               // Description validation (optional)
+              if (!(tx.description === undefined || typeof tx.description === 'string')) {
+                 console.warn(`Invalid description type found in stored transaction ${tx.id}: type='${typeof tx.description}'. Filtering out.`);
+                 return false;
+              }
+              // EnvelopeId validation (optional)
               if (!(tx.envelopeId === undefined || tx.envelopeId === null || typeof tx.envelopeId === 'string')) {
                   console.warn(`Invalid envelopeId type found in stored transaction ${tx.id}: type='${typeof tx.envelopeId}'. Filtering out.`);
                   return false;
               }
-               // Check if payeeId exists and is a string, or if it's null/undefined
-              if (!(tx.payeeId === undefined || tx.payeeId === null || typeof tx.payeeId === 'string')) {
-                  console.warn(`Invalid payeeId type found in stored transaction ${tx.id}: type='${typeof tx.payeeId}'. Filtering out.`);
+              // PayeeId validation (now mandatory string)
+              if (typeof tx.payeeId !== 'string' || tx.payeeId.length === 0) { // Check for string and non-empty
+                  console.warn(`Invalid or missing payeeId found in stored transaction ${tx.id}: value='${tx.payeeId}'. Filtering out.`);
                   return false;
               }
+              // Date validation
               const dateObj = parseISO(tx.date);
               const createdAtObj = parseISO(tx.createdAt);
               if (!isValid(dateObj) || !isValid(createdAtObj)) {
@@ -143,14 +151,21 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const addTransaction = (transactionData: TransactionFormData) => {
+     // Basic check for payeeId, although schema validation should handle this
+    if (!transactionData.payeeId) {
+      console.error("Cannot add transaction without a payee ID.");
+      // Optionally throw an error or show a user notification
+      return;
+    }
+
     const newTransaction: Transaction = {
       ...transactionData,
       id: crypto.randomUUID(),
       amount: Number(transactionData.amount), // Ensure amount is a number
       // Handle envelopeId being null
       envelopeId: transactionData.envelopeId === null ? undefined : transactionData.envelopeId,
-      // Handle payeeId being null
-      payeeId: transactionData.payeeId === null ? undefined : transactionData.payeeId,
+      payeeId: transactionData.payeeId, // payeeId is guaranteed to be a string here
+      description: transactionData.description, // Keep description as is (can be undefined or string)
       date: formatISO(parseISO(transactionData.date)), // Ensure date is valid ISO string from input
       createdAt: formatISO(new Date()),
     };
@@ -208,6 +223,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       .reduce((sum, tx) => sum + tx.amount, 0);
   }, [transactions]);
 
+  // Function to get transactions for a specific payee
+  const getPayeeTransactions = useCallback((payeeId: string): Transaction[] => {
+    return transactions
+        .filter(tx => tx.payeeId === payeeId)
+        .sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime()); // Sort by date descending
+  }, [transactions]);
+
 
   return (
     <AppContext.Provider value={{
@@ -224,6 +246,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       deleteTransaction,
       getAccountBalance,
       getEnvelopeSpending,
+      getPayeeTransactions, // Expose getPayeeTransactions
       isLoading
     }}>
       {children}

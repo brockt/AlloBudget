@@ -53,7 +53,7 @@ export function AddTransactionForm({ defaultAccountId, onSuccess, navigateToTran
     defaultValues: {
       accountId: defaultAccountId || (accounts.length > 0 ? accounts[0].id : ""),
       envelopeId: null, // Default to null instead of ""
-      payeeId: null, // Default payee to null
+      payeeId: "", // Default payee to empty string (as it's required now)
       amount: 0,
       type: "expense",
       description: "", // Empty string is a valid optional value
@@ -70,7 +70,7 @@ export function AddTransactionForm({ defaultAccountId, onSuccess, navigateToTran
         // Description will be "" if empty, or undefined if field was absent (not typical for controlled form)
         // Zod schema .optional() handles this.
         description: values.description || undefined, // Ensure undefined if empty string for clarity, though schema handles ""
-        // Pass payeeId (will be null if none selected)
+        // Pass payeeId (will be string, as it's required)
         payeeId: values.payeeId,
         date: values.date // Already validated by Zod schema to be a parseable date string
     }
@@ -85,7 +85,7 @@ export function AddTransactionForm({ defaultAccountId, onSuccess, navigateToTran
         description: "", // Reset description to empty string
         type: form.getValues('type'), // Keep type
         envelopeId: form.getValues('type') === 'income' ? null : form.getValues('envelopeId'), // Reset envelope only if type was income, default to null
-        payeeId: null, // Reset payee
+        payeeId: "", // Reset payee to empty string
         date: format(new Date(), "yyyy-MM-dd") // Reset date to today
     });
     if (onSuccess) onSuccess();
@@ -107,7 +107,7 @@ export function AddTransactionForm({ defaultAccountId, onSuccess, navigateToTran
                     field.onChange(value as TransactionType);
                     if (value === 'income') {
                       form.setValue('envelopeId', null); // Clear envelope for income, set to null
-                      form.setValue('payeeId', null); // Optionally clear payee for income too
+                     // Keep payeeId as it is now mandatory for both types
                     }
                   }}
                   defaultValue={field.value}
@@ -138,14 +138,14 @@ export function AddTransactionForm({ defaultAccountId, onSuccess, navigateToTran
           render={({ field }) => (
             <FormItem>
               <FormLabel>Account</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
+              <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value} required>
                 <FormControl>
                   <SelectTrigger>
                     <SelectValue placeholder="Select an account" />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  {accounts.length === 0 && <SelectItem value="no-accounts-placeholder" disabled>No accounts available</SelectItem>} {/* Use a non-empty placeholder value */}
+                  {accounts.length === 0 && <SelectItem value="no-accounts-placeholder" disabled>No accounts available</SelectItem>}
                   {accounts.map(account => (
                     <SelectItem key={account.id} value={account.id}>
                       {account.name}
@@ -163,23 +163,19 @@ export function AddTransactionForm({ defaultAccountId, onSuccess, navigateToTran
           name="payeeId"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Payee (Optional)</FormLabel>
-               {/* Use field.value directly which will be string | null | undefined */}
-               {/* Pass undefined or null to Select onValueChange if no payee is selected */}
+              <FormLabel>Payee</FormLabel>
               <Select
-                onValueChange={(value) => field.onChange(value || null)} // Ensure empty string selection results in null
-                value={field.value ?? ""} // Pass "" only if value is null/undefined for Select state
+                onValueChange={field.onChange} // Zod handles validation for empty string
+                value={field.value ?? ""} // Use controlled value
+                required // Mark as required for clarity, though Zod handles validation
               >
                 <FormControl>
                   <SelectTrigger>
-                     {/* Placeholder is shown when value is null/undefined */}
-                    <SelectValue placeholder="Select a payee (or none)" />
+                    <SelectValue placeholder="Select a payee" />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                   {/* Remove the explicit "None" item with empty value */}
-                   {/* Placeholder handles the "None" state */}
-                   {payees.length === 0 && <SelectItem value="no-payees-placeholder" disabled>No payees available</SelectItem>} {/* Use a non-empty placeholder value */}
+                  {payees.length === 0 && <SelectItem value="no-payees-placeholder" disabled>No payees available</SelectItem>}
                   {payees.map(payee => (
                     <SelectItem key={payee.id} value={payee.id}>
                       {payee.name}
@@ -212,9 +208,8 @@ export function AddTransactionForm({ defaultAccountId, onSuccess, navigateToTran
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                     {/* Remove the explicit "None" item with empty value */}
                      {/* Placeholder handles the "None" state */}
-                     {envelopes.length === 0 && <SelectItem value="no-envelopes-placeholder" disabled>No envelopes available</SelectItem>} {/* Use a non-empty placeholder value */}
+                     {envelopes.length === 0 && <SelectItem value="no-envelopes-placeholder" disabled>No envelopes available</SelectItem>}
                     {envelopes.map(envelope => (
                       <SelectItem key={envelope.id} value={envelope.id}>
                         {envelope.name}
@@ -297,7 +292,7 @@ export function AddTransactionForm({ defaultAccountId, onSuccess, navigateToTran
           )}
         />
 
-        <Button type="submit" className="w-full sm:w-auto">
+        <Button type="submit" className="w-full sm:w-auto" disabled={payees.length === 0 || accounts.length === 0}> {/* Disable if no payees or accounts */}
           <PlusCircle className="mr-2 h-4 w-4" /> Add Transaction
         </Button>
       </form>
