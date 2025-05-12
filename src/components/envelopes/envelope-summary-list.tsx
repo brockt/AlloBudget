@@ -1,5 +1,3 @@
-
-
 "use client";
 
 import { useState } from "react";
@@ -127,8 +125,8 @@ export default function EnvelopeSummaryList() {
                                                 <div className="flex items-center">
                                                     <span className="font-medium truncate block text-sm" title={envelope.name}>{envelope.name}</span>
                                                     {envelope.estimatedAmount !== undefined && (
-                                                        <Tooltip>
-                                                            <TooltipTrigger asChild>
+                                                        <Tooltip delayDuration={300}> {/* Add slight delay */}
+                                                            <TooltipTrigger> {/* Removed asChild */}
                                                                 <Info className="ml-1.5 h-3.5 w-3.5 text-muted-foreground cursor-help" />
                                                             </TooltipTrigger>
                                                             <TooltipContent side="top">
@@ -188,4 +186,3 @@ export default function EnvelopeSummaryList() {
     </TooltipProvider>
   );
 }
-
