@@ -105,8 +105,8 @@ export default function EnvelopeSummaryList() {
                                 // Get the total available balance including rollover
                                 const availableBalance = getEnvelopeBalanceWithRollover(envelope.id);
                                 const dueDateString = envelope.dueDate ? `${envelope.dueDate}${getDaySuffix(envelope.dueDate)}` : '';
-                                // Check if estimatedAmount is a number (and not null/undefined)
-                                const hasEstimatedAmount = typeof envelope.estimatedAmount === 'number';
+                                // Check if estimatedAmount exists and is a valid number
+                                const hasEstimatedAmount = typeof envelope.estimatedAmount === 'number' && !isNaN(envelope.estimatedAmount);
 
                                 return (
                                     // Wrap the list item content with Link
