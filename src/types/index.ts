@@ -30,6 +30,7 @@ export interface Transaction {
   description?: string; // Description remains optional
   date: string; // ISO string date
   createdAt: string;
+  isTransfer?: boolean; // Flag to identify inter-account transfer transactions
 }
 
 export interface Payee {
@@ -66,6 +67,7 @@ export interface TransactionFormData {
   type: TransactionType;
   description?: string; // Description remains optional
   date: string; // Should be string for form input, then parsed
+  isTransfer?: boolean; // Flag for inter-account transfers
 }
 
 export interface PayeeFormData {
@@ -122,5 +124,3 @@ export interface AppContextType {
   getYtdIncomeTotal: () => number;
   isLoading: boolean;
 }
-
-

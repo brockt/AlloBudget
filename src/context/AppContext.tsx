@@ -49,81 +49,72 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           ? parsedData.transactions.filter((tx: any): tx is Transaction => {
               // Basic structure validation
               if (!tx || typeof tx.id !== 'string' || typeof tx.accountId !== 'string' || typeof tx.amount !== 'number' || typeof tx.type !== 'string' || !['income', 'expense'].includes(tx.type) || typeof tx.date !== 'string' || typeof tx.createdAt !== 'string') {
-                 // console.warn(`Invalid structure base found in stored transaction ${tx?.id}. Filtering out.`);
                  return false;
               }
-               // Description validation (optional)
-              if (!(tx.description === undefined || tx.description === null || typeof tx.description === 'string')) { // Allow null
-                 // console.warn(`Invalid description type found in stored transaction ${tx.id}: type='${typeof tx.description}'. Filtering out.`);
+              if (!(tx.description === undefined || tx.description === null || typeof tx.description === 'string')) {
                  return false;
               }
-              // EnvelopeId validation (optional)
-              // Now allows envelopeId for income type transactions too.
               if (!(tx.envelopeId === undefined || tx.envelopeId === null || typeof tx.envelopeId === 'string')) {
-                  // console.warn(`Invalid envelopeId type found in stored transaction ${tx.id}: type='${typeof tx.envelopeId}'. Filtering out.`);
                   return false;
               }
-              // PayeeId validation (now mandatory string)
-              if (typeof tx.payeeId !== 'string' || tx.payeeId.length === 0) { // Check for string and non-empty
-                  // console.warn(`Invalid or missing payeeId found in stored transaction ${tx.id}: value='${tx.payeeId}'. Filtering out.`);
+              if (typeof tx.payeeId !== 'string' || tx.payeeId.length === 0) {
                   return false;
               }
-              // Date validation
+              // Validate isTransfer (optional boolean)
+              if (!(tx.isTransfer === undefined || typeof tx.isTransfer === 'boolean')) {
+                  return false;
+              }
               const dateObj = parseISO(tx.date);
               const createdAtObj = parseISO(tx.createdAt);
               if (!isValid(dateObj) || !isValid(createdAtObj)) {
-                 // console.warn(`Invalid date format found in stored transaction ${tx.id}: date='${tx.date}', createdAt='${tx.createdAt}'. Filtering out.`);
-                 return false; // Filter out transactions with invalid dates
+                 return false; 
               }
               return true;
-            }).sort((a: Transaction, b: Transaction) => parseISO(b.date).getTime() - parseISO(a.date).getTime()) // Sort after filtering
+            }).sort((a: Transaction, b: Transaction) => parseISO(b.date).getTime() - parseISO(a.date).getTime())
           : [];
 
-        // Load and validate categories
         const validCategories = Array.isArray(parsedData.categories)
           ? parsedData.categories.filter((cat: any): cat is string => typeof cat === 'string' && cat.length > 0).sort()
           : [];
 
 
-        // Set state with validated data
         setAccounts(validAccounts);
-        setEnvelopes(validEnvelopes.map(env => ({ // Ensure undefined, not null
+        setEnvelopes(validEnvelopes.map(env => ({ 
           ...env,
           estimatedAmount: env.estimatedAmount === null ? undefined : env.estimatedAmount,
           dueDate: env.dueDate === null ? undefined : env.dueDate,
         })));
-        setTransactions(validTransactions.map(tx => ({ // Ensure undefined, not null for optional fields
+        setTransactions(validTransactions.map(tx => ({ 
             ...tx,
             description: tx.description === null ? undefined : tx.description,
             envelopeId: tx.envelopeId === null ? undefined : tx.envelopeId,
+            isTransfer: tx.isTransfer === null ? undefined : tx.isTransfer, // Ensure undefined, not null
         })));
-        setPayees(validPayees.sort((a: Payee, b: Payee) => a.name.localeCompare(b.name))); // Sort payees after loading
-        setCategories(validCategories); // Set categories state
+        setPayees(validPayees.sort((a: Payee, b: Payee) => a.name.localeCompare(b.name))); 
+        setCategories(validCategories); 
       }
     } catch (error) {
       console.error("Failed to load or parse data from localStorage", error);
-      // Ensure states are default empty arrays in case of error
       setAccounts([]);
       setEnvelopes([]);
       setTransactions([]);
       setPayees([]);
-      setCategories([]); // Ensure categories is empty array on error
+      setCategories([]); 
     } finally {
       setIsLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    if (!isLoading) { // Only save when not initially loading
+    if (!isLoading) { 
       try {
-        // Include categories in the data to store
         const dataToStore = JSON.stringify({ accounts, envelopes, transactions, payees, categories });
         localStorage.setItem(LOCAL_STORAGE_KEY, dataToStore);
       } catch (error) {
         console.error("Failed to save data to localStorage", error);
       }
     }
-  }, [accounts, envelopes, transactions, payees, categories, isLoading]); // Add categories dependency
+  }, [accounts, envelopes, transactions, payees, categories, isLoading]); 
 
 
   const addAccount = (accountData: AccountFormData) => {
@@ -148,12 +139,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       id: crypto.randomUUID(),
       name: envelopeData.name,
       budgetAmount: envelopeData.budgetAmount,
-      // Ensure estimatedAmount is undefined if not provided or invalid
       estimatedAmount: (typeof envelopeData.estimatedAmount === 'number' && !isNaN(envelopeData.estimatedAmount)) ? envelopeData.estimatedAmount : undefined,
-      category: envelopeData.category, // Category is mandatory now
-      // Ensure dueDate is undefined if not provided or invalid
+      category: envelopeData.category, 
       dueDate: (typeof envelopeData.dueDate === 'number' && !isNaN(envelopeData.dueDate) && envelopeData.dueDate >= 1 && envelopeData.dueDate <= 31) ? envelopeData.dueDate : undefined,
-      createdAt: formatISO(startOfDay(new Date())), // Ensure createdAt is the start of the day for consistent month calculation
+      createdAt: formatISO(startOfDay(new Date())), 
     };
     setEnvelopes(prev => [...prev, newEnvelope]);
   };
@@ -165,7 +154,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         env.id === envelopeData.id ? {
             ...env,
             ...envelopeData,
-             // Ensure optional fields are set to undefined if they are null/empty after update
             estimatedAmount: (typeof envelopeData.estimatedAmount === 'number' && !isNaN(envelopeData.estimatedAmount)) ? envelopeData.estimatedAmount : undefined,
             dueDate: (typeof envelopeData.dueDate === 'number' && !isNaN(envelopeData.dueDate) && envelopeData.dueDate >= 1 && envelopeData.dueDate <= 31) ? envelopeData.dueDate : undefined,
             }
@@ -174,10 +162,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     );
   };
 
-  // Function to update the order of envelopes (e.g., after drag-and-drop)
   const updateEnvelopeOrder = (reorderedEnvelopes: Envelope[]) => {
     setEnvelopes(reorderedEnvelopes);
-    // The useEffect hook will automatically persist this change to localStorage
   };
 
 
@@ -186,29 +172,26 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       console.error("Cannot add transaction without a payee ID.");
       return;
     }
-    // Parse date robustly
     const parsedDate = transactionData.date ? parseISO(transactionData.date) : null;
     if (!parsedDate || !isValid(parsedDate)) {
         console.error("Invalid date provided for transaction:", transactionData.date);
-        // Maybe show a user-facing error (e.g., toast)
         return;
     }
 
     const newTransaction: Transaction = {
       id: crypto.randomUUID(),
       accountId: transactionData.accountId,
-      // Ensure envelopeId is undefined if null or empty string
       envelopeId: transactionData.envelopeId || undefined,
       payeeId: transactionData.payeeId,
       amount: Number(transactionData.amount),
       type: transactionData.type,
-      // Ensure description is undefined if null or empty string
       description: transactionData.description || undefined,
-      date: formatISO(parsedDate), // Use the validated parsed date
+      date: formatISO(parsedDate), 
       createdAt: formatISO(new Date()),
+      isTransfer: transactionData.isTransfer || false, // Add isTransfer flag
     };
     setTransactions(prev => [...prev, newTransaction].sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime()));
-  }, []); // memoized to be used in transferBetweenEnvelopes
+  }, []); 
 
 
   const addPayee = (payeeData: PayeeFormData) => {
@@ -217,13 +200,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       id: crypto.randomUUID(),
       createdAt: formatISO(new Date()),
     };
-    // Add new payee and sort alphabetically by name
     setPayees(prev => [...prev, newPayee].sort((a, b) => a.name.localeCompare(b.name)));
   };
 
   const addCategory = (categoryName: string) => {
       const trimmedName = categoryName.trim();
-      if (trimmedName.length === 0) return; // Don't add empty categories
+      if (trimmedName.length === 0) return; 
 
       if (!categories.some(cat => cat.toLowerCase() === trimmedName.toLowerCase())) {
           setCategories(prev => [...prev, trimmedName].sort());
@@ -244,7 +226,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
     if (!fromEnvelope || !toEnvelope) {
       console.error("Invalid source or destination envelope for transfer.");
-      // Potentially show a toast error to the user
       return;
     }
 
@@ -259,8 +240,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         setPayees(prev => [...prev, internalTransferPayee!].sort((a, b) => a.name.localeCompare(b.name)));
     }
 
-
-    // Transaction out of source envelope
     const expenseTransaction: TransactionFormData = {
       accountId,
       envelopeId: fromEnvelopeId,
@@ -269,22 +248,23 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       type: 'expense',
       description: description || `Transfer to ${toEnvelope.name}`,
       date,
+      isTransfer: false, // Envelope transfers are not inter-account transfers for income reporting
     };
     addTransaction(expenseTransaction);
 
-    // Transaction into destination envelope
     const incomeTransaction: TransactionFormData = {
       accountId,
-      envelopeId: toEnvelopeId, // Assign to destination envelope
+      envelopeId: toEnvelopeId, 
       payeeId: internalTransferPayee.id,
       amount,
-      type: 'income', // This is an "income" *to the envelope's balance*
+      type: 'income', 
       description: description || `Transfer from ${fromEnvelope.name}`,
       date,
+      isTransfer: false, // Envelope transfers are not inter-account transfers for income reporting
     };
     addTransaction(incomeTransaction);
 
-  }, [addTransaction, envelopes, payees]); // Added payees to dependencies
+  }, [addTransaction, envelopes, payees]); 
 
 
   const transferBetweenAccounts = useCallback((data: TransferAccountFundsFormData) => {
@@ -295,11 +275,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
     if (!fromAccount || !toAccount) {
         console.error("Invalid source or destination account for transfer.");
-        // Potentially show a toast error to the user
         return;
     }
 
-    // Ensure a payee exists for internal transfers
     let internalTransferPayee = payees.find(p => p.name === "Internal Account Transfer");
     if (!internalTransferPayee) {
         const newPayeeId = crypto.randomUUID();
@@ -311,31 +289,31 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         setPayees(prev => [...prev, internalTransferPayee!].sort((a, b) => a.name.localeCompare(b.name)));
     }
 
-    // Transaction out of source account
     const expenseTransaction: TransactionFormData = {
-        accountId: fromAccountId, // Source account ID
-        envelopeId: null,         // No envelope involved in account transfer
-        payeeId: internalTransferPayee.id, // Use the dedicated payee ID
+        accountId: fromAccountId, 
+        envelopeId: null,         
+        payeeId: internalTransferPayee.id, 
         amount,
         type: 'expense',
         description: description || `Transfer to ${toAccount.name}`,
         date,
+        isTransfer: true, // Mark as transfer
     };
-    addTransaction(expenseTransaction); // Add the expense transaction
+    addTransaction(expenseTransaction); 
 
-    // Transaction into destination account
     const incomeTransaction: TransactionFormData = {
-        accountId: toAccountId,   // Destination account ID
-        envelopeId: null,         // No envelope involved
-        payeeId: internalTransferPayee.id, // Use the dedicated payee ID
+        accountId: toAccountId,   
+        envelopeId: null,         
+        payeeId: internalTransferPayee.id, 
         amount,
         type: 'income',
         description: description || `Transfer from ${fromAccount.name}`,
         date,
+        isTransfer: true, // Mark as transfer
     };
-    addTransaction(incomeTransaction); // Add the income transaction
+    addTransaction(incomeTransaction); 
 
-  }, [addTransaction, accounts, payees]); // Added accounts and payees to dependencies
+  }, [addTransaction, accounts, payees]); 
 
 
   const getAccountBalance = useCallback((accountId: string): number => {
@@ -344,14 +322,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
     const balance = transactions.reduce((currentBalance, tx) => {
       if (tx.accountId === accountId) {
-        // Ensure amount is a valid number
         const amount = typeof tx.amount === 'number' && !isNaN(tx.amount) ? tx.amount : 0;
         return tx.type === 'income' ? currentBalance + amount : currentBalance - amount;
       }
       return currentBalance;
     }, account.initialBalance);
 
-     // Ensure the final balance is a number
      return isNaN(balance) ? 0 : balance;
 
   }, [accounts, transactions]);
@@ -370,61 +346,46 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
     const spending = transactions
       .filter(tx => {
-          // Basic filtering
           if (tx.envelopeId !== envelopeId || tx.type !== 'expense') {
               return false;
           }
-          // Date validation and period check
           const txDate = parseISO(tx.date);
           return isValid(txDate) && isWithinInterval(txDate, targetPeriod);
       })
       .reduce((sum, tx) => {
-          // Amount validation inside reduce
           const amount = typeof tx.amount === 'number' && !isNaN(tx.amount) ? tx.amount : 0;
           return sum + amount;
       }, 0);
 
-      // Ensure final result is a number
       return isNaN(spending) ? 0 : spending;
   }, [transactions]);
 
 
   const getEnvelopeBalanceWithRollover = useCallback((envelopeId: string): number => {
     const envelope = envelopes.find(env => env.id === envelopeId);
-    // Check if envelope exists and createdAt is valid BEFORE parsing
     if (!envelope || !envelope.createdAt) {
-        // console.warn(`Envelope not found or missing creation date for ID: ${envelopeId}`);
         return 0;
     }
     const creationDate = parseISO(envelope.createdAt);
      if (!isValid(creationDate)) {
-        // console.warn(`Invalid envelope creation date found for ID: ${envelopeId}`);
         return 0;
     }
 
-
     const currentDate = new Date();
-    // Ensure we don't calculate for future creation dates (edge case)
     if (creationDate > currentDate) return 0;
 
-    // differenceInCalendarMonths requires valid dates
     const monthsActive = differenceInCalendarMonths(currentDate, creationDate) + 1;
 
-    // Check if monthsActive is valid
     if (monthsActive <= 0 || isNaN(monthsActive)) {
-        // console.warn(`Invalid months active calculation for envelope ID: ${envelopeId}. Months: ${monthsActive}`);
-        return 0; // Return 0 if calculation is invalid
+        return 0; 
     }
 
-    // Validate budgetAmount
     const budgetAmount = typeof envelope.budgetAmount === 'number' && !isNaN(envelope.budgetAmount) ? envelope.budgetAmount : 0;
     const initialBudgetFunding = monthsActive * budgetAmount;
 
-    // Filter transactions safely
     const relevantTransactions = transactions.filter(tx => {
         if (tx.envelopeId !== envelopeId) return false;
         const txDate = parseISO(tx.date);
-        // Check if transaction date is valid AND after or on the creation date
         return isValid(txDate) && txDate >= startOfDay(creationDate);
     });
 
@@ -443,7 +404,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
            return sum + amount;
         }, 0);
 
-    // Ensure result is a number
     const balance = initialBudgetFunding + transfersIn - spendingAndTransfersOut;
     return isNaN(balance) ? 0 : balance;
 
@@ -454,16 +414,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     return transactions
         .filter(tx => tx.payeeId === payeeId)
         .sort((a, b) => {
-             // Add date validation within sort for robustness
             const dateA = parseISO(a.date);
             const dateB = parseISO(b.date);
-            if (!isValid(dateA)) return 1; // Put invalid dates last
+            if (!isValid(dateA)) return 1; 
             if (!isValid(dateB)) return -1;
             return dateB.getTime() - dateA.getTime();
         });
   }, [transactions]);
 
-  // --- New Calculation Functions ---
 
   const getMonthlyIncomeTotal = useCallback((): number => {
     const now = new Date();
@@ -472,7 +430,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
     return transactions.reduce((total, tx) => {
       const txDate = parseISO(tx.date);
-      if (tx.type === 'income' && isValid(txDate) && isWithinInterval(txDate, { start: monthStart, end: monthEnd })) {
+      // Exclude income transactions that are part of an inter-account transfer
+      if (tx.type === 'income' && !tx.isTransfer && isValid(txDate) && isWithinInterval(txDate, { start: monthStart, end: monthEnd })) {
         const amount = typeof tx.amount === 'number' && !isNaN(tx.amount) ? tx.amount : 0;
         return total + amount;
       }
@@ -487,6 +446,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
     return transactions.reduce((total, tx) => {
       const txDate = parseISO(tx.date);
+       // Exclude expense transactions that are part of an inter-account transfer (optional, typically transfers are neutral for spending reports)
+       // For now, we keep them as they do represent money leaving an account, even if it goes to another owned account.
+       // If these should also be excluded, add `&& !tx.isTransfer`
       if (tx.type === 'expense' && isValid(txDate) && isWithinInterval(txDate, { start: monthStart, end: monthEnd })) {
         const amount = typeof tx.amount === 'number' && !isNaN(tx.amount) ? tx.amount : 0;
         return total + amount;
@@ -505,11 +467,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const getYtdIncomeTotal = useCallback((): number => {
     const now = new Date();
     const yearStart = startOfYear(now);
-    const todayEnd = endOfDay(now); // Use end of today for YTD
+    const todayEnd = endOfDay(now); 
 
     return transactions.reduce((total, tx) => {
       const txDate = parseISO(tx.date);
-      if (tx.type === 'income' && isValid(txDate) && isWithinInterval(txDate, { start: yearStart, end: todayEnd })) {
+      // Exclude income transactions that are part of an inter-account transfer
+      if (tx.type === 'income' && !tx.isTransfer && isValid(txDate) && isWithinInterval(txDate, { start: yearStart, end: todayEnd })) {
         const amount = typeof tx.amount === 'number' && !isNaN(tx.amount) ? tx.amount : 0;
         return total + amount;
       }
@@ -517,7 +480,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }, 0);
   }, [transactions]);
 
-  // --- End New Calculation Functions ---
 
   return (
     <AppContext.Provider value={{
@@ -533,17 +495,16 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       addPayee,
       addCategory,
       updateEnvelope,
-      updateEnvelopeOrder, // Provide the new function
+      updateEnvelopeOrder, 
       deleteTransaction,
       transferBetweenEnvelopes,
-      transferBetweenAccounts, // Expose the account transfer function
+      transferBetweenAccounts, 
       getAccountBalance,
       getAccountById,
       getEnvelopeById,
       getEnvelopeSpending,
       getEnvelopeBalanceWithRollover,
       getPayeeTransactions,
-      // Expose new functions
       getMonthlyIncomeTotal,
       getMonthlySpendingTotal,
       getTotalMonthlyBudgeted,
@@ -562,4 +523,3 @@ export const useAppContext = () => {
   }
   return context;
 };
-

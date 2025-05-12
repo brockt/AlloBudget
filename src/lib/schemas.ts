@@ -65,6 +65,7 @@ export const transactionSchema = z.object({
     }, {
       message: "Invalid date format. Please use YYYY-MM-DD.",
   }),
+  isTransfer: z.boolean().optional(), // Added isTransfer field
 }).superRefine((data, ctx) => {
   if (data.type === 'expense' && (!data.envelopeId || data.envelopeId.trim() === "")) {
     ctx.addIssue({
@@ -132,4 +133,3 @@ export const transferAccountFundsSchema = z.object({
         });
     }
 });
-
