@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
-import { Sheet, SheetContent } from "@/components/ui/sheet"
+import { Sheet, SheetContent, SheetHeader as RadixUiSheetHeader, SheetTitle as RadixUiSheetTitle } from "@/components/ui/sheet" // Added RadixUiSheetHeader and RadixUiSheetTitle
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   Tooltip,
@@ -206,6 +206,9 @@ const Sidebar = React.forwardRef<
             }
             side={side}
           >
+            <RadixUiSheetHeader className="sr-only">
+              <RadixUiSheetTitle>Navigation Menu</RadixUiSheetTitle>
+            </RadixUiSheetHeader>
             <div className="flex h-full w-full flex-col">{children}</div>
           </SheetContent>
         </Sheet>
