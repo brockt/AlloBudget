@@ -21,7 +21,7 @@ import Link from 'next/link';
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   return (
     <SidebarProvider defaultOpen>
-        <Sidebar variant="sidebar" collapsible="icon" side="left">
+        <Sidebar variant="sidebar" collapsible="icon" side="right"> {/* Changed side to "right" */}
           <SidebarHeader className="p-4 items-center justify-center group-data-[collapsible=icon]:justify-start">
             <Link href="/dashboard" className="flex items-center gap-2 text-lg font-semibold text-sidebar-primary group-data-[collapsible=icon]:justify-center">
               <Coins className="h-7 w-7" />
@@ -45,3 +45,4 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     </SidebarProvider>
   );
 }
+
