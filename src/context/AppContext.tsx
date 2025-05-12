@@ -6,7 +6,8 @@ import type { ReactNode } from 'react';
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { Account, Envelope, Transaction, Payee, AccountFormData, EnvelopeFormData, TransactionFormData, PayeeFormData } from '@/types';
 // Use parseISO and isValid for robust date handling
-import { formatISO, startOfMonth, endOfMonth, isWithinInterval, parseISO, isValid } from 'date-fns';
+// Import differenceInCalendarMonths for rollover calculation
+import { formatISO, startOfMonth, endOfMonth, isWithinInterval, parseISO, isValid, differenceInCalendarMonths, startOfDay } from 'date-fns';
 
 interface AppContextType {
   accounts: Account[];
@@ -24,6 +25,7 @@ interface AppContextType {
   getAccountBalance: (accountId: string) => number;
   getAccountById: (accountId: string) => Account | undefined; // Added function definition
   getEnvelopeSpending: (envelopeId: string, period?: { start: Date, end: Date }) => number;
+  getEnvelopeBalanceWithRollover: (envelopeId: string) => number; // Function for balance including rollover
   getPayeeTransactions: (payeeId: string) => Transaction[]; // Added function to get payee transactions
   isLoading: boolean;
 }
@@ -147,7 +149,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       budgetAmount: envelopeData.budgetAmount,
       category: envelopeData.category, // Category is mandatory now
       ...(envelopeData.dueDate !== undefined && { dueDate: envelopeData.dueDate }), // Conditionally add dueDate
-      createdAt: formatISO(new Date()),
+      createdAt: formatISO(startOfDay(new Date())), // Ensure createdAt is the start of the day for consistent month calculation
     };
     setEnvelopes(prev => [...prev, newEnvelope]);
   };
@@ -241,6 +243,46 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       .reduce((sum, tx) => sum + tx.amount, 0);
   }, [transactions]);
 
+  // --- Rollover Logic ---
+  const getEnvelopeBalanceWithRollover = useCallback((envelopeId: string): number => {
+    const envelope = envelopes.find(env => env.id === envelopeId);
+    if (!envelope || !isValid(parseISO(envelope.createdAt))) {
+        return 0;
+    }
+
+    const creationDate = parseISO(envelope.createdAt);
+    const currentDate = new Date();
+
+    // Calculate the number of full months the envelope has existed, including the current month
+    // differenceInCalendarMonths returns the number of *full* months between, so add 1
+    const monthsActive = differenceInCalendarMonths(currentDate, creationDate) + 1;
+
+    if (monthsActive <= 0) {
+        return 0; // Should not happen if createdAt is valid and in the past/present
+    }
+
+    // Calculate total budgeted amount since creation
+    const totalBudgeted = monthsActive * envelope.budgetAmount;
+
+    // Calculate total spent since creation (up to the current date)
+    const totalSpent = transactions
+      .filter(tx => {
+          const txDate = parseISO(tx.date);
+          // Filter expenses for this envelope that occurred on or after creation date
+          return isValid(txDate) &&
+                 tx.envelopeId === envelopeId &&
+                 tx.type === 'expense' &&
+                 txDate >= startOfDay(creationDate); // Compare against start of creation day
+      })
+      .reduce((sum, tx) => sum + tx.amount, 0);
+
+    // Current available balance is total budgeted minus total spent
+    return totalBudgeted - totalSpent;
+
+  }, [envelopes, transactions]);
+  // --- End Rollover Logic ---
+
+
   // Function to get transactions for a specific payee
   const getPayeeTransactions = useCallback((payeeId: string): Transaction[] => {
     return transactions
@@ -266,6 +308,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       getAccountBalance,
       getAccountById, // Expose getAccountById
       getEnvelopeSpending,
+      getEnvelopeBalanceWithRollover, // Expose rollover balance function
       getPayeeTransactions, // Expose getPayeeTransactions
       isLoading
     }}>

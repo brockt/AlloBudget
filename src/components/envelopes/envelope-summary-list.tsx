@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState } from "react";
@@ -32,7 +33,7 @@ function getDaySuffix(day: number): string {
 }
 
 export default function EnvelopeSummaryList() {
-  const { envelopes, getEnvelopeSpending } = useAppContext();
+  const { envelopes, getEnvelopeSpending, getEnvelopeBalanceWithRollover } = useAppContext(); // Use both functions
   const [editingEnvelope, setEditingEnvelope] = useState<Envelope | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
@@ -95,9 +96,11 @@ export default function EnvelopeSummaryList() {
                     <AccordionContent>
                         <ul className="space-y-3 pl-1 pr-2">
                             {groupedEnvelopes[category].map(envelope => {
-                                const spent = getEnvelopeSpending(envelope.id, currentMonthPeriod);
-                                const progress = envelope.budgetAmount > 0 ? (spent / envelope.budgetAmount) * 100 : 0;
-                                const remaining = envelope.budgetAmount - spent;
+                                const spentThisMonth = getEnvelopeSpending(envelope.id, currentMonthPeriod);
+                                // Calculate progress based on this month's spending vs budget
+                                const progress = envelope.budgetAmount > 0 ? (spentThisMonth / envelope.budgetAmount) * 100 : 0;
+                                // Get the total available balance including rollover
+                                const availableBalance = getEnvelopeBalanceWithRollover(envelope.id);
                                 const dueDateString = envelope.dueDate ? `${envelope.dueDate}${getDaySuffix(envelope.dueDate)}` : '';
 
                                 return (
@@ -122,14 +125,17 @@ export default function EnvelopeSummaryList() {
                                               </span>
                                             )}
                                           </div>
-                                          <span className={`font-semibold ${remaining < 0 ? 'text-destructive' : 'text-green-600 dark:text-green-500'}`}>
-                                              ${remaining.toFixed(2)}
+                                          {/* Display the available balance including rollover */}
+                                          <span className={`font-semibold ${availableBalance < 0 ? 'text-destructive' : 'text-green-600 dark:text-green-500'}`}>
+                                              ${availableBalance.toFixed(2)}
                                           </span>
                                         </div>
+                                        {/* Progress bar still reflects this month's spending */}
                                         <Progress value={Math.min(progress, 100)} className="h-2" />
                                         <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                                        <span>Spent: ${spent.toFixed(2)}</span>
-                                        <span>Budget: ${envelope.budgetAmount.toFixed(2)}</span>
+                                        {/* Show spending for the current month */}
+                                        <span>Spent (Month): ${spentThisMonth.toFixed(2)}</span>
+                                        <span>Budget (Month): ${envelope.budgetAmount.toFixed(2)}</span>
                                         </div>
                                     </li>
                                 );
@@ -163,3 +169,4 @@ export default function EnvelopeSummaryList() {
     </>
   );
 }
+
