@@ -28,6 +28,13 @@ export interface Transaction {
   createdAt: string;
 }
 
+export interface Payee {
+  id: string;
+  name: string;
+  category?: string;
+  createdAt: string;
+}
+
 // For forms
 export interface AccountFormData {
   name: string;
@@ -47,4 +54,9 @@ export interface TransactionFormData {
   type: TransactionType;
   description: string;
   date: string; // Should be string for form input, then parsed
+}
+
+export interface PayeeFormData {
+  name: string;
+  category?: string;
 }

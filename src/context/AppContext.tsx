@@ -1,17 +1,20 @@
+
 "use client";
 
 import type { ReactNode } from 'react';
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import type { Account, Envelope, Transaction, AccountFormData, EnvelopeFormData, TransactionFormData } from '@/types';
+import type { Account, Envelope, Transaction, Payee, AccountFormData, EnvelopeFormData, TransactionFormData, PayeeFormData } from '@/types';
 import { formatISO, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
 
 interface AppContextType {
   accounts: Account[];
   envelopes: Envelope[];
   transactions: Transaction[];
+  payees: Payee[];
   addAccount: (accountData: AccountFormData) => void;
   addEnvelope: (envelopeData: EnvelopeFormData) => void;
   addTransaction: (transactionData: TransactionFormData) => void;
+  addPayee: (payeeData: PayeeFormData) => void;
   deleteTransaction: (transactionId: string) => void; // Example delete
   // Placeholder for more complex operations if needed
   getAccountBalance: (accountId: string) => number;
@@ -27,6 +30,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [envelopes, setEnvelopes] = useState<Envelope[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [payees, setPayees] = useState<Payee[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -38,6 +42,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         setAccounts(Array.isArray(parsedData.accounts) ? parsedData.accounts : []);
         setEnvelopes(Array.isArray(parsedData.envelopes) ? parsedData.envelopes : []);
         setTransactions(Array.isArray(parsedData.transactions) ? parsedData.transactions : []);
+        setPayees(Array.isArray(parsedData.payees) ? parsedData.payees : []); // Load payees
       }
     } catch (error) {
       console.error("Failed to load data from localStorage", error);
@@ -45,6 +50,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       setAccounts([]);
       setEnvelopes([]);
       setTransactions([]);
+      setPayees([]);
     } finally {
       setIsLoading(false);
     }
@@ -53,13 +59,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     if (!isLoading) { // Only save when not initially loading
       try {
-        const dataToStore = JSON.stringify({ accounts, envelopes, transactions });
+        const dataToStore = JSON.stringify({ accounts, envelopes, transactions, payees }); // Save payees
         localStorage.setItem(LOCAL_STORAGE_KEY, dataToStore);
       } catch (error) {
         console.error("Failed to save data to localStorage", error);
       }
     }
-  }, [accounts, envelopes, transactions, isLoading]);
+  }, [accounts, envelopes, transactions, payees, isLoading]);
 
 
   const addAccount = (accountData: AccountFormData) => {
@@ -89,6 +95,16 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       createdAt: formatISO(new Date()),
     };
     setTransactions(prev => [...prev, newTransaction].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+  };
+
+  const addPayee = (payeeData: PayeeFormData) => {
+    const newPayee: Payee = {
+      ...payeeData,
+      id: crypto.randomUUID(),
+      createdAt: formatISO(new Date()),
+    };
+    // Add new payee and sort alphabetically by name
+    setPayees(prev => [...prev, newPayee].sort((a, b) => a.name.localeCompare(b.name)));
   };
 
   const deleteTransaction = (transactionId: string) => {
@@ -125,9 +141,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       accounts, 
       envelopes, 
       transactions, 
+      payees, // Expose payees
       addAccount, 
       addEnvelope, 
       addTransaction,
+      addPayee, // Expose addPayee
       deleteTransaction,
       getAccountBalance,
       getEnvelopeSpending,

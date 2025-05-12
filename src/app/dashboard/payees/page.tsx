@@ -14,16 +14,34 @@ import {
   DialogDescription,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { AddPayeeForm } from "@/components/payees/add-payee-form"; // Placeholder form
+import { AddPayeeForm } from "@/components/payees/add-payee-form";
+import { PayeeList } from "@/components/payees/payee-list"; // Import the new list component
+import { useAppContext } from "@/context/AppContext";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function PayeesPage() {
   const [isAddPayeeDialogOpen, setIsAddPayeeDialogOpen] = useState(false);
-  // Future state and logic for payees will go here
-  const isLoading = false; // Placeholder
+  const { payees, isLoading } = useAppContext(); // Get payees and loading state
 
   if (isLoading) {
-    // Add skeleton loading state if needed in the future
-    return <div>Loading Payees...</div>;
+    return (
+      <div className="space-y-6">
+        <PageHeader title="Payees" description="Manage your frequent payees and contacts."/>
+        <Card>
+          <CardHeader>
+             <Skeleton className="h-6 w-1/3 mb-2" />
+             <Skeleton className="h-4 w-1/2" />
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   return (
@@ -56,17 +74,20 @@ export default function PayeesPage() {
       <Card className="shadow-lg">
         <CardHeader>
           <CardTitle>Payee List</CardTitle>
-          <CardDescription>Your saved payees will appear here.</CardDescription>
+          <CardDescription>Your saved payees.</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col items-center justify-center h-64 text-center border-2 border-dashed rounded-lg p-4 bg-muted/20">
-            <Users className="h-16 w-16 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold text-foreground">No Payees Yet</h3>
-            <p className="text-muted-foreground mt-2">
-              Click "Add New Payee" to add your first payee.
-            </p>
-          </div>
-          {/* Placeholder for future Payee list/table */}
+          {payees.length > 0 ? (
+             <PayeeList /> // Display the list component
+          ) : (
+            <div className="flex flex-col items-center justify-center h-64 text-center border-2 border-dashed rounded-lg p-4 bg-muted/20">
+              <Users className="h-16 w-16 text-muted-foreground mb-4" />
+              <h3 className="text-lg font-semibold text-foreground">No Payees Yet</h3>
+              <p className="text-muted-foreground mt-2">
+                Click "Add New Payee" to add your first payee.
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

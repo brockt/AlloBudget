@@ -1,50 +1,90 @@
 
 "use client";
 
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import type * as z from "zod";
+
 import { Button } from "@/components/ui/button";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { useToast } from "@/hooks/use-toast";
+import { payeeSchema } from "@/lib/schemas";
+import { useAppContext } from "@/context/AppContext";
+import type { PayeeFormData } from "@/types";
 import { PlusCircle } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 interface AddPayeeFormProps {
   onSuccess?: () => void;
 }
 
-// This is a placeholder form. In a real scenario, you'd use react-hook-form and Zod for validation.
 export function AddPayeeForm({ onSuccess }: AddPayeeFormProps) {
+  const { addPayee } = useAppContext();
   const { toast } = useToast();
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    // Placeholder for actual form submission logic
-    const formData = new FormData(event.currentTarget);
-    const payeeName = formData.get("payeeName") as string;
+  const form = useForm<z.infer<typeof payeeSchema>>({
+    resolver: zodResolver(payeeSchema),
+    defaultValues: {
+      name: "",
+      category: "",
+    },
+  });
 
-    console.log("Adding payee:", payeeName);
+  function onSubmit(values: z.infer<typeof payeeSchema>) {
+    // Filter out empty optional fields if necessary, or let the schema handle it
+    const dataToAdd: PayeeFormData = {
+        name: values.name,
+        ...(values.category && { category: values.category }), // Only include category if provided
+    }
+    addPayee(dataToAdd);
     toast({
-      title: "Payee Added (Placeholder)",
-      description: `Payee "${payeeName}" would be added. This is a demo.`,
+      title: "Payee Added",
+      description: `Payee "${values.name}" has been successfully added.`,
     });
+    form.reset();
     if (onSuccess) onSuccess();
-  };
+  }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="space-y-2">
-        <Label htmlFor="payeeName">Payee Name</Label>
-        <Input id="payeeName" name="payeeName" placeholder="e.g., John Doe, Utility Company" required />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="payeeCategory">Category (Optional)</Label>
-        <Input id="payeeCategory" name="payeeCategory" placeholder="e.g., Bills, Personal" />
-      </div>
-      <p className="text-sm text-muted-foreground">
-        More fields (contact info, default envelope, etc.) will be available in a future update.
-      </p>
-      <Button type="submit" className="w-full sm:w-auto">
-        <PlusCircle className="mr-2 h-4 w-4" /> Add Payee
-      </Button>
-    </form>
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <FormField
+          control={form.control}
+          name="name"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Payee Name</FormLabel>
+              <FormControl>
+                <Input placeholder="e.g., John Doe, Utility Company" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="category"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Category (Optional)</FormLabel>
+              <FormControl>
+                <Input placeholder="e.g., Bills, Personal" {...field} />
+              </FormControl>
+               <FormMessage />
+            </FormItem>
+          )}
+        />
+        <Button type="submit" className="w-full sm:w-auto">
+          <PlusCircle className="mr-2 h-4 w-4" /> Add Payee
+        </Button>
+      </form>
+    </Form>
   );
 }

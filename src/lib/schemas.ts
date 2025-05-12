@@ -45,6 +45,12 @@ export const transactionSchema = z.object({
   }),
 });
 
+export const payeeSchema = z.object({
+  name: z.string().min(1, "Payee name is required.").max(100, "Name too long."),
+  category: z.string().max(100, "Category too long.").optional(),
+});
+
 // Ensure envelopeId is present if type is expense and an envelope is selected (or make it more complex)
 // For now, basic schema. If type is expense, envelopeId is highly recommended.
+
 
