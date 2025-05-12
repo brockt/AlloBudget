@@ -1,4 +1,5 @@
 
+
 export interface Account {
   id: string;
   name: string;
@@ -75,6 +76,10 @@ export interface PayeeFormData {
   category?: string;
 }
 
+// For updating a payee, ensure ID is present
+export type PayeeWithId = PayeeFormData & { id: string };
+
+
 // For transfer envelope funds form
 export interface TransferEnvelopeFundsFormData {
   fromEnvelopeId: string;
@@ -105,6 +110,7 @@ export interface AppContextType {
   addEnvelope: (envelopeData: EnvelopeFormData) => void;
   addTransaction: (transactionData: TransactionFormData) => void;
   addPayee: (payeeData: PayeeFormData) => void;
+  updatePayee: (payeeData: PayeeWithId) => void; // Added updatePayee function
   addCategory: (categoryName: string) => void; // Added addCategory function
   updateEnvelope: (envelopeData: Partial<Envelope> & { id: string }) => void; // Added updateEnvelope function
   updateEnvelopeOrder: (reorderedEnvelopes: Envelope[]) => void; // Added updateEnvelopeOrder function
@@ -124,3 +130,4 @@ export interface AppContextType {
   getYtdIncomeTotal: () => number;
   isLoading: boolean;
 }
+

@@ -15,13 +15,22 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { AddPayeeForm } from "@/components/payees/add-payee-form";
-import { PayeeList } from "@/components/payees/payee-list"; // Import the new list component
+import { PayeeList } from "@/components/payees/payee-list";
+import { EditPayeeForm } from "@/components/payees/edit-payee-form"; // Import EditPayeeForm
 import { useAppContext } from "@/context/AppContext";
 import { Skeleton } from "@/components/ui/skeleton";
+import type { Payee } from "@/types"; // Import Payee type
 
 export default function PayeesPage() {
   const [isAddPayeeDialogOpen, setIsAddPayeeDialogOpen] = useState(false);
-  const { payees, isLoading } = useAppContext(); // Get payees and loading state
+  const [isEditPayeeDialogOpen, setIsEditPayeeDialogOpen] = useState(false); // State for edit dialog
+  const [editingPayee, setEditingPayee] = useState<Payee | null>(null); // State for payee being edited
+  const { payees, isLoading } = useAppContext();
+
+  const handleEditPayee = (payee: Payee) => {
+    setEditingPayee(payee);
+    setIsEditPayeeDialogOpen(true);
+  };
 
   if (isLoading) {
     return (
@@ -57,7 +66,6 @@ export default function PayeesPage() {
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">
-              {/* Ensure DialogHeader and DialogTitle are present */}
               <DialogHeader>
                 <DialogTitle>Add New Payee</DialogTitle>
                 <DialogDescription>
@@ -79,7 +87,7 @@ export default function PayeesPage() {
         </CardHeader>
         <CardContent>
           {payees.length > 0 ? (
-             <PayeeList /> // Display the list component
+             <PayeeList onEditPayee={handleEditPayee} /> // Pass handleEditPayee to PayeeList
           ) : (
             <div className="flex flex-col items-center justify-center h-64 text-center border-2 border-dashed rounded-lg p-4 bg-muted/20">
               <Users className="h-16 w-16 text-muted-foreground mb-4" />
@@ -91,6 +99,29 @@ export default function PayeesPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Edit Payee Dialog */}
+      <Dialog open={isEditPayeeDialogOpen} onOpenChange={setIsEditPayeeDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Edit Payee</DialogTitle>
+            <DialogDescription>
+              Update the details for {editingPayee?.name}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            {editingPayee && (
+              <EditPayeeForm
+                payee={editingPayee}
+                onSuccess={() => {
+                  setIsEditPayeeDialogOpen(false);
+                  setEditingPayee(null);
+                }}
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

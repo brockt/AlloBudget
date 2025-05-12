@@ -3,7 +3,8 @@
 
 import type { ReactNode } from 'react';
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import type { Account, Envelope, Transaction, Payee, AccountFormData, EnvelopeFormData, TransactionFormData, PayeeFormData, TransferEnvelopeFundsFormData, AccountWithId, TransferAccountFundsFormData, AppContextType } from '@/types';
+// Added PayeeWithId type
+import type { Account, Envelope, Transaction, Payee, AccountFormData, EnvelopeFormData, TransactionFormData, PayeeFormData, PayeeWithId, TransferEnvelopeFundsFormData, AccountWithId, TransferAccountFundsFormData, AppContextType } from '@/types';
 // Use parseISO and isValid for robust date handling
 // Import differenceInCalendarMonths for rollover calculation
 import { formatISO, startOfMonth, endOfMonth, isWithinInterval, parseISO, isValid, differenceInCalendarMonths, startOfDay, startOfYear, endOfDay } from 'date-fns'; // Added startOfYear, endOfDay
@@ -42,7 +43,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         ) : [];
 
         const validPayees = Array.isArray(parsedData.payees) ? parsedData.payees.filter((p: any): p is Payee =>
-            p && typeof p.id === 'string' && typeof p.name === 'string' && typeof p.createdAt === 'string' && isValid(parseISO(p.createdAt))
+            p && typeof p.id === 'string' && typeof p.name === 'string' && typeof p.createdAt === 'string' && isValid(parseISO(p.createdAt)) &&
+            (p.category === undefined || p.category === null || typeof p.category === 'string') // Allow null for category during validation
         ) : [];
 
         const validTransactions = Array.isArray(parsedData.transactions)
@@ -61,13 +63,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                   return false;
               }
               // Validate isTransfer (optional boolean)
-              if (!(tx.isTransfer === undefined || typeof tx.isTransfer === 'boolean')) {
+              if (!(tx.isTransfer === undefined || tx.isTransfer === null || typeof tx.isTransfer === 'boolean')) {
                   return false;
               }
               const dateObj = parseISO(tx.date);
               const createdAtObj = parseISO(tx.createdAt);
               if (!isValid(dateObj) || !isValid(createdAtObj)) {
-                 return false; 
+                 return false;
               }
               return true;
             }).sort((a: Transaction, b: Transaction) => parseISO(b.date).getTime() - parseISO(a.date).getTime())
@@ -79,19 +81,22 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
 
         setAccounts(validAccounts);
-        setEnvelopes(validEnvelopes.map(env => ({ 
+        setEnvelopes(validEnvelopes.map(env => ({
           ...env,
           estimatedAmount: env.estimatedAmount === null ? undefined : env.estimatedAmount,
           dueDate: env.dueDate === null ? undefined : env.dueDate,
         })));
-        setTransactions(validTransactions.map(tx => ({ 
+        setTransactions(validTransactions.map(tx => ({
             ...tx,
             description: tx.description === null ? undefined : tx.description,
             envelopeId: tx.envelopeId === null ? undefined : tx.envelopeId,
             isTransfer: tx.isTransfer === null ? undefined : tx.isTransfer, // Ensure undefined, not null
         })));
-        setPayees(validPayees.sort((a: Payee, b: Payee) => a.name.localeCompare(b.name))); 
-        setCategories(validCategories); 
+        setPayees(validPayees.map(p => ({ // Ensure category is undefined, not null
+            ...p,
+            category: p.category === null ? undefined : p.category,
+        })).sort((a: Payee, b: Payee) => a.name.localeCompare(b.name)));
+        setCategories(validCategories);
       }
     } catch (error) {
       console.error("Failed to load or parse data from localStorage", error);
@@ -99,14 +104,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       setEnvelopes([]);
       setTransactions([]);
       setPayees([]);
-      setCategories([]); 
+      setCategories([]);
     } finally {
       setIsLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    if (!isLoading) { 
+    if (!isLoading) {
       try {
         const dataToStore = JSON.stringify({ accounts, envelopes, transactions, payees, categories });
         localStorage.setItem(LOCAL_STORAGE_KEY, dataToStore);
@@ -114,7 +119,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         console.error("Failed to save data to localStorage", error);
       }
     }
-  }, [accounts, envelopes, transactions, payees, categories, isLoading]); 
+  }, [accounts, envelopes, transactions, payees, categories, isLoading]);
 
 
   const addAccount = (accountData: AccountFormData) => {
@@ -140,9 +145,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       name: envelopeData.name,
       budgetAmount: envelopeData.budgetAmount,
       estimatedAmount: (typeof envelopeData.estimatedAmount === 'number' && !isNaN(envelopeData.estimatedAmount)) ? envelopeData.estimatedAmount : undefined,
-      category: envelopeData.category, 
+      category: envelopeData.category,
       dueDate: (typeof envelopeData.dueDate === 'number' && !isNaN(envelopeData.dueDate) && envelopeData.dueDate >= 1 && envelopeData.dueDate <= 31) ? envelopeData.dueDate : undefined,
-      createdAt: formatISO(startOfDay(new Date())), 
+      createdAt: formatISO(startOfDay(new Date())),
     };
     setEnvelopes(prev => [...prev, newEnvelope]);
   };
@@ -186,26 +191,44 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       amount: Number(transactionData.amount),
       type: transactionData.type,
       description: transactionData.description || undefined,
-      date: formatISO(parsedDate), 
+      date: formatISO(parsedDate),
       createdAt: formatISO(new Date()),
       isTransfer: transactionData.isTransfer || false, // Add isTransfer flag
     };
     setTransactions(prev => [...prev, newTransaction].sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime()));
-  }, []); 
+  }, []);
 
 
   const addPayee = (payeeData: PayeeFormData) => {
     const newPayee: Payee = {
-      ...payeeData,
       id: crypto.randomUUID(),
+      name: payeeData.name,
+      // Ensure category is undefined if empty string, otherwise use the value
+      category: payeeData.category?.trim() ? payeeData.category.trim() : undefined,
       createdAt: formatISO(new Date()),
     };
     setPayees(prev => [...prev, newPayee].sort((a, b) => a.name.localeCompare(b.name)));
   };
 
+  // Function to update an existing payee
+  const updatePayee = useCallback((payeeData: PayeeWithId) => {
+    setPayees(prevPayees =>
+      prevPayees.map(payee =>
+        payee.id === payeeData.id
+          ? {
+              ...payee,
+              name: payeeData.name,
+              // Ensure category is undefined if empty string, otherwise update
+              category: payeeData.category?.trim() ? payeeData.category.trim() : undefined,
+            }
+          : payee
+      ).sort((a, b) => a.name.localeCompare(b.name)) // Resort after update
+    );
+  }, []);
+
   const addCategory = (categoryName: string) => {
       const trimmedName = categoryName.trim();
-      if (trimmedName.length === 0) return; 
+      if (trimmedName.length === 0) return;
 
       if (!categories.some(cat => cat.toLowerCase() === trimmedName.toLowerCase())) {
           setCategories(prev => [...prev, trimmedName].sort());
@@ -254,17 +277,17 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
     const incomeTransaction: TransactionFormData = {
       accountId,
-      envelopeId: toEnvelopeId, 
+      envelopeId: toEnvelopeId,
       payeeId: internalTransferPayee.id,
       amount,
-      type: 'income', 
+      type: 'income',
       description: description || `Transfer from ${fromEnvelope.name}`,
       date,
       isTransfer: false, // Envelope transfers are not inter-account transfers for income reporting
     };
     addTransaction(incomeTransaction);
 
-  }, [addTransaction, envelopes, payees]); 
+  }, [addTransaction, envelopes, payees]);
 
 
   const transferBetweenAccounts = useCallback((data: TransferAccountFundsFormData) => {
@@ -290,30 +313,30 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
 
     const expenseTransaction: TransactionFormData = {
-        accountId: fromAccountId, 
-        envelopeId: null,         
-        payeeId: internalTransferPayee.id, 
+        accountId: fromAccountId,
+        envelopeId: null,
+        payeeId: internalTransferPayee.id,
         amount,
         type: 'expense',
         description: description || `Transfer to ${toAccount.name}`,
         date,
         isTransfer: true, // Mark as transfer
     };
-    addTransaction(expenseTransaction); 
+    addTransaction(expenseTransaction);
 
     const incomeTransaction: TransactionFormData = {
-        accountId: toAccountId,   
-        envelopeId: null,         
-        payeeId: internalTransferPayee.id, 
+        accountId: toAccountId,
+        envelopeId: null,
+        payeeId: internalTransferPayee.id,
         amount,
         type: 'income',
         description: description || `Transfer from ${fromAccount.name}`,
         date,
         isTransfer: true, // Mark as transfer
     };
-    addTransaction(incomeTransaction); 
+    addTransaction(incomeTransaction);
 
-  }, [addTransaction, accounts, payees]); 
+  }, [addTransaction, accounts, payees]);
 
 
   const getAccountBalance = useCallback((accountId: string): number => {
@@ -377,7 +400,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const monthsActive = differenceInCalendarMonths(currentDate, creationDate) + 1;
 
     if (monthsActive <= 0 || isNaN(monthsActive)) {
-        return 0; 
+        return 0;
     }
 
     const budgetAmount = typeof envelope.budgetAmount === 'number' && !isNaN(envelope.budgetAmount) ? envelope.budgetAmount : 0;
@@ -416,7 +439,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         .sort((a, b) => {
             const dateA = parseISO(a.date);
             const dateB = parseISO(b.date);
-            if (!isValid(dateA)) return 1; 
+            if (!isValid(dateA)) return 1;
             if (!isValid(dateB)) return -1;
             return dateB.getTime() - dateA.getTime();
         });
@@ -467,7 +490,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const getYtdIncomeTotal = useCallback((): number => {
     const now = new Date();
     const yearStart = startOfYear(now);
-    const todayEnd = endOfDay(now); 
+    const todayEnd = endOfDay(now);
 
     return transactions.reduce((total, tx) => {
       const txDate = parseISO(tx.date);
@@ -493,12 +516,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       addEnvelope,
       addTransaction,
       addPayee,
+      updatePayee, // Provide updatePayee
       addCategory,
       updateEnvelope,
-      updateEnvelopeOrder, 
+      updateEnvelopeOrder,
       deleteTransaction,
       transferBetweenEnvelopes,
-      transferBetweenAccounts, 
+      transferBetweenAccounts,
       getAccountBalance,
       getAccountById,
       getEnvelopeById,
