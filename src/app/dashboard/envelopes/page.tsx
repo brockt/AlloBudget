@@ -4,7 +4,7 @@
 import { useState } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Package } from "lucide-react"; // Keep Package for Add Envelope
+import { PlusCircle, Package, ArrowRightLeft } from "lucide-react"; // Keep Package for Add Envelope, Add ArrowRightLeft
 import {
   Dialog,
   DialogContent,
@@ -14,7 +14,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { AddEnvelopeForm } from "@/components/envelopes/add-envelope-form";
-import { AddCategoryForm } from "@/components/envelopes/add-category-form"; // Import the new form
+import { AddCategoryForm } from "@/components/envelopes/add-category-form";
+import { TransferFundsForm } from "@/components/envelopes/transfer-funds-form"; // Import the new transfer form
 import EnvelopeSummaryList from "@/components/envelopes/envelope-summary-list";
 import { useAppContext } from "@/context/AppContext";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -23,7 +24,8 @@ import { Card, CardContent } from "@/components/ui/card";
 
 export default function EnvelopesPage() {
   const [isAddEnvelopeDialogOpen, setIsAddEnvelopeDialogOpen] = useState(false);
-  const [isAddCategoryDialogOpen, setIsAddCategoryDialogOpen] = useState(false); // State for new dialog
+  const [isAddCategoryDialogOpen, setIsAddCategoryDialogOpen] = useState(false);
+  const [isTransferFundsDialogOpen, setIsTransferFundsDialogOpen] = useState(false); // State for transfer dialog
   const { isLoading, envelopes } = useAppContext();
 
   if (isLoading) {
@@ -31,7 +33,7 @@ export default function EnvelopesPage() {
       <div className="space-y-6">
         <PageHeader title="Envelopes" description="Manage your budget categories." />
         <Card>
-          <CardContent className="pt-6"> {/* Ensure CardContent is used if CardHeader is removed */}
+          <CardContent className="pt-6"> 
             <div className="space-y-4">
               <Skeleton className="h-12 w-full" />
               <Skeleton className="h-12 w-full" />
@@ -48,12 +50,13 @@ export default function EnvelopesPage() {
       <PageHeader
         title="Envelopes"
         description="Manage your budget categories (envelopes), grouped by category."
-        actions={<div className="flex flex-col sm:flex-row gap-2">
+        actions={
+        <div className="flex flex-col sm:flex-row gap-2">
           {/* Add Envelope Dialog */}
           <Dialog open={isAddEnvelopeDialogOpen} onOpenChange={setIsAddEnvelopeDialogOpen}>
             <DialogTrigger asChild>
               <Button>
-                 <Package className="mr-2 h-4 w-4" /> {/* Changed Icon */} Add Envelope
+                 <Package className="mr-2 h-4 w-4" /> Add Envelope
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">
@@ -88,14 +91,33 @@ export default function EnvelopesPage() {
               </div>
             </DialogContent>
           </Dialog>
+
+          {/* Transfer Funds Dialog */}
+          <Dialog open={isTransferFundsDialogOpen} onOpenChange={setIsTransferFundsDialogOpen}>
+            <DialogTrigger asChild>
+               <Button variant="outline" disabled={envelopes.length < 2}>
+                 <ArrowRightLeft className="mr-2 h-4 w-4" /> Transfer Funds
+               </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle>Transfer Funds Between Envelopes</DialogTitle>
+                <DialogDescription>
+                  Move allocated money from one envelope to another.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="py-4">
+                 <TransferFundsForm onSuccess={() => setIsTransferFundsDialogOpen(false)} />
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>}
       />
 
-      {/* Use Card for consistency */}
       <Card className="shadow-lg">
-        <CardContent className="pt-4"> {/* Add some padding */}
+        <CardContent className="pt-4">
           {envelopes.length > 0 ? (
-            <EnvelopeSummaryList /> // Use the updated list component
+            <EnvelopeSummaryList /> 
           ) : (
             <div className="flex flex-col items-center justify-center h-48 text-center border-2 border-dashed rounded-lg p-4">
               <Package className="h-12 w-12 text-muted-foreground mb-3" />

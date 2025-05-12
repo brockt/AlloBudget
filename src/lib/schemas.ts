@@ -1,5 +1,4 @@
 
-
 import { z } from 'zod';
 import { parseISO, isValid } from 'date-fns'; // Import date-fns functions
 
@@ -69,9 +68,6 @@ export const transactionSchema = z.object({
       path: ['envelopeId'],
     });
   }
-  // For income transactions, envelopeId should not be set.
-  // The form logic already clears envelopeId when type is 'income'.
-  // If an envelopeId is somehow passed for an income transaction, it will be ignored by app logic.
 });
 
 
@@ -80,3 +76,28 @@ export const payeeSchema = z.object({
   category: z.string().max(100, "Category too long.").optional(),
 });
 
+export const transferEnvelopeFundsSchema = z.object({
+  fromEnvelopeId: z.string().min(1, "Source envelope is required."),
+  toEnvelopeId: z.string().min(1, "Destination envelope is required."),
+  amount: z.preprocess(
+    (val) => Number(String(val)),
+    z.number().positive("Amount must be positive.")
+  ),
+  accountId: z.string().min(1, "Account for transactions is required."),
+  date: z.string().refine((dateString) => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateString)) return false;
+    const date = parseISO(dateString);
+    return isValid(date);
+  }, {
+    message: "Invalid date format. Please use YYYY-MM-DD.",
+  }),
+  description: z.string().max(200, "Description too long.").optional(),
+}).superRefine((data, ctx) => {
+  if (data.fromEnvelopeId === data.toEnvelopeId) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Source and destination envelopes cannot be the same.",
+      path: ['toEnvelopeId'], // Or ['fromEnvelopeId']
+    });
+  }
+});

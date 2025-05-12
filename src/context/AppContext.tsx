@@ -1,10 +1,9 @@
 
-
 "use client";
 
 import type { ReactNode } from 'react';
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import type { Account, Envelope, Transaction, Payee, AccountFormData, EnvelopeFormData, TransactionFormData, PayeeFormData } from '@/types';
+import type { Account, Envelope, Transaction, Payee, AccountFormData, EnvelopeFormData, TransactionFormData, PayeeFormData, TransferEnvelopeFundsFormData } from '@/types';
 // Use parseISO and isValid for robust date handling
 // Import differenceInCalendarMonths for rollover calculation
 import { formatISO, startOfMonth, endOfMonth, isWithinInterval, parseISO, isValid, differenceInCalendarMonths, startOfDay } from 'date-fns';
@@ -22,6 +21,7 @@ interface AppContextType {
   addCategory: (categoryName: string) => void; // Added addCategory function
   updateEnvelope: (envelopeData: Partial<Envelope> & { id: string }) => void; // Added updateEnvelope function
   deleteTransaction: (transactionId: string) => void; // Example delete
+  transferBetweenEnvelopes: (data: TransferEnvelopeFundsFormData) => void; // New function
   getAccountBalance: (accountId: string) => number;
   getAccountById: (accountId: string) => Account | undefined; // Added function definition
   getEnvelopeSpending: (envelopeId: string, period?: { start: Date, end: Date }) => number;
@@ -74,6 +74,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                  return false;
               }
               // EnvelopeId validation (optional)
+              // Now allows envelopeId for income type transactions too.
               if (!(tx.envelopeId === undefined || tx.envelopeId === null || typeof tx.envelopeId === 'string')) {
                   console.warn(`Invalid envelopeId type found in stored transaction ${tx.id}: type='${typeof tx.envelopeId}'. Filtering out.`);
                   return false;
@@ -163,27 +164,26 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   };
 
 
-  const addTransaction = (transactionData: TransactionFormData) => {
-     // Basic check for payeeId, although schema validation should handle this
+  const addTransaction = useCallback((transactionData: TransactionFormData) => {
     if (!transactionData.payeeId) {
       console.error("Cannot add transaction without a payee ID.");
-      // Optionally throw an error or show a user notification
       return;
     }
 
     const newTransaction: Transaction = {
-      ...transactionData,
       id: crypto.randomUUID(),
-      amount: Number(transactionData.amount), // Ensure amount is a number
-      // Handle envelopeId being null
+      accountId: transactionData.accountId,
       envelopeId: transactionData.envelopeId === null ? undefined : transactionData.envelopeId,
-      payeeId: transactionData.payeeId, // payeeId is guaranteed to be a string here
-      description: transactionData.description, // Keep description as is (can be undefined or string)
-      date: formatISO(parseISO(transactionData.date)), // Ensure date is valid ISO string from input
+      payeeId: transactionData.payeeId,
+      amount: Number(transactionData.amount),
+      type: transactionData.type,
+      description: transactionData.description,
+      date: formatISO(parseISO(transactionData.date)),
       createdAt: formatISO(new Date()),
     };
     setTransactions(prev => [...prev, newTransaction].sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime()));
-  };
+  }, []); // memoized to be used in transferBetweenEnvelopes
+
 
   const addPayee = (payeeData: PayeeFormData) => {
     const newPayee: Payee = {
@@ -196,18 +196,81 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const addCategory = (categoryName: string) => {
-      // Check if category already exists (case-insensitive)
       if (!categories.some(cat => cat.toLowerCase() === categoryName.toLowerCase())) {
           setCategories(prev => [...prev, categoryName].sort());
       } else {
           console.warn(`Category "${categoryName}" already exists.`);
-          // Optionally, show a toast notification here
       }
   };
 
   const deleteTransaction = (transactionId: string) => {
     setTransactions(prev => prev.filter(t => t.id !== transactionId));
   };
+
+  const transferBetweenEnvelopes = useCallback((data: TransferEnvelopeFundsFormData) => {
+    const { fromEnvelopeId, toEnvelopeId, amount, accountId, date, description } = data;
+
+    const fromEnvelope = envelopes.find(e => e.id === fromEnvelopeId);
+    const toEnvelope = envelopes.find(e => e.id === toEnvelopeId);
+
+    if (!fromEnvelope || !toEnvelope) {
+      console.error("Invalid source or destination envelope for transfer.");
+      // Potentially show a toast error to the user
+      return;
+    }
+    
+    // Create a system Payee if it doesn't exist, or use a predefined one.
+    // For this example, we'll assume the user has created/selected a "Internal Transfer" payee.
+    // Or, we can simplify and not require a payee selection in the form, and use a hardcoded ID for a system payee.
+    // For now, we will create transactions that require a payee to be selected in the form.
+    // This means the TransferEnvelopeFundsFormData should include payeeId.
+    // However, the request implies the transactions are internal and might not need a user-defined payee.
+    // Let's adjust to create a default "Internal Transfer" payee if one does not exist
+    // and use its ID. For now, we'll assume a payeeId will be handled by the form or a fixed one.
+    // For simplicity in this iteration, we'll omit payeeId from TransferEnvelopeFundsFormData
+    // and use a placeholder/generic payee for these internal transactions.
+    // This is a simplification; a real app might auto-create/use a dedicated "Internal Transfer" payee.
+    // Or better: let the transfer form in UI handle Payee selection or auto-assign one.
+    // For this implementation, we make the payee for transfers fixed.
+
+    let internalTransferPayee = payees.find(p => p.name === "Internal Budget Transfer");
+    if (!internalTransferPayee) {
+        const newPayeeId = crypto.randomUUID();
+        internalTransferPayee = {
+            id: newPayeeId,
+            name: "Internal Budget Transfer",
+            createdAt: formatISO(new Date()),
+        };
+        setPayees(prev => [...prev, internalTransferPayee!].sort((a, b) => a.name.localeCompare(b.name)));
+    }
+
+
+    // Transaction out of source envelope
+    const expenseTransaction: TransactionFormData = {
+      accountId,
+      envelopeId: fromEnvelopeId,
+      payeeId: internalTransferPayee.id, 
+      amount,
+      type: 'expense',
+      description: description || `Transfer to ${toEnvelope.name}`,
+      date,
+    };
+    addTransaction(expenseTransaction);
+
+    // Transaction into destination envelope
+    const incomeTransaction: TransactionFormData = {
+      accountId,
+      envelopeId: toEnvelopeId, // Assign to destination envelope
+      payeeId: internalTransferPayee.id,
+      amount,
+      type: 'income', // This is an "income" *to the envelope's balance*
+      description: description || `Transfer from ${fromEnvelope.name}`,
+      date,
+    };
+    addTransaction(incomeTransaction);
+
+  }, [addTransaction, envelopes, payees]); // Added payees to dependencies
+
 
   const getAccountBalance = useCallback((accountId: string): number => {
     const account = accounts.find(acc => acc.id === accountId);
@@ -225,7 +288,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const getAccountById = useCallback((accountId: string): Account | undefined => {
     return accounts.find(acc => acc.id === accountId);
-  }, [accounts]); // Added getAccountById implementation
+  }, [accounts]);
 
 
   const getEnvelopeSpending = useCallback((envelopeId: string, period?: { start: Date, end: Date }): number => {
@@ -233,17 +296,15 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
     return transactions
       .filter(tx => {
-          // Ensure date is valid before using it
           const txDate = parseISO(tx.date);
           return isValid(txDate) &&
                  tx.envelopeId === envelopeId &&
-                 tx.type === 'expense' &&
+                 tx.type === 'expense' && // Only consider actual expenses for "spending"
                  isWithinInterval(txDate, targetPeriod)
       })
       .reduce((sum, tx) => sum + tx.amount, 0);
   }, [transactions]);
 
-  // --- Rollover Logic ---
   const getEnvelopeBalanceWithRollover = useCallback((envelopeId: string): number => {
     const envelope = envelopes.find(env => env.id === envelopeId);
     if (!envelope || !isValid(parseISO(envelope.createdAt))) {
@@ -252,42 +313,41 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
     const creationDate = parseISO(envelope.createdAt);
     const currentDate = new Date();
-
-    // Calculate the number of full months the envelope has existed, including the current month
-    // differenceInCalendarMonths returns the number of *full* months between, so add 1
     const monthsActive = differenceInCalendarMonths(currentDate, creationDate) + 1;
 
-    if (monthsActive <= 0) {
-        return 0; // Should not happen if createdAt is valid and in the past/present
-    }
+    if (monthsActive <= 0) return 0;
 
-    // Calculate total budgeted amount since creation
-    const totalBudgeted = monthsActive * envelope.budgetAmount;
+    const initialBudgetFunding = monthsActive * envelope.budgetAmount;
 
-    // Calculate total spent since creation (up to the current date)
-    const totalSpent = transactions
+    const transfersIn = transactions
       .filter(tx => {
           const txDate = parseISO(tx.date);
-          // Filter expenses for this envelope that occurred on or after creation date
           return isValid(txDate) &&
                  tx.envelopeId === envelopeId &&
-                 tx.type === 'expense' &&
-                 txDate >= startOfDay(creationDate); // Compare against start of creation day
+                 tx.type === 'income' && // Income to this envelope (transfers in)
+                 txDate >= startOfDay(creationDate);
       })
       .reduce((sum, tx) => sum + tx.amount, 0);
 
-    // Current available balance is total budgeted minus total spent
-    return totalBudgeted - totalSpent;
+    const spendingAndTransfersOut = transactions
+      .filter(tx => {
+          const txDate = parseISO(tx.date);
+          return isValid(txDate) &&
+                 tx.envelopeId === envelopeId &&
+                 tx.type === 'expense' && // Expenses from this envelope (spending and transfers out)
+                 txDate >= startOfDay(creationDate);
+      })
+      .reduce((sum, tx) => sum + tx.amount, 0);
+
+    return initialBudgetFunding + transfersIn - spendingAndTransfersOut;
 
   }, [envelopes, transactions]);
-  // --- End Rollover Logic ---
 
 
-  // Function to get transactions for a specific payee
   const getPayeeTransactions = useCallback((payeeId: string): Transaction[] => {
     return transactions
         .filter(tx => tx.payeeId === payeeId)
-        .sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime()); // Sort by date descending
+        .sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime());
   }, [transactions]);
 
 
@@ -297,19 +357,20 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       envelopes,
       transactions,
       payees,
-      categories, // Expose categories
+      categories,
       addAccount,
       addEnvelope,
       addTransaction,
       addPayee,
-      addCategory, // Expose addCategory
-      updateEnvelope, // Expose updateEnvelope
+      addCategory,
+      updateEnvelope,
       deleteTransaction,
+      transferBetweenEnvelopes, // Expose the new function
       getAccountBalance,
-      getAccountById, // Expose getAccountById
+      getAccountById,
       getEnvelopeSpending,
-      getEnvelopeBalanceWithRollover, // Expose rollover balance function
-      getPayeeTransactions, // Expose getPayeeTransactions
+      getEnvelopeBalanceWithRollover,
+      getPayeeTransactions,
       isLoading
     }}>
       {children}
@@ -324,4 +385,3 @@ export const useAppContext = () => {
   }
   return context;
 };
-

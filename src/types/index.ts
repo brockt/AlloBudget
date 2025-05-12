@@ -1,5 +1,4 @@
 
-
 export interface Account {
   id: string;
   name: string;
@@ -21,9 +20,9 @@ export interface Envelope {
 export type TransactionType = 'income' | 'expense';
 
 export interface Transaction {
-  id: string;
+  id:string;
   accountId: string;
-  envelopeId?: string; // Optional, as income might not have an envelope or expenses not yet categorized
+  envelopeId?: string; // Optional, used for expenses and for transfers (both income/expense legs)
   payeeId: string; // Mandatory: Link to a payee
   amount: number;
   type: TransactionType;
@@ -55,7 +54,7 @@ export interface EnvelopeFormData {
 
 export interface TransactionFormData {
   accountId: string;
-  envelopeId?: string | null; // Allow null
+  envelopeId?: string | null; // Allow null. Will be set for expenses and for both legs of an envelope transfer.
   payeeId: string; // Made mandatory, cannot be null
   amount: number;
   type: TransactionType;
@@ -68,4 +67,12 @@ export interface PayeeFormData {
   category?: string;
 }
 
-
+// For transfer envelope funds form
+export interface TransferEnvelopeFundsFormData {
+  fromEnvelopeId: string;
+  toEnvelopeId: string;
+  amount: number;
+  accountId: string;
+  date: string; // ISO string date
+  description?: string;
+}
