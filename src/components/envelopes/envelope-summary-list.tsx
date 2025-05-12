@@ -35,13 +35,13 @@ import { SortableCategoryAccordionItem } from './sortable-category-accordion-ite
 import { Package } from "lucide-react"; // Import Package icon
 
 export default function EnvelopeSummaryList() {
-  const { envelopes, orderedCategories, updateCategoryOrder } = useAppContext();
+  const { envelopes, orderedCategories, updateCategoryOrder, updateEnvelopeOrder } = useAppContext(); // Added updateEnvelopeOrder
   const [editingEnvelope, setEditingEnvelope] = useState<Envelope | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null); // For drag overlay (optional, but good practice)
 
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }), // Require a slight drag distance
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     })
@@ -73,35 +73,60 @@ export default function EnvelopeSummaryList() {
   // Determine the default open category (first one with envelopes)
   const defaultOpenCategory = categoriesWithEnvelopes.length > 0 ? [categoriesWithEnvelopes[0]] : [];
 
-  function handleCategoryDragStart(event: DragStartEvent) {
+  function handleDragStart(event: DragStartEvent) {
      setActiveId(event.active.id as string);
   }
 
-  function handleCategoryDragEnd(event: DragEndEvent) {
+  function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     setActiveId(null); // Clear active ID
 
     if (over && active.id !== over.id) {
-       // Check if both active and over IDs are valid category names (strings) present in the ordered list
+       // Check if the dragged item is a category
        const isActiveCategory = typeof active.id === 'string' && orderedCategories.includes(active.id);
        const isOverCategory = typeof over.id === 'string' && orderedCategories.includes(over.id);
 
-       // Only proceed if BOTH IDs belong to categories in the current context
        if (isActiveCategory && isOverCategory) {
+           // --- Category Reordering Logic ---
            const oldIndex = orderedCategories.findIndex(cat => cat === active.id);
            const newIndex = orderedCategories.findIndex(cat => cat === over.id);
 
-           // Double-check indices just in case (should always be found now)
            if (oldIndex !== -1 && newIndex !== -1) {
                const newOrder = arrayMove(orderedCategories, oldIndex, newIndex);
                updateCategoryOrder(newOrder); // Update context state and localStorage
            } else {
-                // This should not happen if the above checks pass
-                console.error(`Category indices not found even after validation for IDs: "${active.id}", "${over.id}"`);
+                console.error(`Category indices not found for IDs: "${active.id}", "${over.id}"`);
+           }
+       } else if (!isActiveCategory && !isOverCategory) {
+           // --- Envelope Reordering Logic ---
+           // Assume active.id and over.id are envelope IDs
+           const activeEnvelopeId = active.id as string;
+           const overEnvelopeId = over.id as string;
+
+           // Find indices in the global envelopes array
+           const oldEnvelopeIndex = envelopes.findIndex(env => env.id === activeEnvelopeId);
+           const newEnvelopeIndex = envelopes.findIndex(env => env.id === overEnvelopeId);
+
+           if (oldEnvelopeIndex !== -1 && newEnvelopeIndex !== -1) {
+               // Important: Check if envelopes are in the same category.
+               // Dragging between categories is not visually supported here,
+               // but this prevents unintended reordering if dropped over an item in another category.
+               const activeEnvelope = envelopes[oldEnvelopeIndex];
+               const overEnvelope = envelopes[newEnvelopeIndex];
+
+               if (activeEnvelope.category === overEnvelope.category) {
+                   const reorderedEnvelopes = arrayMove(envelopes, oldEnvelopeIndex, newEnvelopeIndex);
+                   updateEnvelopeOrder(reorderedEnvelopes); // Update the global order
+               } else {
+                 // Optionally handle or log the attempt to drag between categories
+                 console.log("Attempted to drag envelope between different categories - not supported by current UI structure.");
+               }
+           } else {
+               console.error(`Envelope indices not found for IDs: "${activeEnvelopeId}", "${overEnvelopeId}"`);
            }
        } else {
-         // Log or ignore if it's not a category drag or if IDs are mismatched types/contexts
-         // console.log("Ignoring drag end event - likely an envelope drag:", { activeId: active.id, overId: over.id });
+           // This might happen if dragging a category over an envelope or vice versa, which shouldn't occur with current setup
+           console.warn("Ignoring drag end event - mixed types or unexpected target:", { activeId: active.id, overId: over.id });
        }
     }
   }
@@ -111,8 +136,8 @@ export default function EnvelopeSummaryList() {
     <DndContext
       sensors={sensors}
       collisionDetection={closestCenter}
-      onDragStart={handleCategoryDragStart}
-      onDragEnd={handleCategoryDragEnd}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd} // Use the updated handler
     >
       <ScrollArea className="h-auto max-h-[600px]">
         {/* SortableContext for Categories */}
@@ -134,6 +159,7 @@ export default function EnvelopeSummaryList() {
                 <SortableCategoryAccordionItem
                   key={category}
                   category={category}
+                  // Pass the envelopes for this category, ordered as they are in the global state
                   envelopesInCategory={categoryEnvelopes}
                   setEditingEnvelope={setEditingEnvelope}
                   setIsEditDialogOpen={setIsEditDialogOpen}
