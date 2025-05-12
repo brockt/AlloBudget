@@ -45,7 +45,9 @@ export const envelopeSchema = z.object({
 
 export const transactionSchema = z.object({
   accountId: z.string().min(1, "Account is required."),
-  envelopeId: z.string().optional().nullable().default(null).transform(val => val === "" ? null : val), // Ensure empty string becomes null
+  // Ensure envelopeId is treated as optional, allowing null or undefined.
+  // Transform empty strings from the select (if they occur) to null.
+  envelopeId: z.string().optional().nullable().transform(val => val === "" ? null : val),
   amount: z.preprocess(
     (val) => Number(String(val)),
     z.number().positive("Amount must be positive.")

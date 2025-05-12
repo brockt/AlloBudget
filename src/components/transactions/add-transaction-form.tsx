@@ -51,7 +51,7 @@ export function AddTransactionForm({ defaultAccountId, onSuccess, navigateToTran
     resolver: zodResolver(transactionSchema),
     defaultValues: {
       accountId: defaultAccountId || (accounts.length > 0 ? accounts[0].id : ""),
-      envelopeId: "",
+      envelopeId: null, // Default to null instead of ""
       amount: 0,
       type: "expense",
       description: "",
@@ -73,10 +73,11 @@ export function AddTransactionForm({ defaultAccountId, onSuccess, navigateToTran
       description: `Transaction for $${values.amount} has been successfully added.`,
     });
     form.reset({
-        ...form.getValues(), // Keep account if selected, reset others
+        accountId: form.getValues('accountId'), // Keep account if selected
         amount: 0,
         description: "",
-        envelopeId: transactionType === 'income' ? '' : form.getValues('envelopeId'), // Reset envelope only if type was income
+        type: form.getValues('type'), // Keep type
+        envelopeId: form.getValues('type') === 'income' ? null : form.getValues('envelopeId'), // Reset envelope only if type was income, default to null
         date: format(new Date(), "yyyy-MM-dd") // Reset date to today
     });
     if (onSuccess) onSuccess();
@@ -97,7 +98,7 @@ export function AddTransactionForm({ defaultAccountId, onSuccess, navigateToTran
                   onValueChange={(value) => {
                     field.onChange(value as TransactionType);
                     if (value === 'income') {
-                      form.setValue('envelopeId', ''); // Clear envelope for income
+                      form.setValue('envelopeId', null); // Clear envelope for income, set to null
                     }
                   }}
                   defaultValue={field.value}
@@ -135,7 +136,7 @@ export function AddTransactionForm({ defaultAccountId, onSuccess, navigateToTran
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  {accounts.length === 0 && <SelectItem value="" disabled>No accounts available</SelectItem>}
+                  {accounts.length === 0 && <SelectItem value="no-accounts-placeholder" disabled>No accounts available</SelectItem>} {/* Use a non-empty placeholder value */}
                   {accounts.map(account => (
                     <SelectItem key={account.id} value={account.id}>
                       {account.name}
@@ -155,15 +156,22 @@ export function AddTransactionForm({ defaultAccountId, onSuccess, navigateToTran
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Envelope (Optional for Expenses)</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value || ""}>
+                 {/* Use field.value directly which will be string | null | undefined */}
+                 {/* Pass undefined or null to Select onValueChange if no envelope is selected */}
+                <Select
+                  onValueChange={(value) => field.onChange(value || null)} // Ensure empty string selection results in null
+                  value={field.value ?? ""} // Pass "" only if value is null/undefined for Select state
+                >
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select an envelope" />
+                       {/* Placeholder is shown when value is null/undefined */}
+                      <SelectValue placeholder="Select an envelope (or none)" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="">None</SelectItem>
-                     {envelopes.length === 0 && <SelectItem value="" disabled>No envelopes available</SelectItem>}
+                     {/* Remove the explicit "None" item with empty value */}
+                     {/* Placeholder handles the "None" state */}
+                     {envelopes.length === 0 && <SelectItem value="no-envelopes-placeholder" disabled>No envelopes available</SelectItem>} {/* Use a non-empty placeholder value */}
                     {envelopes.map(envelope => (
                       <SelectItem key={envelope.id} value={envelope.id}>
                         {envelope.name}
