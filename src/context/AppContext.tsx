@@ -1,4 +1,3 @@
-
 "use client";
 
 import type { ReactNode } from 'react';
@@ -6,7 +5,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import type { Account, Envelope, Transaction, Payee, AccountFormData, EnvelopeFormData, TransactionFormData, PayeeFormData, TransferEnvelopeFundsFormData, AccountWithId, TransferAccountFundsFormData } from '@/types';
 // Use parseISO and isValid for robust date handling
 // Import differenceInCalendarMonths for rollover calculation
-import { formatISO, startOfMonth, endOfMonth, isWithinInterval, parseISO, isValid, differenceInCalendarMonths, startOfDay } from 'date-fns';
+import { formatISO, startOfMonth, endOfMonth, isWithinInterval, parseISO, isValid, differenceInCalendarMonths, startOfDay, startOfYear, endOfDay } from 'date-fns'; // Added startOfYear, endOfDay
 
 interface AppContextType {
   accounts: Account[];
@@ -30,6 +29,11 @@ interface AppContextType {
   getEnvelopeSpending: (envelopeId: string, period?: { start: Date, end: Date }) => number;
   getEnvelopeBalanceWithRollover: (envelopeId: string) => number; // Function for balance including rollover
   getPayeeTransactions: (payeeId: string) => Transaction[]; // Added function to get payee transactions
+  // New calculation functions
+  getMonthlyIncomeTotal: () => number;
+  getMonthlySpendingTotal: () => number;
+  getTotalMonthlyBudgeted: () => number;
+  getYtdIncomeTotal: () => number;
   isLoading: boolean;
 }
 
@@ -480,6 +484,61 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         });
   }, [transactions]);
 
+  // --- New Calculation Functions ---
+
+  const getMonthlyIncomeTotal = useCallback((): number => {
+    const now = new Date();
+    const monthStart = startOfMonth(now);
+    const monthEnd = endOfMonth(now);
+
+    return transactions.reduce((total, tx) => {
+      const txDate = parseISO(tx.date);
+      if (tx.type === 'income' && isValid(txDate) && isWithinInterval(txDate, { start: monthStart, end: monthEnd })) {
+        const amount = typeof tx.amount === 'number' && !isNaN(tx.amount) ? tx.amount : 0;
+        return total + amount;
+      }
+      return total;
+    }, 0);
+  }, [transactions]);
+
+  const getMonthlySpendingTotal = useCallback((): number => {
+    const now = new Date();
+    const monthStart = startOfMonth(now);
+    const monthEnd = endOfMonth(now);
+
+    return transactions.reduce((total, tx) => {
+      const txDate = parseISO(tx.date);
+      if (tx.type === 'expense' && isValid(txDate) && isWithinInterval(txDate, { start: monthStart, end: monthEnd })) {
+        const amount = typeof tx.amount === 'number' && !isNaN(tx.amount) ? tx.amount : 0;
+        return total + amount;
+      }
+      return total;
+    }, 0);
+  }, [transactions]);
+
+  const getTotalMonthlyBudgeted = useCallback((): number => {
+    return envelopes.reduce((total, env) => {
+       const budgetAmount = typeof env.budgetAmount === 'number' && !isNaN(env.budgetAmount) ? env.budgetAmount : 0;
+       return total + budgetAmount;
+    }, 0);
+  }, [envelopes]);
+
+  const getYtdIncomeTotal = useCallback((): number => {
+    const now = new Date();
+    const yearStart = startOfYear(now);
+    const todayEnd = endOfDay(now); // Use end of today for YTD
+
+    return transactions.reduce((total, tx) => {
+      const txDate = parseISO(tx.date);
+      if (tx.type === 'income' && isValid(txDate) && isWithinInterval(txDate, { start: yearStart, end: todayEnd })) {
+        const amount = typeof tx.amount === 'number' && !isNaN(tx.amount) ? tx.amount : 0;
+        return total + amount;
+      }
+      return total;
+    }, 0);
+  }, [transactions]);
+
+  // --- End New Calculation Functions ---
 
   return (
     <AppContext.Provider value={{
@@ -504,6 +563,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       getEnvelopeSpending,
       getEnvelopeBalanceWithRollover,
       getPayeeTransactions,
+      // Expose new functions
+      getMonthlyIncomeTotal,
+      getMonthlySpendingTotal,
+      getTotalMonthlyBudgeted,
+      getYtdIncomeTotal,
       isLoading
     }}>
       {children}

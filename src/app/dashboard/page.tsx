@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useAppContext } from "@/context/AppContext";
@@ -6,22 +5,45 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/PageHeader";
 import Link from "next/link";
-import { DollarSign, PlusCircle, Wallet } from "lucide-react";
+import { DollarSign, PlusCircle, Wallet, TrendingUp, TrendingDown, PackagePlus, CalendarCheck } from "lucide-react"; // Added new icons
 import { Skeleton } from "@/components/ui/skeleton";
 import EnvelopeSummaryList from "@/components/envelopes/envelope-summary-list";
-import { startOfMonth, endOfMonth } from "date-fns"; // Added for clarity if specific periods were needed, though getEnvelopeSpending defaults to current month
+
+// Helper function for currency formatting
+const formatCurrency = (amount: number): string => {
+  return amount.toLocaleString(undefined, { style: 'currency', currency: 'USD' }); // Adjust currency code if needed
+};
 
 export default function DashboardPage() {
-  const { accounts, envelopes, getAccountBalance, isLoading, getEnvelopeSpending } = useAppContext();
+  const {
+    accounts,
+    envelopes,
+    getAccountBalance,
+    isLoading,
+    // getEnvelopeSpending, // No longer needed directly here
+    getMonthlyIncomeTotal,
+    getMonthlySpendingTotal,
+    getTotalMonthlyBudgeted,
+    getYtdIncomeTotal,
+  } = useAppContext();
 
   if (isLoading) {
     return (
       <div className="space-y-6">
         <PageHeader title="Dashboard" description="Welcome back to Pocket Budgeteer!" />
+        {/* Skeletons for new summary cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <Skeleton className="h-28 rounded-lg" />
+          <Skeleton className="h-28 rounded-lg" />
+          <Skeleton className="h-28 rounded-lg" />
+          <Skeleton className="h-28 rounded-lg" />
+        </div>
+        {/* Skeletons for existing cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <Skeleton className="h-32 rounded-lg" />
           <Skeleton className="h-32 rounded-lg" />
         </div>
+        {/* Skeleton for Envelope list */}
         <Card className="shadow-lg">
           <CardHeader>
             <Skeleton className="h-6 w-1/3 mb-2" />
@@ -36,40 +58,12 @@ export default function DashboardPage() {
   }
 
   const totalBalance = accounts.reduce((sum, acc) => sum + getAccountBalance(acc.id), 0);
+  const totalMonthlyBudgeted = getTotalMonthlyBudgeted();
+  const availableToSpend = totalBalance - totalMonthlyBudgeted;
 
-  // Calculate total available (balance including rollover) across all envelopes
-  const totalAvailableInEnvelopes = envelopes.reduce((sum, env) => sum + env.budgetAmount, 0);
-
-
-   // Total amount spent from all envelopes for the current period (getEnvelopeSpending defaults to current month)
-  const totalSpentFromEnvelopes = envelopes.reduce((sum, env) => {
-    return sum + getEnvelopeSpending(env.id); // Defaults to current month
-  }, 0);
-
-  // Available to Spend = Total Balance - (Total Original Budgeted - Total Spent from Envelopes)
-  // This simplifies to: Total Balance - Total Original Budgeted + Total Spent From Envelopes
-  // Available to Spend = Total Balance - (Sum of current envelope balances - Sum of transfers into envelopes + Sum of initial budget funding)
-  // Available to Spend = Total Balance - (Total amount allocated/budgeted across all envelopes for all time)
-  const totalBudgetedAllTime = envelopes.reduce((sum, env) => {
-      // Assuming getEnvelopeBalanceWithRollover calculates: initial budget + transfers in - spending/transfers out
-      // We need the *opposite* of the available balance to represent the *net* amount allocated/spent
-      // A simpler way: sum of all original budget amounts over time.
-      // Let's try: Sum of budgetAmount * months active
-      // Or even simpler: Total balance - Sum of (budgeted amount + rollover from previous month)
-      // Let's stick to the definition: Total Balance - Total *current* balances of all envelopes
-      const currentEnvelopeBalance = env.budgetAmount + (getEnvelopeSpending(env.id)); // This isn't quite right yet
-      // Need getEnvelopeBalanceWithRollover here?
-      return sum + env.budgetAmount; // Using monthly budget for now, needs refinement for rollover.
-  }, 0);
-
-   // Refined Calculation:
-   // Available to Spend = Total Balance - (Sum of current envelope balances including rollover)
-   const sumOfCurrentEnvelopeBalances = envelopes.reduce((sum, env) => {
-       // getEnvelopeBalanceWithRollover calculates the current real balance of the envelope
-       return sum + 0 // useAppContext().getEnvelopeBalanceWithRollover(env.id); // Disabled for now
-   }, 0);
-   const availableToSpend = totalBalance - sumOfCurrentEnvelopeBalances;
-
+  const monthlyIncome = getMonthlyIncomeTotal();
+  const monthlySpending = getMonthlySpendingTotal();
+  const ytdIncome = getYtdIncomeTotal();
 
   return (
     <div className="space-y-6">
@@ -83,11 +77,68 @@ export default function DashboardPage() {
                 <PlusCircle className="mr-2 h-4 w-4" /> Add Transaction
               </Button>
             </Link>
-             {/* Removed Add Envelope Dialog */}
           </div>
         }
       />
 
+      {/* Monthly and YTD Summary Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        {/* Monthly Income */}
+        <Card className="shadow-md hover:shadow-lg transition-shadow duration-300">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Monthly Income</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-lg font-bold text-green-600 dark:text-green-500">
+              {formatCurrency(monthlyIncome)}
+            </div>
+             <p className="text-xs text-muted-foreground">Current month</p>
+          </CardContent>
+        </Card>
+         {/* Monthly Spending */}
+         <Card className="shadow-md hover:shadow-lg transition-shadow duration-300">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Monthly Spending</CardTitle>
+            <TrendingDown className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-lg font-bold text-red-600 dark:text-red-500">
+              {formatCurrency(monthlySpending)}
+            </div>
+             <p className="text-xs text-muted-foreground">Current month</p>
+          </CardContent>
+        </Card>
+         {/* Monthly Budgeted */}
+         <Card className="shadow-md hover:shadow-lg transition-shadow duration-300">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Monthly Budgeted</CardTitle>
+            <PackagePlus className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-lg font-bold">
+              {formatCurrency(totalMonthlyBudgeted)}
+            </div>
+             <p className="text-xs text-muted-foreground">Across {envelopes.length} envelopes</p>
+          </CardContent>
+        </Card>
+         {/* YTD Income */}
+         <Card className="shadow-md hover:shadow-lg transition-shadow duration-300">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">YTD Income</CardTitle>
+            <CalendarCheck className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-lg font-bold">
+              {formatCurrency(ytdIncome)}
+            </div>
+            <p className="text-xs text-muted-foreground">Since start of year</p>
+          </CardContent>
+        </Card>
+      </div>
+
+
+      {/* Existing Total Balance and Available to Spend Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -96,7 +147,7 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              ${totalBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {formatCurrency(totalBalance)}
             </div>
             <p className="text-xs text-muted-foreground">Across {accounts.length} accounts</p>
           </CardContent>
@@ -109,14 +160,14 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className={`text-2xl font-bold ${availableToSpend < 0 ? 'text-destructive' : ''}`}>
-              ${availableToSpend.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {formatCurrency(availableToSpend)}
             </div>
-            {/* Updated description to reflect the calculation */}
-            <p className="text-xs text-muted-foreground">Total balance minus sum of envelope balances</p>
+            <p className="text-xs text-muted-foreground">Total balance minus total monthly budgeted</p>
           </CardContent>
         </Card>
       </div>
 
+      {/* Envelope Summary List */}
       <Card className="shadow-lg">
         <CardHeader>
           <CardTitle>All Envelopes</CardTitle>
