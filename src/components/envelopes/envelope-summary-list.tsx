@@ -105,6 +105,7 @@ export default function EnvelopeSummaryList() {
                                 // Get the total available balance including rollover
                                 const availableBalance = getEnvelopeBalanceWithRollover(envelope.id);
                                 const dueDateString = envelope.dueDate ? `${envelope.dueDate}${getDaySuffix(envelope.dueDate)}` : '';
+                                // Check if estimatedAmount is a valid, non-null, non-undefined number
                                 const hasValidEstimatedAmount = typeof envelope.estimatedAmount === 'number' && isFinite(envelope.estimatedAmount);
 
                                 return (
@@ -193,5 +194,3 @@ export default function EnvelopeSummaryList() {
     </TooltipProvider>
   );
 }
-
-
