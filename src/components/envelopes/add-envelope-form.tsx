@@ -108,8 +108,8 @@ export function AddEnvelopeForm({ onSuccess }: AddEnvelopeFormProps) {
                   placeholder="e.g., 150.00"
                   {...field}
                   step="0.01"
-                  // Display empty string if value is undefined
-                  value={field.value === undefined ? "" : field.value}
+                  // Always provide a string value to the input
+                  value={field.value ?? ""}
                   onChange={e => {
                     const value = e.target.value;
                     const parsedValue = parseFloat(value);
@@ -169,7 +169,7 @@ export function AddEnvelopeForm({ onSuccess }: AddEnvelopeFormProps) {
                   {...field}
                   min="1"
                   max="31"
-                  // Handle potential undefined value on reset
+                  // Always provide a string value to the input
                   value={field.value ?? ""}
                   onChange={e => {
                     const value = e.target.value;

@@ -50,7 +50,7 @@ export function TransferFundsForm({ onSuccess }: TransferFundsFormProps) {
       amount: 0,
       accountId: accounts.length > 0 ? accounts[0].id : "",
       date: format(new Date(), "yyyy-MM-dd"),
-      description: "",
+      description: "", // Default to empty string
     },
   });
 
@@ -82,15 +82,17 @@ export function TransferFundsForm({ onSuccess }: TransferFundsFormProps) {
       path: ["amount"],
     }
   );
-  
+
   // Re-initialize form with refined schema
    useEffect(() => {
-    form.reset(form.getValues(), {
-      // @ts-ignore
-      resolver: zodResolver(refinedTransferSchema), // Temporarily ignore TS error due to dynamic schema
-    });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sourceEnvelopeBalance]); // Re-run when sourceEnvelopeBalance updates. form not needed in deps.
+     const currentValues = form.getValues();
+     form.reset(currentValues, {
+       // @ts-ignore
+       resolver: zodResolver(refinedTransferSchema), // Temporarily ignore TS error due to dynamic schema
+       keepValues: true, // Keep existing values
+     });
+   // eslint-disable-next-line react-hooks/exhaustive-deps
+   }, [sourceEnvelopeBalance]); // Re-run when sourceEnvelopeBalance updates. form not needed in deps.
 
 
   function onSubmit(values: z.infer<typeof transferEnvelopeFundsSchema>) {
@@ -129,7 +131,7 @@ export function TransferFundsForm({ onSuccess }: TransferFundsFormProps) {
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  {envelopes.length === 0 && <SelectItem value="" disabled>No envelopes available</SelectItem>}
+                  {envelopes.length === 0 && <SelectItem value="no-envelopes-placeholder" disabled>No envelopes available</SelectItem>}
                   {envelopes.map(envelope => (
                     <SelectItem key={envelope.id} value={envelope.id} disabled={envelope.id === form.watch("toEnvelopeId")}>
                       {envelope.name} (Balance: ${getEnvelopeBalanceWithRollover(envelope.id).toFixed(2)})
@@ -160,7 +162,7 @@ export function TransferFundsForm({ onSuccess }: TransferFundsFormProps) {
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  {envelopes.length === 0 && <SelectItem value="" disabled>No envelopes available</SelectItem>}
+                  {envelopes.length === 0 && <SelectItem value="no-envelopes-placeholder" disabled>No envelopes available</SelectItem>}
                   {envelopes.map(envelope => (
                     <SelectItem key={envelope.id} value={envelope.id} disabled={envelope.id === fromEnvelopeId}>
                       {envelope.name}
@@ -180,8 +182,8 @@ export function TransferFundsForm({ onSuccess }: TransferFundsFormProps) {
             <FormItem>
               <FormLabel>Amount</FormLabel>
               <FormControl>
-                <Input type="number" placeholder="0.00" {...field} step="0.01" 
-                       onChange={e => field.onChange(parseFloat(e.target.value) || 0)} 
+                <Input type="number" placeholder="0.00" {...field} step="0.01"
+                       onChange={e => field.onChange(parseFloat(e.target.value) || 0)}
                        value={field.value ?? 0}
                 />
               </FormControl>
@@ -189,7 +191,7 @@ export function TransferFundsForm({ onSuccess }: TransferFundsFormProps) {
             </FormItem>
           )}
         />
-        
+
         <FormField
           control={form.control}
           name="accountId"
@@ -203,7 +205,7 @@ export function TransferFundsForm({ onSuccess }: TransferFundsFormProps) {
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  {accounts.length === 0 && <SelectItem value="" disabled>No accounts available</SelectItem>}
+                  {accounts.length === 0 && <SelectItem value="no-accounts-placeholder" disabled>No accounts available</SelectItem>}
                   {accounts.map(account => (
                     <SelectItem key={account.id} value={account.id}>
                       {account.name}
@@ -258,6 +260,7 @@ export function TransferFundsForm({ onSuccess }: TransferFundsFormProps) {
             <FormItem>
               <FormLabel>Description (Optional)</FormLabel>
               <FormControl>
+                 {/* Always provide a string value to the input */}
                 <Input placeholder="e.g., Move funds for vacation" {...field} value={field.value ?? ""} />
               </FormControl>
               <FormMessage />

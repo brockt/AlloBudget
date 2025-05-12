@@ -62,6 +62,7 @@ export function AddTransactionForm({ onSuccess, navigateToTransactions = false }
       type: "expense",
       description: "", // Empty string is a valid optional value
       date: format(new Date(), "yyyy-MM-dd"), // Default to today's date string
+      isTransfer: false, // Ensure default is false
     },
   });
 
@@ -76,7 +77,8 @@ export function AddTransactionForm({ onSuccess, navigateToTransactions = false }
         // If type is income, ensure envelopeId is null/undefined, otherwise use value from form
         // For account transfers, envelopeId should also be null/undefined (handled by transfer functions)
         envelopeId: values.type === 'income' ? null : values.envelopeId,
-        date: values.date
+        date: values.date,
+        isTransfer: values.isTransfer || false, // Ensure boolean value
     }
     addTransaction(transactionDataWithParsedDate);
     toast({
@@ -91,7 +93,8 @@ export function AddTransactionForm({ onSuccess, navigateToTransactions = false }
         type: form.getValues('type'),
         envelopeId: form.getValues('type') === 'income' ? null : (envelopes.length > 0 && form.getValues('type') === 'expense' ? form.getValues('envelopeId') : null), // Reset or keep envelope based on type and availability
         payeeId: "",
-        date: format(new Date(), "yyyy-MM-dd")
+        date: format(new Date(), "yyyy-MM-dd"),
+        isTransfer: false, // Reset transfer flag
     });
     if (onSuccess) onSuccess();
     // Navigate back to the specific account's transaction page if came from there, otherwise general transactions
@@ -280,6 +283,7 @@ export function AddTransactionForm({ onSuccess, navigateToTransactions = false }
             <FormItem>
               <FormLabel>Description (Optional)</FormLabel>
               <FormControl>
+                 {/* Always provide a string value to the input */}
                 <Input placeholder="e.g., Groceries, Salary" {...field} value={field.value ?? ""} />
               </FormControl>
               <FormMessage />
@@ -325,6 +329,9 @@ export function AddTransactionForm({ onSuccess, navigateToTransactions = false }
             </FormItem>
           )}
         />
+
+        {/* Hidden field for isTransfer, not directly editable */}
+        {/* <FormField control={form.control} name="isTransfer" render={() => <FormItem />} /> */}
 
         <Button
           type="submit"

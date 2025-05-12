@@ -49,7 +49,7 @@ export function TransferAccountFundsForm({ onSuccess }: TransferAccountFundsForm
       toAccountId: "",
       amount: 0,
       date: format(new Date(), "yyyy-MM-dd"),
-      description: "",
+      description: "", // Default to empty string
     },
   });
 
@@ -85,9 +85,11 @@ export function TransferAccountFundsForm({ onSuccess }: TransferAccountFundsForm
 
   // Re-initialize form with refined schema when balance updates
   useEffect(() => {
-    form.reset(form.getValues(), {
+    const currentValues = form.getValues();
+    form.reset(currentValues, {
       // @ts-ignore - Ignore TS error due to dynamic schema refinement
       resolver: zodResolver(refinedTransferSchema),
+      keepValues: true, // Keep existing values
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sourceAccountBalance]); // Re-run only when sourceAccountBalance updates.
@@ -128,7 +130,7 @@ export function TransferAccountFundsForm({ onSuccess }: TransferAccountFundsForm
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  {accounts.length === 0 && <SelectItem value="" disabled>No accounts available</SelectItem>}
+                  {accounts.length === 0 && <SelectItem value="no-accounts-placeholder" disabled>No accounts available</SelectItem>}
                   {accounts.map(account => (
                     <SelectItem key={account.id} value={account.id} disabled={account.id === form.watch("toAccountId")}>
                       {account.name} (Balance: ${getAccountBalance(account.id).toFixed(2)})
@@ -159,7 +161,7 @@ export function TransferAccountFundsForm({ onSuccess }: TransferAccountFundsForm
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  {accounts.length === 0 && <SelectItem value="" disabled>No accounts available</SelectItem>}
+                  {accounts.length === 0 && <SelectItem value="no-accounts-placeholder" disabled>No accounts available</SelectItem>}
                   {accounts.map(account => (
                     <SelectItem key={account.id} value={account.id} disabled={account.id === fromAccountId}>
                       {account.name}
@@ -231,6 +233,7 @@ export function TransferAccountFundsForm({ onSuccess }: TransferAccountFundsForm
             <FormItem>
               <FormLabel>Description (Optional)</FormLabel>
               <FormControl>
+                {/* Always provide a string value to the input */}
                 <Input placeholder="e.g., Move funds to savings" {...field} value={field.value ?? ""} />
               </FormControl>
               <FormMessage />

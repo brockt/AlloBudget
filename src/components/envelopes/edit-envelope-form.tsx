@@ -41,6 +41,13 @@ export function EditEnvelopeForm({ envelope, onSuccess }: EditEnvelopeFormProps)
   const form = useForm<z.infer<typeof envelopeSchema>>({
     resolver: zodResolver(envelopeSchema),
     // Default values will be set by useEffect below
+    defaultValues: { // Provide defaults to ensure controlled state initially
+        name: "",
+        budgetAmount: 0,
+        estimatedAmount: undefined,
+        category: "",
+        dueDate: undefined,
+    }
   });
 
   // Pre-fill the form with the envelope data when the component mounts or envelope changes
@@ -115,8 +122,8 @@ export function EditEnvelopeForm({ envelope, onSuccess }: EditEnvelopeFormProps)
                   placeholder="e.g., 150.00"
                   {...field}
                   step="0.01"
-                  // Display empty string if value is undefined
-                  value={field.value === undefined ? "" : field.value}
+                  // Always provide a string value to the input
+                  value={field.value ?? ""}
                   onChange={e => {
                     const value = e.target.value;
                     const parsedValue = parseFloat(value);
@@ -173,9 +180,11 @@ export function EditEnvelopeForm({ envelope, onSuccess }: EditEnvelopeFormProps)
                   {...field}
                   min="1"
                   max="31"
+                  // Always provide a string value to the input
                   value={field.value ?? ""}
                   onChange={e => {
                     const value = e.target.value;
+                     // Set to undefined if empty or parsing fails (NaN)
                     field.onChange(value === "" ? undefined : parseInt(value, 10) || undefined);
                   }}
                 />

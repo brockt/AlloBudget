@@ -34,6 +34,10 @@ export function EditPayeeForm({ payee, onSuccess }: EditPayeeFormProps) {
   const form = useForm<z.infer<typeof payeeSchema>>({
     resolver: zodResolver(payeeSchema),
     // Default values will be set by useEffect below
+    defaultValues: { // Provide defaults to ensure controlled state initially
+      name: "",
+      category: "",
+    }
   });
 
   // Pre-fill the form with the payee data when the component mounts or payee changes
@@ -83,7 +87,7 @@ export function EditPayeeForm({ payee, onSuccess }: EditPayeeFormProps) {
             <FormItem>
               <FormLabel>Category (Optional)</FormLabel>
               <FormControl>
-                {/* Provide an empty string if value is null/undefined */}
+                {/* Always provide a string value to the input */}
                 <Input placeholder="e.g., Bills, Personal" {...field} value={field.value ?? ""} />
               </FormControl>
                <FormMessage />

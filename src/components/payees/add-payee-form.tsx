@@ -75,7 +75,7 @@ export function AddPayeeForm({ onSuccess }: AddPayeeFormProps) {
             <FormItem>
               <FormLabel>Category (Optional)</FormLabel>
               <FormControl>
-                {/* Provide an empty string if value is null/undefined */}
+                {/* Always provide a string value to the input */}
                 <Input placeholder="e.g., Bills, Personal" {...field} value={field.value ?? ""} />
               </FormControl>
                <FormMessage />
