@@ -34,6 +34,11 @@ export const envelopeSchema = z.object({
   ),
   // Make category mandatory
   category: z.string().min(1, "Category is required.").max(100, "Category name is too long."),
+  // Add optional dueDate
+  dueDate: z.preprocess(
+    (val) => (val === "" || val === null || val === undefined) ? undefined : Number(String(val)), // Convert to number or undefined
+    z.number().int().min(1).max(31, "Due day must be between 1 and 31.").optional()
+  ),
   // Add createdAt for completeness if needed elsewhere, though not in form
   // createdAt: z.string().optional(), // Typically set server-side or in context
 });

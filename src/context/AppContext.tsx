@@ -46,7 +46,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         ) : [];
 
         const validEnvelopes = Array.isArray(parsedData.envelopes) ? parsedData.envelopes.filter((env: any): env is Envelope =>
-            env && typeof env.id === 'string' && typeof env.name === 'string' && typeof env.budgetAmount === 'number' && typeof env.createdAt === 'string' && isValid(parseISO(env.createdAt))
+            env && typeof env.id === 'string' && typeof env.name === 'string' && typeof env.budgetAmount === 'number' && typeof env.createdAt === 'string' && isValid(parseISO(env.createdAt)) && (env.dueDate === undefined || (typeof env.dueDate === 'number' && env.dueDate >= 1 && env.dueDate <= 31)) // Validate dueDate
         ) : [];
 
         const validPayees = Array.isArray(parsedData.payees) ? parsedData.payees.filter((p: any): p is Payee =>
@@ -58,6 +58,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
               if (!tx || typeof tx.id !== 'string' || typeof tx.accountId !== 'string' || typeof tx.amount !== 'number' || typeof tx.type !== 'string' || !['income', 'expense'].includes(tx.type) || typeof tx.description !== 'string' || typeof tx.date !== 'string' || typeof tx.createdAt !== 'string') {
                  console.warn(`Invalid structure found in stored transaction ${tx?.id}. Filtering out.`);
                  return false;
+              }
+              // Check if envelopeId exists and is a string, or if it's null/undefined
+              if (!(tx.envelopeId === undefined || tx.envelopeId === null || typeof tx.envelopeId === 'string')) {
+                  console.warn(`Invalid envelopeId type found in stored transaction ${tx.id}: type='${typeof tx.envelopeId}'. Filtering out.`);
+                  return false;
               }
               const dateObj = parseISO(tx.date);
               const createdAtObj = parseISO(tx.createdAt);
@@ -114,7 +119,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       id: crypto.randomUUID(),
       name: envelopeData.name,
       budgetAmount: envelopeData.budgetAmount,
-      ...(envelopeData.category && { category: envelopeData.category }), // Conditionally add category
+      category: envelopeData.category, // Category is mandatory now
+      ...(envelopeData.dueDate !== undefined && { dueDate: envelopeData.dueDate }), // Conditionally add dueDate
       createdAt: formatISO(new Date()),
     };
     setEnvelopes(prev => [...prev, newEnvelope]);
@@ -125,6 +131,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       ...transactionData,
       id: crypto.randomUUID(),
       amount: Number(transactionData.amount), // Ensure amount is a number
+      // Handle envelopeId being null
+      envelopeId: transactionData.envelopeId === null ? undefined : transactionData.envelopeId,
       date: formatISO(parseISO(transactionData.date)), // Ensure date is valid ISO string from input
       createdAt: formatISO(new Date()),
     };

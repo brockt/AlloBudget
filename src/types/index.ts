@@ -5,7 +5,7 @@ export interface Account {
   name: string;
   initialBalance: number;
   // Optional: type like 'checking', 'savings', 'credit card'
-  type?: string; 
+  type?: string;
   createdAt: string;
 }
 
@@ -14,6 +14,7 @@ export interface Envelope {
   name: string;
   budgetAmount: number; // Typically monthly budget
   category?: string; // Optional category
+  dueDate?: number; // Optional: Day of the month (1-31)
   createdAt: string;
 }
 
@@ -47,12 +48,13 @@ export interface AccountFormData {
 export interface EnvelopeFormData {
   name: string;
   budgetAmount: number;
-  category?: string; // Optional category
+  category: string; // Make category mandatory
+  dueDate?: number; // Optional: Day of the month (1-31)
 }
 
 export interface TransactionFormData {
   accountId: string;
-  envelopeId?: string;
+  envelopeId?: string | null; // Allow null
   amount: number;
   type: TransactionType;
   description: string;
@@ -63,5 +65,3 @@ export interface PayeeFormData {
   name: string;
   category?: string;
 }
-
-```

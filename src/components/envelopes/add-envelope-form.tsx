@@ -45,6 +45,7 @@ export function AddEnvelopeForm({ onSuccess }: AddEnvelopeFormProps) {
       name: "",
       budgetAmount: 0,
       category: "", // Default to empty string, user must select
+      dueDate: undefined, // Default due date to undefined
     },
   });
 
@@ -54,6 +55,7 @@ export function AddEnvelopeForm({ onSuccess }: AddEnvelopeFormProps) {
       name: values.name,
       budgetAmount: values.budgetAmount,
       category: values.category,
+      dueDate: values.dueDate, // Add dueDate
     };
     addEnvelope(dataToAdd);
     toast({
@@ -121,6 +123,33 @@ export function AddEnvelopeForm({ onSuccess }: AddEnvelopeFormProps) {
                   {/* Maybe add an option here to trigger the Add Category dialog? */}
                 </SelectContent>
               </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="dueDate"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Due Day (Optional)</FormLabel>
+              <FormControl>
+                {/* Use Input type="number" for due date */}
+                <Input
+                  type="number"
+                  placeholder="Day of month (1-31)"
+                  {...field}
+                  min="1"
+                  max="31"
+                  // Handle potential undefined value on reset
+                  value={field.value ?? ""}
+                  onChange={e => {
+                    const value = e.target.value;
+                    // Allow empty string for optional field, otherwise parse as number
+                    field.onChange(value === "" ? undefined : parseInt(value, 10) || undefined);
+                  }}
+                />
+              </FormControl>
               <FormMessage />
             </FormItem>
           )}
