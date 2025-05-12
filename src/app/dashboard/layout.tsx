@@ -3,10 +3,10 @@
 
 import type { ReactNode } from 'react';
 import { Coins } from "lucide-react";
-import { 
-  SidebarProvider, 
-  Sidebar, 
-  SidebarHeader, 
+import {
+  SidebarProvider,
+  Sidebar,
+  SidebarHeader,
   SidebarContent,
   SidebarFooter,
   SidebarInset, // Correct component name
@@ -20,7 +20,8 @@ import Link from 'next/link';
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   return (
-    <SidebarProvider defaultOpen>
+    // Set defaultOpen to false
+    <SidebarProvider defaultOpen={false}>
         <Sidebar variant="sidebar" collapsible="icon" side="right"> {/* Changed side to "right" */}
           <SidebarHeader className="p-4 items-center justify-center group-data-[collapsible=icon]:justify-start">
             <Link href="/dashboard" className="flex items-center gap-2 text-lg font-semibold text-sidebar-primary group-data-[collapsible=icon]:justify-center">
@@ -32,10 +33,10 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
             <MainNav />
           </SidebarContent>
           {/* <SidebarFooter className="p-2">
-             Optional footer content 
+             Optional footer content
           </SidebarFooter> */}
         </Sidebar>
-        <SidebarRail /> 
+        <SidebarRail />
         <div className="flex flex-col flex-1 min-h-screen">
             <AppHeader />
             <main className="flex-1 p-4 sm:p-6 lg:p-8 bg-muted/30 dark:bg-background">
