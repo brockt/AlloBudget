@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 
 export function AppHeader() {
   return (
-    <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* App Logo/Name */}
         <div className="flex items-center">
@@ -19,11 +19,11 @@ export function AppHeader() {
           </Link>
         </div>
 
-        {/* Right-side controls */}
-        <div className="flex items-center space-x-2">
+        {/* Right-side controls - Ensure they have sufficient z-index and positioning */}
+        <div className="flex items-center space-x-2 relative z-50"> {/* Added relative z-50 */}
           <ThemeToggle />
-          {/* Sidebar Trigger moved here */}
-          <div className="md:hidden"> 
+          {/* Sidebar Trigger - Ensure it's visible */}
+          <div className="md:hidden"> {/* Keep hidden on medium+ screens as per original */}
             <SidebarTrigger />
           </div>
         </div>
@@ -31,3 +31,4 @@ export function AppHeader() {
     </header>
   );
 }
+

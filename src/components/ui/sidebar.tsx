@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -10,7 +11,7 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
-import { Sheet, SheetContent, SheetHeader as RadixUiSheetHeader, SheetTitle as RadixUiSheetTitle } from "@/components/ui/sheet"
+import { Sheet, SheetContent as RadixSheetContent, SheetHeader as RadixUiSheetHeader, SheetTitle as RadixUiSheetTitle } from "@/components/ui/sheet" // Use renamed SheetContent alias
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   Tooltip,
@@ -68,7 +69,8 @@ const SidebarProvider = React.forwardRef<
     ref
   ) => {
     const isMobile = useIsMobile()
-    const [openMobile, setOpenMobile] = React.useState(false)
+    // Mobile sidebar state is separate
+    const [openMobile, setOpenMobile] = React.useState(false);
 
     const getInitialOpenState = React.useCallback(() => {
       if (typeof window !== "undefined") {
@@ -84,7 +86,7 @@ const SidebarProvider = React.forwardRef<
     }, [defaultOpen]);
 
     const [_open, _setOpen] = React.useState(getInitialOpenState)
-    const open = openProp ?? _open
+    const open = openProp ?? _open // Desktop sidebar state
 
     const setOpen = React.useCallback(
       (value: boolean | ((prevState: boolean) => boolean)) => {
@@ -100,7 +102,7 @@ const SidebarProvider = React.forwardRef<
       },
       [setOpenProp, open]
     )
-    
+
     // Effect to update _open if getInitialOpenState changes (e.g. on client mount after SSR)
     // This ensures the cookie is preferred once client-side.
     React.useEffect(() => {
@@ -113,9 +115,9 @@ const SidebarProvider = React.forwardRef<
 
     const toggleSidebar = React.useCallback(() => {
       if (isMobile) {
-        setOpenMobile((current) => !current)
+        setOpenMobile((current) => !current) // Toggle mobile state
       } else {
-        setOpen((current) => !current)
+        setOpen((current) => !current) // Toggle desktop state
       }
     }, [isMobile, setOpen, setOpenMobile])
 
@@ -134,6 +136,7 @@ const SidebarProvider = React.forwardRef<
       return () => window.removeEventListener("keydown", handleKeyDown)
     }, [toggleSidebar])
 
+    // Desktop state based on `open`
     const state = open ? "expanded" : "collapsed"
 
     const contextValue = React.useMemo<SidebarContext>(
@@ -142,8 +145,8 @@ const SidebarProvider = React.forwardRef<
         open,
         setOpen,
         isMobile,
-        openMobile,
-        setOpenMobile,
+        openMobile, // Pass mobile state
+        setOpenMobile, // Pass mobile state setter
         toggleSidebar,
       }),
       [state, open, setOpen, isMobile, openMobile, setOpenMobile, toggleSidebar]
@@ -198,6 +201,7 @@ const Sidebar = React.forwardRef<
     const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
 
     if (collapsible === "none") {
+      // Non-collapsible variant remains simple
       return (
         <div
           className={cn(
@@ -213,65 +217,88 @@ const Sidebar = React.forwardRef<
     }
 
     if (isMobile) {
+      // Mobile view uses Sheet, controlled by `openMobile` state
       return (
-        <Sheet open={openMobile} onOpenChange={setOpenMobile} {...props}>
-          <SheetContent
+        <Sheet open={openMobile} onOpenChange={setOpenMobile}>
+          {/* Ensure SheetContent uses the alias and has correct styling */}
+          <RadixSheetContent
             data-sidebar="sidebar"
             data-mobile="true"
-            className="w-[--sidebar-width] bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
+            className={cn(
+              "w-[--sidebar-width] bg-sidebar p-0 text-sidebar-foreground", // Base mobile styles
+               "sm:max-w-sm", // From original SheetContent variants
+               className // Allow overrides
+              )}
             style={
               {
                 "--sidebar-width": SIDEBAR_WIDTH_MOBILE,
               } as React.CSSProperties
             }
             side={side}
+            // Remove close button if header manages it, or keep if needed
+            // showCloseButton={false} // Example if you want to hide the default X
           >
+            {/* SheetHeader and Title are good for accessibility */}
             <RadixUiSheetHeader className="sr-only">
               <RadixUiSheetTitle>Navigation Menu</RadixUiSheetTitle>
             </RadixUiSheetHeader>
             <div className="flex h-full w-full flex-col">{children}</div>
-          </SheetContent>
+          </RadixSheetContent>
         </Sheet>
       )
     }
 
+    // Desktop view uses the div structure controlled by `state` (derived from `open`)
     return (
       <div
         ref={ref}
-        className="group peer hidden md:block text-sidebar-foreground"
+        className={cn("group peer hidden md:block text-sidebar-foreground", className)} // Added className here
         data-state={state}
         data-collapsible={state === "collapsed" ? collapsible : ""}
         data-variant={variant}
         data-side={side}
+        {...props} // Spread remaining props here
       >
         {/* This is what handles the sidebar gap on desktop */}
         <div
           className={cn(
-            "duration-200 relative h-svh w-[--sidebar-width] bg-transparent transition-[width] ease-linear",
-            "group-data-[collapsible=offcanvas]:w-0",
-            "group-data-[side=right]:rotate-180",
+            "duration-200 relative h-svh bg-transparent transition-[width] ease-linear",
+            // Apply width based on variant and state
             variant === "floating" || variant === "inset"
-              ? "group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)_+_theme(spacing.4))]"
-              : "group-data-[collapsible=icon]:w-[--sidebar-width-icon]"
+              ? "group-data-[state=expanded]:w-[calc(var(--sidebar-width)_+_theme(spacing.4))]"
+              : "group-data-[state=expanded]:w-[--sidebar-width]",
+            // Collapsed widths
+            collapsible === "offcanvas"
+               ? "group-data-[state=collapsed]:w-0"
+               : (variant === "floating" || variant === "inset"
+                  ? "group-data-[state=collapsed]:w-[calc(var(--sidebar-width-icon)_+_theme(spacing.4))]"
+                  : "group-data-[state=collapsed]:w-[--sidebar-width-icon]"),
+
+            "group-data-[side=right]:rotate-180", // Handles right side rotation if needed
           )}
         />
+        {/* Fixed position container for the actual sidebar content */}
         <div
           className={cn(
-            "duration-200 fixed inset-y-0 z-10 hidden h-svh w-[--sidebar-width] transition-[left,right,width] ease-linear md:flex",
+            "duration-200 fixed inset-y-0 z-10 hidden h-svh transition-[left,right,width] ease-linear md:flex",
             side === "left"
-              ? "left-0 group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)]"
-              : "right-0 group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)]",
-            // Adjust the padding for floating and inset variants.
+              ? "left-0 group-data-[state=collapsed][data-collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)]"
+              : "right-0 group-data-[state=collapsed][data-collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)]",
+
+            // Apply width based on variant and state
             variant === "floating" || variant === "inset"
-              ? "p-2 group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)_+_theme(spacing.4)_+2px)]"
-              : "group-data-[collapsible=icon]:w-[--sidebar-width-icon] group-data-[side=left]:border-r group-data-[side=right]:border-l",
-            className
+              ? "p-2 group-data-[state=expanded]:w-[calc(var(--sidebar-width)_+_theme(spacing.4)_+2px)] group-data-[state=collapsed]:w-[calc(var(--sidebar-width-icon)_+_theme(spacing.4)_+2px)]"
+              : "group-data-[state=expanded]:w-[--sidebar-width] group-data-[state=collapsed]:w-[--sidebar-width-icon] group-data-[side=left]:border-r group-data-[side=right]:border-l",
           )}
-          {...props}
         >
+          {/* Inner container for styling (bg, border, shadow) */}
           <div
             data-sidebar="sidebar"
-            className="flex h-full w-full flex-col bg-sidebar group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:border group-data-[variant=floating]:border-sidebar-border group-data-[variant=floating]:shadow"
+            className={cn(
+                "flex h-full w-full flex-col bg-sidebar",
+                variant === "floating" ? "rounded-lg border border-sidebar-border shadow" : "",
+                // variant === "inset" is handled by parent div styles usually
+            )}
           >
             {children}
           </div>
@@ -294,7 +321,7 @@ const SidebarTrigger = React.forwardRef<
       data-sidebar="trigger"
       variant="ghost"
       size="icon"
-      className={cn("h-7 w-7", className)}
+      className={cn("h-8 w-8", className)} // Adjusted size for consistency
       onClick={(event) => {
         onClick?.(event)
         toggleSidebar()
@@ -515,7 +542,7 @@ const SidebarMenu = React.forwardRef<
   <ul
     ref={ref}
     data-sidebar="menu"
-    className={cn("flex w-full min-w-0 flex-col gap-1", className)}
+    className={cn("flex w-full min-w-0 flex-col gap-1 p-2", className)} // Added padding for breathing room
     {...props}
   />
 ))
@@ -535,7 +562,7 @@ const SidebarMenuItem = React.forwardRef<
 SidebarMenuItem.displayName = "SidebarMenuItem"
 
 const sidebarMenuButtonVariants = cva(
-  "peer/menu-button flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm outline-none ring-sidebar-ring transition-[width,height,padding] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 group-has-[[data-sidebar=menu-action]]/menu-item:pr-8 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:bg-sidebar-accent data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:!size-8 group-data-[collapsible=icon]:!p-2 [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0",
+  "peer/menu-button flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm outline-none ring-sidebar-ring transition-[width,height,padding] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 group-has-[[data-sidebar=menu-action]]/menu-item:pr-8 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:bg-sidebar-primary data-[active=true]:font-medium data-[active=true]:text-sidebar-primary-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:!size-8 group-data-[collapsible=icon]:!p-1.5 [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0", // Adjusted icon-only padding
   {
     variants: {
       variant: {
@@ -544,9 +571,9 @@ const sidebarMenuButtonVariants = cva(
           "bg-background shadow-[0_0_0_1px_hsl(var(--sidebar-border))] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:shadow-[0_0_0_1px_hsl(var(--sidebar-accent))]",
       },
       size: {
-        default: "h-8 text-sm",
+        default: "h-9 text-sm", // Adjusted height
         sm: "h-7 text-xs",
-        lg: "h-12 text-sm group-data-[collapsible=icon]:!p-0",
+        lg: "h-12 text-sm group-data-[collapsible=icon]:!size-12 group-data-[collapsible=icon]:!p-0", // Adjusted icon-only size/padding
       },
     },
     defaultVariants: {
@@ -557,8 +584,8 @@ const sidebarMenuButtonVariants = cva(
 )
 
 const SidebarMenuButton = React.forwardRef<
-  HTMLButtonElement, // Changed to HTMLButtonElement as default, Link is handled by asChild
-  React.ComponentProps<"button"> & { // Changed to React.ComponentProps<"button">
+  HTMLButtonElement, // Default element is button
+  React.ButtonHTMLAttributes<HTMLButtonElement> & { // Use ButtonHTMLAttributes
     asChild?: boolean
     isActive?: boolean
     tooltip?: string | React.ComponentProps<typeof TooltipContent>
@@ -582,20 +609,19 @@ const SidebarMenuButton = React.forwardRef<
 
     const buttonContent = (
         <Comp
-            ref={ref as any} // Use as any if Comp can be 'a' and ref is for HTMLButtonElement
+            ref={ref} // Forward ref correctly
             data-sidebar="menu-button"
             data-size={size}
             data-active={isActive}
-            className={cn(sidebarMenuButtonVariants({ variant, size }), className)}
+            className={cn(sidebarMenuButtonVariants({ variant, size, className }))} // Pass className here
             {...props}
         >
             {children}
         </Comp>
     );
 
-
-    if (!tooltip) {
-      return buttonContent;
+    if (!tooltip || (state === "expanded" && !isMobile)) { // Don't show tooltip if expanded on desktop
+        return buttonContent;
     }
 
     let tooltipProps: React.ComponentProps<typeof TooltipContent>;
@@ -607,11 +633,11 @@ const SidebarMenuButton = React.forwardRef<
 
     return (
       <Tooltip>
-        <TooltipTrigger asChild={Comp === Slot}>{buttonContent}</TooltipTrigger>
+        <TooltipTrigger asChild>{buttonContent}</TooltipTrigger> {/* Use asChild here */}
         <TooltipContent
           side="right"
           align="center"
-          hidden={state !== "collapsed" || isMobile}
+          //hidden={state !== "collapsed" || isMobile} // Redundant check, tooltip only rendered when needed
           {...tooltipProps}
         />
       </Tooltip>
@@ -735,13 +761,13 @@ SidebarMenuSubItem.displayName = "SidebarMenuSubItem"
 
 const SidebarMenuSubButton = React.forwardRef<
   HTMLAnchorElement,
-  React.ComponentProps<"a"> & {
+  React.AnchorHTMLAttributes<HTMLAnchorElement> & { // Use AnchorHTMLAttributes
     asChild?: boolean
     size?: "sm" | "md"
     isActive?: boolean
   }
 >(({ asChild = false, size = "md", isActive, className, ...props }, ref) => {
-  const Comp = asChild ? Slot : "a"
+  const Comp = asChild ? Slot : "a" // Default is 'a'
 
   return (
     <Comp
