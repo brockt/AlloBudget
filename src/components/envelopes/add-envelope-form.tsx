@@ -43,6 +43,7 @@ export function AddEnvelopeForm({ onSuccess }: AddEnvelopeFormProps) {
     defaultValues: {
       name: "",
       budgetAmount: 0,
+      estimatedAmount: undefined, // Default estimated amount to undefined
       category: "", // Default to empty string, user must select
       dueDate: undefined, // Default due date to undefined
     },
@@ -53,6 +54,7 @@ export function AddEnvelopeForm({ onSuccess }: AddEnvelopeFormProps) {
     const dataToAdd: EnvelopeFormData = {
       name: values.name,
       budgetAmount: values.budgetAmount,
+      estimatedAmount: values.estimatedAmount, // Add estimatedAmount
       category: values.category,
       dueDate: values.dueDate, // Add dueDate
     };
@@ -94,12 +96,38 @@ export function AddEnvelopeForm({ onSuccess }: AddEnvelopeFormProps) {
             </FormItem>
           )}
         />
+         <FormField
+          control={form.control}
+          name="estimatedAmount"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Estimated Amount (Optional)</FormLabel>
+              <FormControl>
+                <Input
+                  type="number"
+                  placeholder="e.g., 150.00"
+                  {...field}
+                  step="0.01"
+                  // Handle potential undefined value on reset
+                  value={field.value ?? ""}
+                  onChange={e => {
+                    const value = e.target.value;
+                    // Allow empty string for optional field, otherwise parse as number
+                    field.onChange(value === "" ? undefined : parseFloat(value) || undefined);
+                  }}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
         <FormField
           control={form.control}
           name="category"
           render={({ field }) => (
             <FormItem>
               <FormLabel>Category</FormLabel>
+              {/* Ensure value is always a string */}
               <Select onValueChange={field.onChange} value={field.value || ""} required> {/* Mark as required, ensure value is not undefined */}
                 <FormControl>
                   <SelectTrigger>

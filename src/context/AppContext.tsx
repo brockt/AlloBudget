@@ -55,7 +55,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         ) : [];
 
         const validEnvelopes = Array.isArray(parsedData.envelopes) ? parsedData.envelopes.filter((env: any): env is Envelope =>
-            env && typeof env.id === 'string' && typeof env.name === 'string' && typeof env.budgetAmount === 'number' && typeof env.createdAt === 'string' && isValid(parseISO(env.createdAt)) && typeof env.category === 'string' && env.category.length > 0 && (env.dueDate === undefined || (typeof env.dueDate === 'number' && env.dueDate >= 1 && env.dueDate <= 31)) // Validate category and dueDate
+            env && typeof env.id === 'string' && typeof env.name === 'string' && typeof env.budgetAmount === 'number' &&
+            (env.estimatedAmount === undefined || typeof env.estimatedAmount === 'number') && // Validate optional estimatedAmount
+            typeof env.createdAt === 'string' && isValid(parseISO(env.createdAt)) &&
+            typeof env.category === 'string' && env.category.length > 0 &&
+            (env.dueDate === undefined || (typeof env.dueDate === 'number' && env.dueDate >= 1 && env.dueDate <= 31)) // Validate category and dueDate
         ) : [];
 
         const validPayees = Array.isArray(parsedData.payees) ? parsedData.payees.filter((p: any): p is Payee =>
@@ -66,30 +70,30 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           ? parsedData.transactions.filter((tx: any): tx is Transaction => {
               // Basic structure validation
               if (!tx || typeof tx.id !== 'string' || typeof tx.accountId !== 'string' || typeof tx.amount !== 'number' || typeof tx.type !== 'string' || !['income', 'expense'].includes(tx.type) || typeof tx.date !== 'string' || typeof tx.createdAt !== 'string') {
-                 console.warn(`Invalid structure base found in stored transaction ${tx?.id}. Filtering out.`);
+                 // console.warn(`Invalid structure base found in stored transaction ${tx?.id}. Filtering out.`);
                  return false;
               }
                // Description validation (optional)
               if (!(tx.description === undefined || typeof tx.description === 'string')) {
-                 console.warn(`Invalid description type found in stored transaction ${tx.id}: type='${typeof tx.description}'. Filtering out.`);
+                 // console.warn(`Invalid description type found in stored transaction ${tx.id}: type='${typeof tx.description}'. Filtering out.`);
                  return false;
               }
               // EnvelopeId validation (optional)
               // Now allows envelopeId for income type transactions too.
               if (!(tx.envelopeId === undefined || tx.envelopeId === null || typeof tx.envelopeId === 'string')) {
-                  console.warn(`Invalid envelopeId type found in stored transaction ${tx.id}: type='${typeof tx.envelopeId}'. Filtering out.`);
+                  // console.warn(`Invalid envelopeId type found in stored transaction ${tx.id}: type='${typeof tx.envelopeId}'. Filtering out.`);
                   return false;
               }
               // PayeeId validation (now mandatory string)
               if (typeof tx.payeeId !== 'string' || tx.payeeId.length === 0) { // Check for string and non-empty
-                  console.warn(`Invalid or missing payeeId found in stored transaction ${tx.id}: value='${tx.payeeId}'. Filtering out.`);
+                  // console.warn(`Invalid or missing payeeId found in stored transaction ${tx.id}: value='${tx.payeeId}'. Filtering out.`);
                   return false;
               }
               // Date validation
               const dateObj = parseISO(tx.date);
               const createdAtObj = parseISO(tx.createdAt);
               if (!isValid(dateObj) || !isValid(createdAtObj)) {
-                 console.warn(`Invalid date format found in stored transaction ${tx.id}: date='${tx.date}', createdAt='${tx.createdAt}'. Filtering out.`);
+                 // console.warn(`Invalid date format found in stored transaction ${tx.id}: date='${tx.date}', createdAt='${tx.createdAt}'. Filtering out.`);
                  return false; // Filter out transactions with invalid dates
               }
               return true;
@@ -149,6 +153,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       id: crypto.randomUUID(),
       name: envelopeData.name,
       budgetAmount: envelopeData.budgetAmount,
+      estimatedAmount: envelopeData.estimatedAmount, // Assign estimatedAmount
       category: envelopeData.category, // Category is mandatory now
       ...(envelopeData.dueDate !== undefined && { dueDate: envelopeData.dueDate }), // Conditionally add dueDate
       createdAt: formatISO(startOfDay(new Date())), // Ensure createdAt is the start of the day for consistent month calculation
@@ -304,6 +309,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
     const creationDate = parseISO(envelope.createdAt);
     const currentDate = new Date();
+    // Ensure we don't calculate for future creation dates (edge case)
+    if (creationDate > currentDate) return 0;
+
     const monthsActive = differenceInCalendarMonths(currentDate, creationDate) + 1;
 
     if (monthsActive <= 0) return 0;
@@ -316,7 +324,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           return isValid(txDate) &&
                  tx.envelopeId === envelopeId &&
                  tx.type === 'income' && // Income to this envelope (transfers in)
-                 txDate >= startOfDay(creationDate);
+                 txDate >= startOfDay(creationDate); // Consider only transactions since envelope creation
       })
       .reduce((sum, tx) => sum + tx.amount, 0);
 
@@ -326,7 +334,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           return isValid(txDate) &&
                  tx.envelopeId === envelopeId &&
                  tx.type === 'expense' && // Expenses from this envelope (spending and transfers out)
-                 txDate >= startOfDay(creationDate);
+                 txDate >= startOfDay(creationDate); // Consider only transactions since envelope creation
       })
       .reduce((sum, tx) => sum + tx.amount, 0);
 

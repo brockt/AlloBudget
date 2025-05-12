@@ -49,6 +49,7 @@ export function EditEnvelopeForm({ envelope, onSuccess }: EditEnvelopeFormProps)
       form.reset({
         name: envelope.name,
         budgetAmount: envelope.budgetAmount,
+        estimatedAmount: envelope.estimatedAmount, // Reset estimatedAmount
         category: envelope.category,
         dueDate: envelope.dueDate,
       });
@@ -61,6 +62,7 @@ export function EditEnvelopeForm({ envelope, onSuccess }: EditEnvelopeFormProps)
       id: envelope.id, // Include the ID for the update function
       name: values.name,
       budgetAmount: values.budgetAmount,
+      estimatedAmount: values.estimatedAmount, // Include estimatedAmount
       category: values.category,
       dueDate: values.dueDate,
     };
@@ -101,12 +103,36 @@ export function EditEnvelopeForm({ envelope, onSuccess }: EditEnvelopeFormProps)
             </FormItem>
           )}
         />
+         <FormField
+          control={form.control}
+          name="estimatedAmount"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Estimated Amount (Optional)</FormLabel>
+              <FormControl>
+                <Input
+                  type="number"
+                  placeholder="e.g., 150.00"
+                  {...field}
+                  step="0.01"
+                  value={field.value ?? ""}
+                  onChange={e => {
+                    const value = e.target.value;
+                    field.onChange(value === "" ? undefined : parseFloat(value) || undefined);
+                  }}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
         <FormField
           control={form.control}
           name="category"
           render={({ field }) => (
             <FormItem>
               <FormLabel>Category</FormLabel>
+              {/* Ensure value is always a string */}
               <Select onValueChange={field.onChange} value={field.value || ""} required>
                 <FormControl>
                   <SelectTrigger>
@@ -162,4 +188,3 @@ export function EditEnvelopeForm({ envelope, onSuccess }: EditEnvelopeFormProps)
     </Form>
   );
 }
-
