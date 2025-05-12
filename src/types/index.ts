@@ -78,8 +78,17 @@ export interface TransferEnvelopeFundsFormData {
   fromEnvelopeId: string;
   toEnvelopeId: string;
   amount: number;
-  accountId: string;
+  accountId: string; // The account where the corresponding transactions will be recorded (relevant if using double-entry simulation)
   date: string; // ISO string date
   description?: string;
+}
+
+// For transfer account funds form
+export interface TransferAccountFundsFormData {
+    fromAccountId: string;
+    toAccountId: string;
+    amount: number;
+    date: string; // ISO string date
+    description?: string;
 }
 

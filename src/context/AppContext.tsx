@@ -3,7 +3,7 @@
 
 import type { ReactNode } from 'react';
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import type { Account, Envelope, Transaction, Payee, AccountFormData, EnvelopeFormData, TransactionFormData, PayeeFormData, TransferEnvelopeFundsFormData, AccountWithId } from '@/types';
+import type { Account, Envelope, Transaction, Payee, AccountFormData, EnvelopeFormData, TransactionFormData, PayeeFormData, TransferEnvelopeFundsFormData, AccountWithId, TransferAccountFundsFormData } from '@/types';
 // Use parseISO and isValid for robust date handling
 // Import differenceInCalendarMonths for rollover calculation
 import { formatISO, startOfMonth, endOfMonth, isWithinInterval, parseISO, isValid, differenceInCalendarMonths, startOfDay } from 'date-fns';
@@ -23,6 +23,7 @@ interface AppContextType {
   updateEnvelope: (envelopeData: Partial<Envelope> & { id: string }) => void; // Added updateEnvelope function
   deleteTransaction: (transactionId: string) => void; // Example delete
   transferBetweenEnvelopes: (data: TransferEnvelopeFundsFormData) => void; // New function
+  transferBetweenAccounts: (data: TransferAccountFundsFormData) => void; // Function to transfer between accounts
   getAccountBalance: (accountId: string) => number;
   getAccountById: (accountId: string) => Account | undefined; // Added function definition
   getEnvelopeById: (envelopeId: string) => Envelope | undefined; // Added function definition
@@ -303,6 +304,55 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   }, [addTransaction, envelopes, payees]); // Added payees to dependencies
 
 
+  const transferBetweenAccounts = useCallback((data: TransferAccountFundsFormData) => {
+    const { fromAccountId, toAccountId, amount, date, description } = data;
+
+    const fromAccount = accounts.find(acc => acc.id === fromAccountId);
+    const toAccount = accounts.find(acc => acc.id === toAccountId);
+
+    if (!fromAccount || !toAccount) {
+        console.error("Invalid source or destination account for transfer.");
+        return;
+    }
+
+    let internalTransferPayee = payees.find(p => p.name === "Internal Account Transfer");
+    if (!internalTransferPayee) {
+        const newPayeeId = crypto.randomUUID();
+        internalTransferPayee = {
+            id: newPayeeId,
+            name: "Internal Account Transfer",
+            createdAt: formatISO(new Date()),
+        };
+        setPayees(prev => [...prev, internalTransferPayee!].sort((a, b) => a.name.localeCompare(b.name)));
+    }
+
+    // Transaction out of source account
+    const expenseTransaction: TransactionFormData = {
+        accountId: fromAccountId, // Source account ID
+        envelopeId: null,         // No envelope involved in account transfer
+        payeeId: internalTransferPayee.id,
+        amount,
+        type: 'expense',
+        description: description || `Transfer to ${toAccount.name}`,
+        date,
+    };
+    addTransaction(expenseTransaction);
+
+    // Transaction into destination account
+    const incomeTransaction: TransactionFormData = {
+        accountId: toAccountId,   // Destination account ID
+        envelopeId: null,         // No envelope involved
+        payeeId: internalTransferPayee.id,
+        amount,
+        type: 'income',
+        description: description || `Transfer from ${fromAccount.name}`,
+        date,
+    };
+    addTransaction(incomeTransaction);
+
+}, [addTransaction, accounts, payees]);
+
+
   const getAccountBalance = useCallback((accountId: string): number => {
     const account = accounts.find(acc => acc.id === accountId);
     if (!account) return 0;
@@ -444,10 +494,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       addCategory,
       updateEnvelope,
       deleteTransaction,
-      transferBetweenEnvelopes, // Expose the new function
+      transferBetweenEnvelopes,
+      transferBetweenAccounts, // Expose the account transfer function
       getAccountBalance,
       getAccountById,
-      getEnvelopeById, // Expose the new function
+      getEnvelopeById,
       getEnvelopeSpending,
       getEnvelopeBalanceWithRollover,
       getPayeeTransactions,

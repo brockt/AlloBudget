@@ -106,3 +106,30 @@ export const transferEnvelopeFundsSchema = z.object({
     });
   }
 });
+
+
+export const transferAccountFundsSchema = z.object({
+    fromAccountId: z.string().min(1, "Source account is required."),
+    toAccountId: z.string().min(1, "Destination account is required."),
+    amount: z.preprocess(
+        (val) => Number(String(val)),
+        z.number().positive("Amount must be positive.")
+    ),
+    date: z.string().refine((dateString) => {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(dateString)) return false;
+        const date = parseISO(dateString);
+        return isValid(date);
+    }, {
+        message: "Invalid date format. Please use YYYY-MM-DD.",
+    }),
+    description: z.string().max(200, "Description too long.").optional(),
+}).superRefine((data, ctx) => {
+    if (data.fromAccountId === data.toAccountId) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Source and destination accounts cannot be the same.",
+            path: ['toAccountId'], // Or ['fromAccountId']
+        });
+    }
+});
+
