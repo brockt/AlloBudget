@@ -20,7 +20,8 @@ export function AppHeader() {
         </div>
 
         {/* Right-side controls - Ensure they have sufficient z-index and positioning */}
-        <div className="flex items-center space-x-2 relative z-50"> {/* Added relative z-50 */}
+        {/* Increased z-index from z-50 to z-[60] to be definitively above the header's z-50 */}
+        <div className="flex items-center space-x-2 relative z-[60]">
           <ThemeToggle />
           {/* Sidebar Trigger - Ensure it's visible */}
           <div className="md:hidden"> {/* Keep hidden on medium+ screens as per original */}

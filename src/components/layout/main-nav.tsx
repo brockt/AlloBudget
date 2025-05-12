@@ -34,13 +34,13 @@ export function MainNav() {
   const pathname = usePathname();
   const { setOpenMobile, isMobile, openMobile } = useSidebar();
 
-  // Close mobile sidebar on route change if it was open
+  // This effect can still be useful if direct URL changes happen while mobile menu is open
   useEffect(() => {
     if (isMobile && openMobile) {
-      // This effect handles closing if the route changes *while* the mobile menu is open.
-      // The onClick below handles closing *upon* clicking a link.
+      // Potentially close on route change if needed, but rely on Sheet behavior first.
+      // setOpenMobile(false); // Consider removing or commenting this out if Sheet handles it
     }
-  }, [pathname, isMobile, openMobile]); // Removed setOpenMobile from deps as it's stable
+  }, [pathname, isMobile, openMobile, setOpenMobile]); // Added setOpenMobile to dependencies
 
   return (
     <SidebarMenu>
@@ -50,18 +50,12 @@ export function MainNav() {
             asChild
             isActive={pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href))}
             tooltip={{ children: item.label, side: "right", align: "center" }}
-            className="justify-start" // Ensures text starts left
-             // Removed the complex onClick logic here - Link handles navigation
-             // The sidebar closing logic will be managed by the Link's click propagation
-             // to the parent Sheet/Dialog component in mobile view, or remain open on desktop.
+            className="justify-start"
+            // Removed the explicit onClick={...} from SidebarMenuButton
           >
-             {/* The Link component wraps the visual button content */}
-            <Link href={item.href} onClick={() => {
-                // Explicitly close mobile sidebar on *any* click
-                if (isMobile) {
-                  setOpenMobile(false);
-                }
-            }}>
+            {/* The Link component wraps the visual button content */}
+            {/* Removed the onClick from Link as well. Rely on Sheet's internal close triggers. */}
+            <Link href={item.href} >
               <item.icon className="h-5 w-5" />
               {/* Ensure text span is correctly controlled by group state */}
               <span className="group-data-[collapsible=icon]:hidden ml-2"> {/* Added margin */}

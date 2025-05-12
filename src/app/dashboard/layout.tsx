@@ -20,8 +20,8 @@ import Link from 'next/link';
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   return (
-    // Set defaultOpen to false to start with a collapsed sidebar on desktop
-    // Note: The mobile sidebar (`Sheet`) has its own open state managed internally by SidebarProvider
+    // Explicitly set defaultOpen to false to ensure it starts collapsed on desktop,
+    // overriding potential cookie issues observed in browser previews.
     <SidebarProvider defaultOpen={false}>
         {/* The Sidebar component handles rendering the correct variant (desktop or mobile Sheet) */}
         <Sidebar variant="sidebar" collapsible="icon" side="right">
