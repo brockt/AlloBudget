@@ -105,8 +105,8 @@ export default function EnvelopeSummaryList() {
                                 // Get the total available balance including rollover
                                 const availableBalance = getEnvelopeBalanceWithRollover(envelope.id);
                                 const dueDateString = envelope.dueDate ? `${envelope.dueDate}${getDaySuffix(envelope.dueDate)}` : '';
-                                // Check if estimatedAmount is a valid, non-null, non-undefined number
-                                const hasValidEstimatedAmount = typeof envelope.estimatedAmount === 'number' && isFinite(envelope.estimatedAmount);
+                                // Check if estimatedAmount is a number (and not null/undefined)
+                                const hasEstimatedAmount = typeof envelope.estimatedAmount === 'number';
 
                                 return (
                                     // Wrap the list item content with Link
@@ -128,7 +128,7 @@ export default function EnvelopeSummaryList() {
                                                 <div className="flex items-center">
                                                     <span className="font-medium truncate block text-sm" title={envelope.name}>{envelope.name}</span>
                                                     {/* Show Info icon and tooltip only if estimatedAmount is a valid number */}
-                                                    {hasValidEstimatedAmount && (
+                                                    {hasEstimatedAmount && (
                                                         <Tooltip delayDuration={300}>
                                                             <TooltipTrigger asChild>
                                                                 {/* Use a button or span that can receive focus */}

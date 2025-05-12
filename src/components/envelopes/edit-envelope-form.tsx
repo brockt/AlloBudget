@@ -115,10 +115,13 @@ export function EditEnvelopeForm({ envelope, onSuccess }: EditEnvelopeFormProps)
                   placeholder="e.g., 150.00"
                   {...field}
                   step="0.01"
-                  value={field.value ?? ""}
+                  // Display empty string if value is undefined
+                  value={field.value === undefined ? "" : field.value}
                   onChange={e => {
                     const value = e.target.value;
-                    field.onChange(value === "" ? undefined : parseFloat(value) || undefined);
+                    const parsedValue = parseFloat(value);
+                     // Set to undefined if empty or parsing fails (NaN)
+                    field.onChange(value === "" || isNaN(parsedValue) ? undefined : parsedValue);
                   }}
                 />
               </FormControl>
