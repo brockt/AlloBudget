@@ -16,17 +16,18 @@ export const accountSchema = z.object({
   name: z.string().min(1, "Account name is required.").max(100, "Name too long."),
   initialBalance: z.preprocess(
     (val) => Number(String(val)), // Convert to number
-    z.number().min(0, "Initial balance must be zero or positive.")
+    z.number().min(0, "Initial balance must be non-negative.") // Allow 0 balance
   ),
-  // Update type to be an enum of the predefined types, or an empty string if optional/none selected
-  type: z.enum(accountTypes).optional().or(z.literal("")).default(""), // Allow optional or empty string
+  // Update type to be an optional enum of the predefined types.
+  // It will be undefined if nothing is selected.
+  type: z.enum(accountTypes).optional(),
 });
 
 export const envelopeSchema = z.object({
   name: z.string().min(1, "Envelope name is required.").max(100, "Name too long."),
   budgetAmount: z.preprocess(
     (val) => Number(String(val)), // Convert to number
-    z.number().min(0, "Budget amount must be zero or positive.")
+    z.number().min(0, "Budget amount must be non-negative.") // Allow 0 budget
   ),
 });
 

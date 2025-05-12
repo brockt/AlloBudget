@@ -41,7 +41,7 @@ export function AddAccountForm({ onSuccess }: AddAccountFormProps) {
     defaultValues: {
       name: "",
       initialBalance: 0,
-      type: "", // Default to empty string or a placeholder value if needed
+      type: undefined, // Default to undefined for optional field
     },
   });
 
@@ -78,7 +78,8 @@ export function AddAccountForm({ onSuccess }: AddAccountFormProps) {
             <FormItem>
               <FormLabel>Initial Balance</FormLabel>
               <FormControl>
-                <Input type="number" placeholder="0.00" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} />
+                {/* Ensure field value is handled correctly, especially after reset */}
+                <Input type="number" placeholder="0.00" {...field} value={field.value ?? 0} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -90,16 +91,17 @@ export function AddAccountForm({ onSuccess }: AddAccountFormProps) {
           render={({ field }) => (
             <FormItem>
               <FormLabel>Account Type (Optional)</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
+              {/* Bind value directly, it will be undefined if nothing selected */}
+              <Select onValueChange={field.onChange} value={field.value}>
                 <FormControl>
                   <SelectTrigger>
+                    {/* Placeholder is shown when field.value is undefined */}
                     <SelectValue placeholder="Select an account type" />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  <SelectItem value="">
-                    <em>None</em>
-                  </SelectItem>
+                  {/* Remove the explicit "None" item with empty value */}
+                  {/* Rely on placeholder and undefined value for unselected state */}
                   {accountTypes.map((type) => (
                     <SelectItem key={type} value={type}>
                       {type}
@@ -118,4 +120,3 @@ export function AddAccountForm({ onSuccess }: AddAccountFormProps) {
     </Form>
   );
 }
-
