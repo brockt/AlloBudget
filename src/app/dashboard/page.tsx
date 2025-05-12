@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from "react";
@@ -7,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/PageHeader";
 import Link from "next/link";
-import { DollarSign, PlusCircle, Wallet, Package } from "lucide-react"; // Added Package
+import { DollarSign, PlusCircle, Wallet, Package } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import EnvelopeSummaryList from "@/components/envelopes/envelope-summary-list";
 import {
@@ -19,9 +18,10 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { AddEnvelopeForm } from "@/components/envelopes/add-envelope-form";
+import { startOfMonth, endOfMonth } from "date-fns"; // Added for clarity if specific periods were needed, though getEnvelopeSpending defaults to current month
 
 export default function DashboardPage() {
-  const { accounts, envelopes, getAccountBalance, isLoading } = useAppContext();
+  const { accounts, envelopes, getAccountBalance, isLoading, getEnvelopeSpending } = useAppContext();
   const [isAddEnvelopeDialogOpen, setIsAddEnvelopeDialogOpen] = useState(false);
 
   if (isLoading) {
@@ -46,8 +46,18 @@ export default function DashboardPage() {
   }
 
   const totalBalance = accounts.reduce((sum, acc) => sum + getAccountBalance(acc.id), 0);
-  const totalBudgeted = envelopes.reduce((sum, env) => sum + env.budgetAmount, 0);
-  const availableToSpend = totalBalance - totalBudgeted;
+  
+  // Total amount initially budgeted for all envelopes for the current period (e.g., monthly)
+  const totalOriginalBudgeted = envelopes.reduce((sum, env) => sum + env.budgetAmount, 0);
+
+  // Total amount spent from all envelopes for the current period (getEnvelopeSpending defaults to current month)
+  const totalSpentFromEnvelopes = envelopes.reduce((sum, env) => {
+    return sum + getEnvelopeSpending(env.id); // Defaults to current month
+  }, 0);
+  
+  // Available to Spend = Total Balance - (Total Original Budgeted - Total Spent from Envelopes)
+  // This simplifies to: Total Balance - Total Original Budgeted + Total Spent From Envelopes
+  const availableToSpend = totalBalance - totalOriginalBudgeted + totalSpentFromEnvelopes;
 
   return (
     <div className="space-y-6">
@@ -64,11 +74,10 @@ export default function DashboardPage() {
             <Dialog open={isAddEnvelopeDialogOpen} onOpenChange={setIsAddEnvelopeDialogOpen}>
               <DialogTrigger asChild>
                 <Button variant="outline">
-                  <Package className="mr-2 h-4 w-4" /> Add Envelope {/* Updated Icon */}
+                  <Package className="mr-2 h-4 w-4" /> Add Envelope
                 </Button>
               </DialogTrigger>
               <DialogContent className="sm:max-w-[425px]">
-                {/* Ensure DialogHeader and DialogTitle are present */}
                 <DialogHeader>
                   <DialogTitle>Add New Envelope</DialogTitle>
                   <DialogDescription>
@@ -107,7 +116,11 @@ export default function DashboardPage() {
             <div className={`text-2xl font-bold ${availableToSpend < 0 ? 'text-destructive' : ''}`}>
               ${availableToSpend.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
-            <p className="text-xs text-muted-foreground">Total balance minus total budgeted</p>
+            {/* The description "Total balance minus total budgeted" is a simplification.
+                A more accurate description might be "Funds not in current envelope balances"
+                or "Total balance minus (budgeted amounts - amounts spent from budgets)".
+                Keeping it simple for now unless further clarification is requested. */}
+            <p className="text-xs text-muted-foreground">Total balance minus net budgeted</p>
           </CardContent>
         </Card>
       </div>
