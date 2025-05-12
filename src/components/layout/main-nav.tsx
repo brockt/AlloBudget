@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation"; // Import useRouter
+import { usePathname } from "next/navigation"; // Keep usePathname
 import {
   LayoutDashboard,
   Landmark,
@@ -30,33 +30,35 @@ export const navItems = [
 
 export function MainNav() {
   const pathname = usePathname();
-  const router = useRouter(); // Initialize useRouter
+  // No longer need router or handleItemClick
   const { setOpenMobile, isMobile } = useSidebar();
 
-  const handleItemClick = (href: string) => {
-    router.push(href); // Navigate programmatically
-    if (isMobile) {
-      setOpenMobile(false); // Close mobile sidebar after navigation initiated
+  const handleLinkClick = () => {
+     if (isMobile) {
+      setOpenMobile(false); // Close mobile sidebar after navigation link is clicked
     }
-  };
+  }
 
   return (
     <SidebarMenu>
       {navItems.map((item) => (
         <SidebarMenuItem key={item.href}>
-          {/* SidebarMenuButton handles the click and navigation */}
-          <SidebarMenuButton
-            onClick={() => handleItemClick(item.href)}
-            isActive={pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href))}
-            tooltip={{ children: item.label, side: "right", align: "center" }}
-            className="justify-start"
-            // asChild is not needed here as we are not wrapping a Link
-          >
-            <item.icon className="h-5 w-5" />
-            <span className="group-data-[collapsible=icon]:hidden">
-              {item.label}
-            </span>
-          </SidebarMenuButton>
+          {/* Wrap SidebarMenuButton with Link and use asChild */}
+          <Link href={item.href} passHref legacyBehavior>
+            <SidebarMenuButton
+              asChild // Pass click events to the Link
+              onClick={handleLinkClick} // Still close mobile menu on click
+              isActive={pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href))}
+              tooltip={{ children: item.label, side: "right", align: "center" }}
+              className="justify-start"
+            >
+              {/* Content of the button */}
+              <item.icon className="h-5 w-5" />
+              <span className="group-data-[collapsible=icon]:hidden">
+                {item.label}
+              </span>
+            </SidebarMenuButton>
+          </Link>
         </SidebarMenuItem>
       ))}
     </SidebarMenu>
