@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -104,6 +105,7 @@ export default function EnvelopeSummaryList() {
                                 // Get the total available balance including rollover
                                 const availableBalance = getEnvelopeBalanceWithRollover(envelope.id);
                                 const dueDateString = envelope.dueDate ? `${envelope.dueDate}${getDaySuffix(envelope.dueDate)}` : '';
+                                const hasValidEstimatedAmount = typeof envelope.estimatedAmount === 'number' && isFinite(envelope.estimatedAmount);
 
                                 return (
                                     // Wrap the list item content with Link
@@ -125,13 +127,17 @@ export default function EnvelopeSummaryList() {
                                                 <div className="flex items-center">
                                                     <span className="font-medium truncate block text-sm" title={envelope.name}>{envelope.name}</span>
                                                     {/* Show Info icon and tooltip only if estimatedAmount is a valid number */}
-                                                    {typeof envelope.estimatedAmount === 'number' && isFinite(envelope.estimatedAmount) && (
+                                                    {hasValidEstimatedAmount && (
                                                         <Tooltip delayDuration={300}>
-                                                            <TooltipTrigger>
-                                                                <Info className="ml-1.5 h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                                                            <TooltipTrigger asChild>
+                                                                {/* Use a button or span that can receive focus */}
+                                                                <span className="ml-1.5 inline-flex items-center justify-center cursor-help" tabIndex={0}>
+                                                                    <Info className="h-3.5 w-3.5 text-muted-foreground" />
+                                                                </span>
                                                             </TooltipTrigger>
                                                             <TooltipContent side="top">
-                                                                <p>Estimated: ${envelope.estimatedAmount.toFixed(2)}</p>
+                                                                {/* Ensure the amount is formatted */}
+                                                                <p>Estimated: ${envelope.estimatedAmount?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                                                             </TooltipContent>
                                                         </Tooltip>
                                                     )}
@@ -144,15 +150,15 @@ export default function EnvelopeSummaryList() {
                                               </div>
                                               {/* Display the available balance including rollover */}
                                               <span className={`font-semibold text-sm ${availableBalance < 0 ? 'text-destructive' : 'text-green-600 dark:text-green-500'}`}>
-                                                  ${availableBalance.toFixed(2)}
+                                                  ${availableBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                               </span>
                                             </div>
                                             {/* Progress bar still reflects this month's spending */}
                                             <Progress value={Math.min(progress, 100)} className="h-2" />
                                             <div className="flex justify-between text-xs text-muted-foreground mt-1">
                                             {/* Show spending for the current month */}
-                                            <span>Spent (Month): ${spentThisMonth.toFixed(2)}</span>
-                                            <span>Budget (Month): ${envelope.budgetAmount.toFixed(2)}</span>
+                                            <span>Spent (Month): ${spentThisMonth.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                            <span>Budget (Month): ${envelope.budgetAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                                             </div>
                                         </Link>
                                     </li>
@@ -187,4 +193,5 @@ export default function EnvelopeSummaryList() {
     </TooltipProvider>
   );
 }
+
 

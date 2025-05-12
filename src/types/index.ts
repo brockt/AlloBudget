@@ -12,7 +12,7 @@ export interface Envelope {
   id: string;
   name: string;
   budgetAmount: number; // Typically monthly budget
-  estimatedAmount?: number; // Optional: Estimated amount
+  estimatedAmount?: number | undefined; // Optional: Estimated amount (explicitly allow undefined)
   category: string; // Category is mandatory
   dueDate?: number; // Optional: Day of the month (1-31)
   createdAt: string;
@@ -49,7 +49,7 @@ export interface AccountFormData {
 export interface EnvelopeFormData {
   name: string;
   budgetAmount: number;
-  estimatedAmount?: number; // Optional: Estimated amount
+  estimatedAmount?: number | undefined; // Optional: Estimated amount (explicitly allow undefined)
   category: string; // Make category mandatory
   dueDate?: number; // Optional: Day of the month (1-31)
 }
