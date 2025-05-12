@@ -23,7 +23,7 @@ import {
   useSensors,
   DragEndEvent,
   DragStartEvent,
-  DragOverlay,
+  // DragOverlay, // Uncomment if using overlay
 } from '@dnd-kit/core';
 import {
   arrayMove,
@@ -32,6 +32,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { SortableCategoryAccordionItem } from './sortable-category-accordion-item'; // Import the new sortable category item
+import { Package } from "lucide-react"; // Import Package icon
 
 export default function EnvelopeSummaryList() {
   const { envelopes, orderedCategories, updateCategoryOrder } = useAppContext();
@@ -48,7 +49,8 @@ export default function EnvelopeSummaryList() {
 
   if (envelopes.length === 0) {
     return (
-      <div className="text-center py-6">
+      <div className="text-center py-10 border-2 border-dashed rounded-lg p-4 bg-muted/20">
+         <Package className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
         <p className="text-muted-foreground">No envelopes configured.</p>
         <p className="text-sm text-muted-foreground mt-1">Add an envelope using the button in the page header.</p>
       </div>
@@ -57,7 +59,7 @@ export default function EnvelopeSummaryList() {
 
   // Group envelopes by category using the main envelopes array
   const groupedEnvelopes = envelopes.reduce((acc, envelope) => {
-    const category = envelope.category || "Uncategorized";
+    const category = envelope.category || "Uncategorized"; // Should not happen if category is mandatory
     if (!acc[category]) {
       acc[category] = [];
     }
@@ -65,10 +67,11 @@ export default function EnvelopeSummaryList() {
     return acc;
   }, {} as Record<string, Envelope[]>);
 
-  // Filter orderedCategories to only include those present in groupedEnvelopes
-  const categoriesToDisplay = orderedCategories.filter(cat => groupedEnvelopes[cat] && groupedEnvelopes[cat].length > 0);
+  // Determine which categories have envelopes to display
+  const categoriesWithEnvelopes = orderedCategories.filter(cat => groupedEnvelopes[cat] && groupedEnvelopes[cat].length > 0);
 
-  const defaultOpenCategory = categoriesToDisplay.length > 0 ? [categoriesToDisplay[0]] : [];
+  // Determine the default open category (first one with envelopes)
+  const defaultOpenCategory = categoriesWithEnvelopes.length > 0 ? [categoriesWithEnvelopes[0]] : [];
 
   function handleCategoryDragStart(event: DragStartEvent) {
      setActiveId(event.active.id as string);
@@ -79,6 +82,7 @@ export default function EnvelopeSummaryList() {
     setActiveId(null); // Clear active ID
 
     if (over && active.id !== over.id) {
+       // Use the full orderedCategories list from context for finding indices
        const oldIndex = orderedCategories.findIndex(cat => cat === active.id);
        const newIndex = orderedCategories.findIndex(cat => cat === over.id);
 
@@ -86,7 +90,8 @@ export default function EnvelopeSummaryList() {
            const newOrder = arrayMove(orderedCategories, oldIndex, newIndex);
            updateCategoryOrder(newOrder); // Update context state and localStorage
        } else {
-            console.error("Could not find dragged categories in the ordered list during drag end");
+            // This error should be resolved now
+            console.error(`Error during category drag end: Could not find category ID "${active.id}" or "${over.id}" in ordered list:`, orderedCategories);
        }
     }
   }
@@ -102,12 +107,19 @@ export default function EnvelopeSummaryList() {
       <ScrollArea className="h-auto max-h-[600px]">
         {/* SortableContext for Categories */}
         <SortableContext
-          items={categoriesToDisplay} // Use the filtered list for sortable items
+          // Provide the *full* ordered list to the context
+          items={orderedCategories}
           strategy={verticalListSortingStrategy}
         >
           <Accordion type="multiple" defaultValue={defaultOpenCategory} className="w-full space-y-1">
-            {categoriesToDisplay.map(category => {
+            {/* Iterate over the full ordered list */}
+            {orderedCategories.map(category => {
+              // Check if this category has envelopes before rendering
               const categoryEnvelopes = groupedEnvelopes[category];
+              if (!categoryEnvelopes || categoryEnvelopes.length === 0) {
+                return null; // Don't render the accordion item if category is empty
+              }
+
               return (
                 <SortableCategoryAccordionItem
                   key={category}
