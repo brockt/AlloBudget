@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/PageHeader";
 import Link from "next/link";
-import { DollarSign, PlusCircle, Wallet } from "lucide-react";
+import { DollarSign, PlusCircle, Wallet, Package } from "lucide-react"; // Added Package
 import { Skeleton } from "@/components/ui/skeleton";
 import EnvelopeSummaryList from "@/components/envelopes/envelope-summary-list";
 import {
@@ -64,14 +64,15 @@ export default function DashboardPage() {
             <Dialog open={isAddEnvelopeDialogOpen} onOpenChange={setIsAddEnvelopeDialogOpen}>
               <DialogTrigger asChild>
                 <Button variant="outline">
-                  <PlusCircle className="mr-2 h-4 w-4" /> Add Envelope
+                  <Package className="mr-2 h-4 w-4" /> Add Envelope {/* Updated Icon */}
                 </Button>
               </DialogTrigger>
               <DialogContent className="sm:max-w-[425px]">
+                {/* Ensure DialogHeader and DialogTitle are present */}
                 <DialogHeader>
                   <DialogTitle>Add New Envelope</DialogTitle>
                   <DialogDescription>
-                    Define a new category for your budget.
+                    Define a new budget category (envelope) and optionally assign it to a group.
                   </DialogDescription>
                 </DialogHeader>
                 <div className="py-4">
@@ -106,7 +107,7 @@ export default function DashboardPage() {
             <div className={`text-2xl font-bold ${availableToSpend < 0 ? 'text-destructive' : ''}`}>
               ${availableToSpend.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
-            <p className="text-xs text-muted-foreground">Total balance minus total budgeted in envelopes</p>
+            <p className="text-xs text-muted-foreground">Total balance minus total budgeted</p>
           </CardContent>
         </Card>
       </div>
@@ -114,16 +115,13 @@ export default function DashboardPage() {
       <Card className="shadow-lg">
         <CardHeader>
           <CardTitle>All Envelopes</CardTitle>
-          <CardDescription>Track your spending against budgets for all your envelopes.</CardDescription>
+          <CardDescription>Track your spending against budgets, grouped by category.</CardDescription>
         </CardHeader>
         <CardContent>
           <EnvelopeSummaryList />
         </CardContent>
       </Card>
 
-      {/* Removed Tabs section */}
-
     </div>
   );
 }
-

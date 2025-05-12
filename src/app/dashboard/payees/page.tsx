@@ -57,10 +57,11 @@ export default function PayeesPage() {
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">
+              {/* Ensure DialogHeader and DialogTitle are present */}
               <DialogHeader>
                 <DialogTitle>Add New Payee</DialogTitle>
                 <DialogDescription>
-                  Enter the details for the new payee.
+                  Enter the details for the new payee. Optionally assign a category.
                 </DialogDescription>
               </DialogHeader>
               <div className="py-4">

@@ -21,7 +21,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 export default function AccountsPage() {
   const [isAddAccountDialogOpen, setIsAddAccountDialogOpen] = useState(false);
   const { isLoading } = useAppContext();
-  
+
   if (isLoading) {
     return (
       <div className="space-y-6">
@@ -48,6 +48,7 @@ export default function AccountsPage() {
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">
+              {/* Ensure DialogHeader and DialogTitle are present */}
               <DialogHeader>
                 <DialogTitle>Add New Account</DialogTitle>
                 <DialogDescription>
