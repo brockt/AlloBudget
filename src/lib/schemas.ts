@@ -1,4 +1,16 @@
+
 import { z } from 'zod';
+
+// Define standard account types
+export const accountTypes = [
+  "Checking",
+  "Savings",
+  "Credit Card",
+  "Investment",
+  "Loan",
+  "Cash",
+  "Other"
+] as const; // Use 'as const' for literal types
 
 export const accountSchema = z.object({
   name: z.string().min(1, "Account name is required.").max(100, "Name too long."),
@@ -6,14 +18,15 @@ export const accountSchema = z.object({
     (val) => Number(String(val)), // Convert to number
     z.number().min(0, "Initial balance must be zero or positive.")
   ),
-  type: z.string().optional(),
+  // Update type to be an enum of the predefined types, or an empty string if optional/none selected
+  type: z.enum(accountTypes).optional().or(z.literal("")).default(""), // Allow optional or empty string
 });
 
 export const envelopeSchema = z.object({
   name: z.string().min(1, "Envelope name is required.").max(100, "Name too long."),
   budgetAmount: z.preprocess(
     (val) => Number(String(val)), // Convert to number
-    z.number().min(0, "Budget amount must be zero or positive.") // Changed from .positive()
+    z.number().min(0, "Budget amount must be zero or positive.")
   ),
 });
 

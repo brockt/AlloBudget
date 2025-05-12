@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useForm } from "react-hook-form";
@@ -14,7 +15,14 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { accountSchema } from "@/lib/schemas";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"; // Import Select components
+import { accountSchema, accountTypes } from "@/lib/schemas"; // Import accountTypes
 import { useAppContext } from "@/context/AppContext";
 import type { AccountFormData } from "@/types";
 import { PlusCircle } from "lucide-react";
@@ -33,7 +41,7 @@ export function AddAccountForm({ onSuccess }: AddAccountFormProps) {
     defaultValues: {
       name: "",
       initialBalance: 0,
-      type: "",
+      type: "", // Default to empty string or a placeholder value if needed
     },
   });
 
@@ -82,9 +90,23 @@ export function AddAccountForm({ onSuccess }: AddAccountFormProps) {
           render={({ field }) => (
             <FormItem>
               <FormLabel>Account Type (Optional)</FormLabel>
-              <FormControl>
-                <Input placeholder="e.g., Savings, Credit Card" {...field} />
-              </FormControl>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select an account type" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="">
+                    <em>None</em>
+                  </SelectItem>
+                  {accountTypes.map((type) => (
+                    <SelectItem key={type} value={type}>
+                      {type}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <FormMessage />
             </FormItem>
           )}
@@ -96,3 +118,4 @@ export function AddAccountForm({ onSuccess }: AddAccountFormProps) {
     </Form>
   );
 }
+
