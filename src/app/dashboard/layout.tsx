@@ -9,7 +9,7 @@ import {
   SidebarHeader, 
   SidebarContent,
   SidebarFooter,
-  SidebarInset, // Renamed from SidebarMainContent to SidebarInset based on ui/sidebar.tsx
+  SidebarInset, // Correct component name
   SidebarRail
 } from "@/components/ui/sidebar";
 import { MainNav } from "@/components/layout/main-nav";

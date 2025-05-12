@@ -8,7 +8,8 @@ import {
   Landmark,
   ArrowRightLeft,
   BarChart3,
-  Users, // Added Users icon for Payees
+  Users, 
+  Package, // Changed Landmark to Package for Envelopes
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -22,9 +23,9 @@ import {
 export const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/dashboard/accounts", label: "Accounts", icon: Landmark },
-  { href: "/dashboard/envelopes", label: "Envelopes", icon: Landmark }, // Added Envelopes link
+  { href: "/dashboard/envelopes", label: "Envelopes", icon: Package }, // Updated icon
   { href: "/dashboard/transactions", label: "Transactions", icon: ArrowRightLeft },
-  { href: "/dashboard/payees", label: "Payees", icon: Users }, // Added Payees link
+  { href: "/dashboard/payees", label: "Payees", icon: Users }, 
   { href: "/dashboard/reports", label: "Reports", icon: BarChart3 },
 ];
 
