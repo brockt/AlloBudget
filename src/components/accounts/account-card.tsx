@@ -1,10 +1,11 @@
+
 "use client";
 
 import type { Account } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Landmark, DollarSign, CalendarDays } from "lucide-react";
 import { useAppContext } from "@/context/AppContext";
-import { format } from "date-fns";
+import { format, parseISO, isValid } from "date-fns"; // Import parseISO and isValid
 
 interface AccountCardProps {
   account: Account;
@@ -13,6 +14,10 @@ interface AccountCardProps {
 export function AccountCard({ account }: AccountCardProps) {
   const { getAccountBalance } = useAppContext();
   const balance = getAccountBalance(account.id);
+
+  // Safely parse and format the date
+  const createdAtDate = parseISO(account.createdAt);
+  const formattedDate = isValid(createdAtDate) ? format(createdAtDate, "MMM d, yyyy") : "Invalid Date";
 
   return (
     <Card className="shadow-md hover:shadow-lg transition-shadow duration-300">
@@ -29,7 +34,7 @@ export function AccountCard({ account }: AccountCardProps) {
           )}
         </div>
         <CardDescription className="flex items-center text-xs pt-1">
-           <CalendarDays className="mr-1 h-3 w-3" /> Created: {format(new Date(account.createdAt), "MMM d, yyyy")}
+           <CalendarDays className="mr-1 h-3 w-3" /> Created: {formattedDate}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-2">

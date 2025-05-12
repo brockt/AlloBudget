@@ -4,7 +4,8 @@
 import type { ReactNode } from 'react';
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { Account, Envelope, Transaction, Payee, AccountFormData, EnvelopeFormData, TransactionFormData, PayeeFormData } from '@/types';
-import { formatISO, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
+// Use parseISO and isValid for robust date handling
+import { formatISO, startOfMonth, endOfMonth, isWithinInterval, parseISO, isValid } from 'date-fns';
 
 interface AppContextType {
   accounts: Account[];
@@ -38,14 +39,45 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       const storedData = localStorage.getItem(LOCAL_STORAGE_KEY);
       if (storedData) {
         const parsedData = JSON.parse(storedData);
-        // Validate that parsed data components are arrays
-        setAccounts(Array.isArray(parsedData.accounts) ? parsedData.accounts : []);
-        setEnvelopes(Array.isArray(parsedData.envelopes) ? parsedData.envelopes : []);
-        setTransactions(Array.isArray(parsedData.transactions) ? parsedData.transactions : []);
-        setPayees(Array.isArray(parsedData.payees) ? parsedData.payees : []); // Load payees
+
+        // Validate and sanitize loaded data
+        const validAccounts = Array.isArray(parsedData.accounts) ? parsedData.accounts.filter((acc: any): acc is Account =>
+            acc && typeof acc.id === 'string' && typeof acc.name === 'string' && typeof acc.initialBalance === 'number' && typeof acc.createdAt === 'string' && isValid(parseISO(acc.createdAt))
+        ) : [];
+
+        const validEnvelopes = Array.isArray(parsedData.envelopes) ? parsedData.envelopes.filter((env: any): env is Envelope =>
+            env && typeof env.id === 'string' && typeof env.name === 'string' && typeof env.budgetAmount === 'number' && typeof env.createdAt === 'string' && isValid(parseISO(env.createdAt))
+        ) : [];
+
+        const validPayees = Array.isArray(parsedData.payees) ? parsedData.payees.filter((p: any): p is Payee =>
+            p && typeof p.id === 'string' && typeof p.name === 'string' && typeof p.createdAt === 'string' && isValid(parseISO(p.createdAt))
+        ) : [];
+
+        const validTransactions = Array.isArray(parsedData.transactions)
+          ? parsedData.transactions.filter((tx: any): tx is Transaction => {
+              if (!tx || typeof tx.id !== 'string' || typeof tx.accountId !== 'string' || typeof tx.amount !== 'number' || typeof tx.type !== 'string' || !['income', 'expense'].includes(tx.type) || typeof tx.description !== 'string' || typeof tx.date !== 'string' || typeof tx.createdAt !== 'string') {
+                 console.warn(`Invalid structure found in stored transaction ${tx?.id}. Filtering out.`);
+                 return false;
+              }
+              const dateObj = parseISO(tx.date);
+              const createdAtObj = parseISO(tx.createdAt);
+              if (!isValid(dateObj) || !isValid(createdAtObj)) {
+                 console.warn(`Invalid date format found in stored transaction ${tx.id}: date='${tx.date}', createdAt='${tx.createdAt}'. Filtering out.`);
+                 return false; // Filter out transactions with invalid dates
+              }
+              return true;
+            }).sort((a: Transaction, b: Transaction) => parseISO(b.date).getTime() - parseISO(a.date).getTime()) // Sort after filtering
+          : [];
+
+
+        // Set state with validated data
+        setAccounts(validAccounts);
+        setEnvelopes(validEnvelopes);
+        setTransactions(validTransactions);
+        setPayees(validPayees.sort((a: Payee, b: Payee) => a.name.localeCompare(b.name))); // Sort payees after loading
       }
     } catch (error) {
-      console.error("Failed to load data from localStorage", error);
+      console.error("Failed to load or parse data from localStorage", error);
       // Ensure states are default empty arrays in case of error
       setAccounts([]);
       setEnvelopes([]);
@@ -93,10 +125,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       ...transactionData,
       id: crypto.randomUUID(),
       amount: Number(transactionData.amount), // Ensure amount is a number
-      date: formatISO(new Date(transactionData.date)), // Store as ISO string
+      date: formatISO(parseISO(transactionData.date)), // Ensure date is valid ISO string from input
       createdAt: formatISO(new Date()),
     };
-    setTransactions(prev => [...prev, newTransaction].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+    setTransactions(prev => [...prev, newTransaction].sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime()));
   };
 
   const addPayee = (payeeData: PayeeFormData) => {
@@ -129,11 +161,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const targetPeriod = period || { start: startOfMonth(new Date()), end: endOfMonth(new Date()) };
 
     return transactions
-      .filter(tx =>
-        tx.envelopeId === envelopeId &&
-        tx.type === 'expense' &&
-        isWithinInterval(new Date(tx.date), targetPeriod)
-      )
+      .filter(tx => {
+          // Ensure date is valid before using it
+          const txDate = parseISO(tx.date);
+          return isValid(txDate) &&
+                 tx.envelopeId === envelopeId &&
+                 tx.type === 'expense' &&
+                 isWithinInterval(txDate, targetPeriod)
+      })
       .reduce((sum, tx) => sum + tx.amount, 0);
   }, [transactions]);
 
@@ -165,5 +200,3 @@ export const useAppContext = () => {
   }
   return context;
 };
-
-```

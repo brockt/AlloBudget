@@ -4,7 +4,7 @@
 import type { Transaction } from "@/types";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { format } from "date-fns";
+import { format, parseISO, isValid } from "date-fns"; // Import parseISO and isValid
 import { useAppContext } from "@/context/AppContext";
 import { ArrowUpCircle, ArrowDownCircle, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -43,6 +43,10 @@ export function TransactionRow({ transaction }: TransactionRowProps) {
     });
   };
 
+  // Safely parse and format the date
+  const transactionDate = parseISO(transaction.date);
+  const formattedDate = isValid(transactionDate) ? format(transactionDate, "MMM d, yyyy") : "Invalid Date";
+
   return (
     <TableRow className="hover:bg-muted/50 transition-colors">
       <TableCell>
@@ -50,7 +54,7 @@ export function TransactionRow({ transaction }: TransactionRowProps) {
         <div className="text-xs text-muted-foreground">{account?.name || "N/A"}</div>
       </TableCell>
       <TableCell className="text-center hidden sm:table-cell">
-        {format(new Date(transaction.date), "MMM d, yyyy")}
+        {formattedDate}
       </TableCell>
       <TableCell className="text-center hidden md:table-cell">
         {envelope ? (
@@ -64,8 +68,8 @@ export function TransactionRow({ transaction }: TransactionRowProps) {
           "font-semibold flex items-center justify-end",
           transaction.type === 'income' ? 'text-green-600 dark:text-green-500' : 'text-red-600 dark:text-red-500'
         )}>
-          {transaction.type === 'income' ? 
-            <ArrowUpCircle className="mr-1 h-4 w-4" /> : 
+          {transaction.type === 'income' ?
+            <ArrowUpCircle className="mr-1 h-4 w-4" /> :
             <ArrowDownCircle className="mr-1 h-4 w-4" />
           }
           ${transaction.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -99,4 +103,3 @@ export function TransactionRow({ transaction }: TransactionRowProps) {
     </TableRow>
   );
 }
-

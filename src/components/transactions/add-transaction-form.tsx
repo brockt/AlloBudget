@@ -4,7 +4,7 @@
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type * as z from "zod";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns"; // Import parseISO
 
 import { Button } from "@/components/ui/button";
 import {
@@ -55,22 +55,27 @@ export function AddTransactionForm({ defaultAccountId, onSuccess, navigateToTran
       amount: 0,
       type: "expense",
       description: "",
-      date: format(new Date(), "yyyy-MM-dd"), // Default to today
+      date: format(new Date(), "yyyy-MM-dd"), // Default to today's date string
     },
   });
 
   const transactionType = form.watch("type");
 
   function onSubmit(values: z.infer<typeof transactionSchema>) {
-    addTransaction(values as TransactionFormData);
+    // Ensure the date string is valid before passing to context
+    const transactionDataWithParsedDate: TransactionFormData = {
+        ...values,
+        date: values.date // Already validated by Zod schema to be a parseable date string
+    }
+    addTransaction(transactionDataWithParsedDate);
     toast({
       title: "Transaction Added",
       description: `Transaction for $${values.amount} has been successfully added.`,
     });
-    form.reset({ 
+    form.reset({
         ...form.getValues(), // Keep account if selected, reset others
-        amount: 0, 
-        description: "", 
+        amount: 0,
+        description: "",
         envelopeId: transactionType === 'income' ? '' : form.getValues('envelopeId'), // Reset envelope only if type was income
         date: format(new Date(), "yyyy-MM-dd") // Reset date to today
     });
@@ -123,13 +128,14 @@ export function AddTransactionForm({ defaultAccountId, onSuccess, navigateToTran
           render={({ field }) => (
             <FormItem>
               <FormLabel>Account</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
+              <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
                 <FormControl>
                   <SelectTrigger>
                     <SelectValue placeholder="Select an account" />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
+                  {accounts.length === 0 && <SelectItem value="" disabled>No accounts available</SelectItem>}
                   {accounts.map(account => (
                     <SelectItem key={account.id} value={account.id}>
                       {account.name}
@@ -149,7 +155,7 @@ export function AddTransactionForm({ defaultAccountId, onSuccess, navigateToTran
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Envelope (Optional for Expenses)</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <Select onValueChange={field.onChange} value={field.value || ""}>
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue placeholder="Select an envelope" />
@@ -157,6 +163,7 @@ export function AddTransactionForm({ defaultAccountId, onSuccess, navigateToTran
                   </FormControl>
                   <SelectContent>
                     <SelectItem value="">None</SelectItem>
+                     {envelopes.length === 0 && <SelectItem value="" disabled>No envelopes available</SelectItem>}
                     {envelopes.map(envelope => (
                       <SelectItem key={envelope.id} value={envelope.id}>
                         {envelope.name}
@@ -177,7 +184,7 @@ export function AddTransactionForm({ defaultAccountId, onSuccess, navigateToTran
             <FormItem>
               <FormLabel>Amount</FormLabel>
               <FormControl>
-                <Input type="number" placeholder="0.00" {...field} step="0.01" onChange={e => field.onChange(parseFloat(e.target.value) || 0)} />
+                <Input type="number" placeholder="0.00" {...field} step="0.01" onChange={e => field.onChange(parseFloat(e.target.value) || 0)} value={field.value ?? 0} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -197,7 +204,7 @@ export function AddTransactionForm({ defaultAccountId, onSuccess, navigateToTran
             </FormItem>
           )}
         />
-        
+
         <FormField
           control={form.control}
           name="date"
@@ -215,7 +222,8 @@ export function AddTransactionForm({ defaultAccountId, onSuccess, navigateToTran
                       )}
                     >
                       {field.value ? (
-                        format(new Date(field.value), "PPP") 
+                        // Use parseISO before formatting to handle potential string input
+                        format(parseISO(field.value), "PPP")
                       ) : (
                         <span>Pick a date</span>
                       )}
@@ -226,7 +234,8 @@ export function AddTransactionForm({ defaultAccountId, onSuccess, navigateToTran
                 <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="single"
-                    selected={field.value ? new Date(field.value) : undefined}
+                    // Handle selected potentially being invalid on initial load if default value isn't correct format
+                    selected={field.value ? parseISO(field.value) : undefined}
                     onSelect={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")}
                     initialFocus
                   />
