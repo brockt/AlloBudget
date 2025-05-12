@@ -33,11 +33,10 @@ interface AddEnvelopeFormProps {
 }
 
 export function AddEnvelopeForm({ onSuccess }: AddEnvelopeFormProps) {
-  const { addEnvelope, envelopes } = useAppContext(); // Get envelopes to derive categories
+  const { addEnvelope, categories } = useAppContext(); // Get categories from context
   const { toast } = useToast();
 
-  // Derive unique categories from existing envelopes
-  const categories = [...new Set(envelopes.map(e => e.category).filter((c): c is string => !!c))].sort();
+  // No need to derive categories from envelopes anymore
 
   const form = useForm<z.infer<typeof envelopeSchema>>({
     resolver: zodResolver(envelopeSchema),
@@ -89,7 +88,7 @@ export function AddEnvelopeForm({ onSuccess }: AddEnvelopeFormProps) {
             <FormItem>
               <FormLabel>Monthly Budget Amount</FormLabel>
               <FormControl>
-                <Input type="number" placeholder="0.00" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} />
+                <Input type="number" placeholder="0.00" {...field} step="0.01" onChange={e => field.onChange(parseFloat(e.target.value) || 0)} value={field.value ?? 0} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -101,7 +100,7 @@ export function AddEnvelopeForm({ onSuccess }: AddEnvelopeFormProps) {
           render={({ field }) => (
             <FormItem>
               <FormLabel>Category</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value}> {/* Removed defaultValue */}
+              <Select onValueChange={field.onChange} value={field.value || ""} required> {/* Mark as required, ensure value is not undefined */}
                 <FormControl>
                   <SelectTrigger>
                     <SelectValue placeholder="Select a category" />
@@ -110,8 +109,8 @@ export function AddEnvelopeForm({ onSuccess }: AddEnvelopeFormProps) {
                 <SelectContent>
                   {categories.length === 0 ? (
                     // Display a message instead of a SelectItem with empty value
-                    <div className="px-2 py-1.5 text-sm text-muted-foreground">
-                      No categories created yet. Add one via the 'Add Category Group' button first.
+                    <div className="px-2 py-1.5 text-sm text-muted-foreground text-center">
+                      No categories created yet.<br/> Use 'Add Category Group' first.
                     </div>
                   ) : (
                     categories.map((category) => (

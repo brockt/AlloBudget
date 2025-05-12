@@ -17,7 +17,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { PlusCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-// import { useAppContext } from "@/context/AppContext"; // Import if adding categories to context
+import { useAppContext } from "@/context/AppContext"; // Import context
 
 // Schema for the category form
 const categorySchema = z.object({
@@ -29,7 +29,7 @@ interface AddCategoryFormProps {
 }
 
 export function AddCategoryForm({ onSuccess }: AddCategoryFormProps) {
-  // const { addCategory } = useAppContext(); // Uncomment if implementing category context
+  const { addCategory, categories } = useAppContext(); // Get addCategory function and categories
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof categorySchema>>({
@@ -40,21 +40,24 @@ export function AddCategoryForm({ onSuccess }: AddCategoryFormProps) {
   });
 
   function onSubmit(values: z.infer<typeof categorySchema>) {
-    // ** Placeholder for saving the category **
-    // Currently, categories are just strings on envelopes.
-    // To have a managed list of categories, you'd need to:
-    // 1. Add `categories: string[]` state to AppContext.
-    // 2. Add an `addCategory(categoryName: string)` function to AppContext.
-    // 3. Update localStorage persistence in AppContext.
-    // 4. Call `addCategory(values.name)` here.
-
-    console.log("Category to add (not implemented yet):", values.name); // Log for now
-    toast({
-      title: "Category Added (Simulated)",
-      description: `Category group "${values.name}" would be added here.`,
-    });
-    form.reset();
-    if (onSuccess) onSuccess();
+    const categoryName = values.name.trim(); // Trim whitespace
+    
+    // Check for duplicates (case-insensitive) before adding
+    if (categories.some(cat => cat.toLowerCase() === categoryName.toLowerCase())) {
+        toast({
+            title: "Category Exists",
+            description: `The category group "${categoryName}" already exists.`,
+            variant: "destructive"
+        });
+    } else {
+        addCategory(categoryName); // Call the context function
+        toast({
+          title: "Category Group Added",
+          description: `Category group "${categoryName}" has been successfully added.`,
+        });
+        form.reset();
+        if (onSuccess) onSuccess();
+    }
   }
 
   return (

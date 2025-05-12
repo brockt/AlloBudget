@@ -12,12 +12,13 @@ interface AppContextType {
   envelopes: Envelope[];
   transactions: Transaction[];
   payees: Payee[];
+  categories: string[]; // Added categories state
   addAccount: (accountData: AccountFormData) => void;
   addEnvelope: (envelopeData: EnvelopeFormData) => void;
   addTransaction: (transactionData: TransactionFormData) => void;
   addPayee: (payeeData: PayeeFormData) => void;
+  addCategory: (categoryName: string) => void; // Added addCategory function
   deleteTransaction: (transactionId: string) => void; // Example delete
-  // Placeholder for more complex operations if needed
   getAccountBalance: (accountId: string) => number;
   getEnvelopeSpending: (envelopeId: string, period?: { start: Date, end: Date }) => number;
   isLoading: boolean;
@@ -32,6 +33,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [envelopes, setEnvelopes] = useState<Envelope[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [payees, setPayees] = useState<Payee[]>([]);
+  const [categories, setCategories] = useState<string[]>([]); // Initialize categories state
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -46,7 +48,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         ) : [];
 
         const validEnvelopes = Array.isArray(parsedData.envelopes) ? parsedData.envelopes.filter((env: any): env is Envelope =>
-            env && typeof env.id === 'string' && typeof env.name === 'string' && typeof env.budgetAmount === 'number' && typeof env.createdAt === 'string' && isValid(parseISO(env.createdAt)) && (env.dueDate === undefined || (typeof env.dueDate === 'number' && env.dueDate >= 1 && env.dueDate <= 31)) // Validate dueDate
+            env && typeof env.id === 'string' && typeof env.name === 'string' && typeof env.budgetAmount === 'number' && typeof env.createdAt === 'string' && isValid(parseISO(env.createdAt)) && typeof env.category === 'string' && env.category.length > 0 && (env.dueDate === undefined || (typeof env.dueDate === 'number' && env.dueDate >= 1 && env.dueDate <= 31)) // Validate category and dueDate
         ) : [];
 
         const validPayees = Array.isArray(parsedData.payees) ? parsedData.payees.filter((p: any): p is Payee =>
@@ -74,12 +76,18 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             }).sort((a: Transaction, b: Transaction) => parseISO(b.date).getTime() - parseISO(a.date).getTime()) // Sort after filtering
           : [];
 
+        // Load and validate categories
+        const validCategories = Array.isArray(parsedData.categories)
+          ? parsedData.categories.filter((cat: any): cat is string => typeof cat === 'string' && cat.length > 0).sort()
+          : [];
+
 
         // Set state with validated data
         setAccounts(validAccounts);
         setEnvelopes(validEnvelopes);
         setTransactions(validTransactions);
         setPayees(validPayees.sort((a: Payee, b: Payee) => a.name.localeCompare(b.name))); // Sort payees after loading
+        setCategories(validCategories); // Set categories state
       }
     } catch (error) {
       console.error("Failed to load or parse data from localStorage", error);
@@ -88,6 +96,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       setEnvelopes([]);
       setTransactions([]);
       setPayees([]);
+      setCategories([]); // Ensure categories is empty array on error
     } finally {
       setIsLoading(false);
     }
@@ -96,13 +105,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     if (!isLoading) { // Only save when not initially loading
       try {
-        const dataToStore = JSON.stringify({ accounts, envelopes, transactions, payees }); // Save payees
+        // Include categories in the data to store
+        const dataToStore = JSON.stringify({ accounts, envelopes, transactions, payees, categories });
         localStorage.setItem(LOCAL_STORAGE_KEY, dataToStore);
       } catch (error) {
         console.error("Failed to save data to localStorage", error);
       }
     }
-  }, [accounts, envelopes, transactions, payees, isLoading]);
+  }, [accounts, envelopes, transactions, payees, categories, isLoading]); // Add categories dependency
 
 
   const addAccount = (accountData: AccountFormData) => {
@@ -149,6 +159,16 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setPayees(prev => [...prev, newPayee].sort((a, b) => a.name.localeCompare(b.name)));
   };
 
+  const addCategory = (categoryName: string) => {
+      // Check if category already exists (case-insensitive)
+      if (!categories.some(cat => cat.toLowerCase() === categoryName.toLowerCase())) {
+          setCategories(prev => [...prev, categoryName].sort());
+      } else {
+          console.warn(`Category "${categoryName}" already exists.`);
+          // Optionally, show a toast notification here
+      }
+  };
+
   const deleteTransaction = (transactionId: string) => {
     setTransactions(prev => prev.filter(t => t.id !== transactionId));
   };
@@ -186,11 +206,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       accounts,
       envelopes,
       transactions,
-      payees, // Expose payees
+      payees,
+      categories, // Expose categories
       addAccount,
       addEnvelope,
       addTransaction,
-      addPayee, // Expose addPayee
+      addPayee,
+      addCategory, // Expose addCategory
       deleteTransaction,
       getAccountBalance,
       getEnvelopeSpending,
