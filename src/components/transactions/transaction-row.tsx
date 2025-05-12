@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { Transaction } from "@/types";
@@ -19,6 +20,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils"; // Added missing import
 
 
 interface TransactionRowProps {
@@ -97,3 +99,4 @@ export function TransactionRow({ transaction }: TransactionRowProps) {
     </TableRow>
   );
 }
+
