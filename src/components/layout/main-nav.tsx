@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -7,7 +8,7 @@ import {
   Landmark,
   ArrowRightLeft,
   BarChart3,
-  Users, 
+  Users,
   Package, // Changed Landmark to Package for Envelopes
 } from "lucide-react";
 
@@ -24,7 +25,7 @@ export const navItems = [
   { href: "/dashboard/accounts", label: "Accounts", icon: Landmark },
   { href: "/dashboard/envelopes", label: "Envelopes", icon: Package }, // Updated icon
   { href: "/dashboard/transactions", label: "Transactions", icon: ArrowRightLeft },
-  { href: "/dashboard/payees", label: "Payees", icon: Users }, 
+  { href: "/dashboard/payees", label: "Payees", icon: Users },
   { href: "/dashboard/reports", label: "Reports", icon: BarChart3 },
 ];
 
@@ -33,7 +34,8 @@ export function MainNav() {
   const { setOpenMobile, isMobile } = useSidebar(); // Get mobile state and setter
 
   const handleLinkClick = () => {
-    if (isMobile) {
+    // Check if it's mobile and the function exists before calling
+    if (isMobile && typeof setOpenMobile === 'function') {
       setOpenMobile(false); // Close mobile sidebar on link click
     }
   };
@@ -42,13 +44,18 @@ export function MainNav() {
     <SidebarMenu>
       {navItems.map((item) => (
         <SidebarMenuItem key={item.href}>
-          <Link href={item.href} legacyBehavior passHref>
+          {/* Apply onClick directly to Link component */}
+          <Link href={item.href}
+                legacyBehavior
+                passHref
+                onClick={handleLinkClick}
+          >
             <SidebarMenuButton
               asChild
               isActive={pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href))}
               tooltip={{ children: item.label, side: "right", align: "center" }}
               className="justify-start"
-              onClick={handleLinkClick} // Add onClick handler here
+              // onClick handler removed from here, handled by Link now
             >
               <a>
                 <item.icon className="h-5 w-5" />
@@ -63,3 +70,4 @@ export function MainNav() {
     </SidebarMenu>
   );
 }
+
