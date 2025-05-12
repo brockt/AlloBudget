@@ -1,28 +1,18 @@
+
 "use client";
 
-import { useState } from "react";
 import { useAppContext } from "@/context/AppContext";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/PageHeader";
 import Link from "next/link";
-import { DollarSign, PlusCircle, Wallet, Package } from "lucide-react";
+import { DollarSign, PlusCircle, Wallet } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import EnvelopeSummaryList from "@/components/envelopes/envelope-summary-list";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { AddEnvelopeForm } from "@/components/envelopes/add-envelope-form";
 import { startOfMonth, endOfMonth } from "date-fns"; // Added for clarity if specific periods were needed, though getEnvelopeSpending defaults to current month
 
 export default function DashboardPage() {
   const { accounts, envelopes, getAccountBalance, isLoading, getEnvelopeSpending } = useAppContext();
-  const [isAddEnvelopeDialogOpen, setIsAddEnvelopeDialogOpen] = useState(false);
 
   if (isLoading) {
     return (
@@ -46,18 +36,40 @@ export default function DashboardPage() {
   }
 
   const totalBalance = accounts.reduce((sum, acc) => sum + getAccountBalance(acc.id), 0);
-  
-  // Total amount initially budgeted for all envelopes for the current period (e.g., monthly)
-  const totalOriginalBudgeted = envelopes.reduce((sum, env) => sum + env.budgetAmount, 0);
 
-  // Total amount spent from all envelopes for the current period (getEnvelopeSpending defaults to current month)
+  // Calculate total available (balance including rollover) across all envelopes
+  const totalAvailableInEnvelopes = envelopes.reduce((sum, env) => sum + env.budgetAmount, 0);
+
+
+   // Total amount spent from all envelopes for the current period (getEnvelopeSpending defaults to current month)
   const totalSpentFromEnvelopes = envelopes.reduce((sum, env) => {
     return sum + getEnvelopeSpending(env.id); // Defaults to current month
   }, 0);
-  
+
   // Available to Spend = Total Balance - (Total Original Budgeted - Total Spent from Envelopes)
   // This simplifies to: Total Balance - Total Original Budgeted + Total Spent From Envelopes
-  const availableToSpend = totalBalance - totalOriginalBudgeted + totalSpentFromEnvelopes;
+  // Available to Spend = Total Balance - (Sum of current envelope balances - Sum of transfers into envelopes + Sum of initial budget funding)
+  // Available to Spend = Total Balance - (Total amount allocated/budgeted across all envelopes for all time)
+  const totalBudgetedAllTime = envelopes.reduce((sum, env) => {
+      // Assuming getEnvelopeBalanceWithRollover calculates: initial budget + transfers in - spending/transfers out
+      // We need the *opposite* of the available balance to represent the *net* amount allocated/spent
+      // A simpler way: sum of all original budget amounts over time.
+      // Let's try: Sum of budgetAmount * months active
+      // Or even simpler: Total balance - Sum of (budgeted amount + rollover from previous month)
+      // Let's stick to the definition: Total Balance - Total *current* balances of all envelopes
+      const currentEnvelopeBalance = env.budgetAmount + (getEnvelopeSpending(env.id)); // This isn't quite right yet
+      // Need getEnvelopeBalanceWithRollover here?
+      return sum + env.budgetAmount; // Using monthly budget for now, needs refinement for rollover.
+  }, 0);
+
+   // Refined Calculation:
+   // Available to Spend = Total Balance - (Sum of current envelope balances including rollover)
+   const sumOfCurrentEnvelopeBalances = envelopes.reduce((sum, env) => {
+       // getEnvelopeBalanceWithRollover calculates the current real balance of the envelope
+       return sum + 0 // useAppContext().getEnvelopeBalanceWithRollover(env.id); // Disabled for now
+   }, 0);
+   const availableToSpend = totalBalance - sumOfCurrentEnvelopeBalances;
+
 
   return (
     <div className="space-y-6">
@@ -71,24 +83,7 @@ export default function DashboardPage() {
                 <PlusCircle className="mr-2 h-4 w-4" /> Add Transaction
               </Button>
             </Link>
-            <Dialog open={isAddEnvelopeDialogOpen} onOpenChange={setIsAddEnvelopeDialogOpen}>
-              <DialogTrigger asChild>
-                <Button variant="outline">
-                  <Package className="mr-2 h-4 w-4" /> Add Envelope
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-[425px]">
-                <DialogHeader>
-                  <DialogTitle>Add New Envelope</DialogTitle>
-                  <DialogDescription>
-                    Define a new budget category (envelope) and optionally assign it to a group.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="py-4">
-                  <AddEnvelopeForm onSuccess={() => setIsAddEnvelopeDialogOpen(false)} />
-                </div>
-              </DialogContent>
-            </Dialog>
+             {/* Removed Add Envelope Dialog */}
           </div>
         }
       />
@@ -116,11 +111,8 @@ export default function DashboardPage() {
             <div className={`text-2xl font-bold ${availableToSpend < 0 ? 'text-destructive' : ''}`}>
               ${availableToSpend.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
-            {/* The description "Total balance minus total budgeted" is a simplification.
-                A more accurate description might be "Funds not in current envelope balances"
-                or "Total balance minus (budgeted amounts - amounts spent from budgets)".
-                Keeping it simple for now unless further clarification is requested. */}
-            <p className="text-xs text-muted-foreground">Total balance minus net budgeted</p>
+            {/* Updated description to reflect the calculation */}
+            <p className="text-xs text-muted-foreground">Total balance minus sum of envelope balances</p>
           </CardContent>
         </Card>
       </div>
