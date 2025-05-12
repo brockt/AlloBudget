@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -30,7 +31,6 @@ export const navItems = [
 
 export function MainNav() {
   const pathname = usePathname();
-  // No longer need router or handleItemClick
   const { setOpenMobile, isMobile } = useSidebar();
 
   const handleLinkClick = () => {
@@ -43,24 +43,25 @@ export function MainNav() {
     <SidebarMenu>
       {navItems.map((item) => (
         <SidebarMenuItem key={item.href}>
-          {/* Wrap SidebarMenuButton with Link and use asChild */}
-          <Link href={item.href} passHref legacyBehavior>
-            <SidebarMenuButton
-              asChild // Pass click events to the Link
-              onClick={handleLinkClick} // Still close mobile menu on click
-              isActive={pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href))}
-              tooltip={{ children: item.label, side: "right", align: "center" }}
-              className="justify-start"
-            >
-              {/* Content of the button */}
+          {/* SidebarMenuButton handles its own Tooltip internally via the tooltip prop */}
+          <SidebarMenuButton
+            asChild // Pass props down to the Link component
+            isActive={pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href))}
+            tooltip={{ children: item.label, side: "right", align: "center" }} // Configure the tooltip here
+            className="justify-start"
+          >
+            {/* Link renders the underlying <a> tag */}
+            <Link href={item.href} onClick={handleLinkClick}>
+              {/* Content goes inside the Link */}
               <item.icon className="h-5 w-5" />
               <span className="group-data-[collapsible=icon]:hidden">
                 {item.label}
               </span>
-            </SidebarMenuButton>
-          </Link>
+            </Link>
+          </SidebarMenuButton>
         </SidebarMenuItem>
       ))}
     </SidebarMenu>
   );
 }
+
