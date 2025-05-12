@@ -24,6 +24,7 @@ interface AppContextType {
   transferBetweenEnvelopes: (data: TransferEnvelopeFundsFormData) => void; // New function
   getAccountBalance: (accountId: string) => number;
   getAccountById: (accountId: string) => Account | undefined; // Added function definition
+  getEnvelopeById: (envelopeId: string) => Envelope | undefined; // Added function definition
   getEnvelopeSpending: (envelopeId: string, period?: { start: Date, end: Date }) => number;
   getEnvelopeBalanceWithRollover: (envelopeId: string) => number; // Function for balance including rollover
   getPayeeTransactions: (payeeId: string) => Transaction[]; // Added function to get payee transactions
@@ -218,20 +219,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       // Potentially show a toast error to the user
       return;
     }
-    
-    // Create a system Payee if it doesn't exist, or use a predefined one.
-    // For this example, we'll assume the user has created/selected a "Internal Transfer" payee.
-    // Or, we can simplify and not require a payee selection in the form, and use a hardcoded ID for a system payee.
-    // For now, we will create transactions that require a payee to be selected in the form.
-    // This means the TransferEnvelopeFundsFormData should include payeeId.
-    // However, the request implies the transactions are internal and might not need a user-defined payee.
-    // Let's adjust to create a default "Internal Transfer" payee if one does not exist
-    // and use its ID. For now, we'll assume a payeeId will be handled by the form or a fixed one.
-    // For simplicity in this iteration, we'll omit payeeId from TransferEnvelopeFundsFormData
-    // and use a placeholder/generic payee for these internal transactions.
-    // This is a simplification; a real app might auto-create/use a dedicated "Internal Transfer" payee.
-    // Or better: let the transfer form in UI handle Payee selection or auto-assign one.
-    // For this implementation, we make the payee for transfers fixed.
 
     let internalTransferPayee = payees.find(p => p.name === "Internal Budget Transfer");
     if (!internalTransferPayee) {
@@ -249,7 +236,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const expenseTransaction: TransactionFormData = {
       accountId,
       envelopeId: fromEnvelopeId,
-      payeeId: internalTransferPayee.id, 
+      payeeId: internalTransferPayee.id,
       amount,
       type: 'expense',
       description: description || `Transfer to ${toEnvelope.name}`,
@@ -289,6 +276,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const getAccountById = useCallback((accountId: string): Account | undefined => {
     return accounts.find(acc => acc.id === accountId);
   }, [accounts]);
+
+  const getEnvelopeById = useCallback((envelopeId: string): Envelope | undefined => {
+    return envelopes.find(env => env.id === envelopeId);
+  }, [envelopes]);
 
 
   const getEnvelopeSpending = useCallback((envelopeId: string, period?: { start: Date, end: Date }): number => {
@@ -368,6 +359,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       transferBetweenEnvelopes, // Expose the new function
       getAccountBalance,
       getAccountById,
+      getEnvelopeById, // Expose the new function
       getEnvelopeSpending,
       getEnvelopeBalanceWithRollover,
       getPayeeTransactions,

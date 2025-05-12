@@ -20,6 +20,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { EditEnvelopeForm } from "./edit-envelope-form"; // Import the new edit form
+import Link from "next/link"; // Import Link for navigation
 
 // Function to get the ordinal suffix for a day number
 function getDaySuffix(day: number): string {
@@ -79,7 +80,9 @@ export default function EnvelopeSummaryList() {
   });
   const defaultOpenCategory = categories.length > 0 ? [categories[0]] : [];
 
-  const handleEditClick = (envelope: Envelope) => {
+  const handleEditClick = (event: React.MouseEvent, envelope: Envelope) => {
+    event.stopPropagation(); // Prevent link navigation when clicking edit
+    event.preventDefault(); // Prevent link navigation when clicking edit
     setEditingEnvelope(envelope);
     setIsEditDialogOpen(true);
   };
@@ -104,39 +107,42 @@ export default function EnvelopeSummaryList() {
                                 const dueDateString = envelope.dueDate ? `${envelope.dueDate}${getDaySuffix(envelope.dueDate)}` : '';
 
                                 return (
-                                    <li key={envelope.id} className="text-sm p-2.5 rounded-md border bg-card hover:bg-muted/50 transition-colors group relative">
-                                        {/* Edit Button - positioned top right */}
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="absolute top-1 right-1 h-6 w-6 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity focus:opacity-100"
-                                            onClick={() => handleEditClick(envelope)}
-                                            aria-label={`Edit ${envelope.name}`}
-                                        >
-                                            <Pencil className="h-4 w-4" />
-                                        </Button>
+                                    // Wrap the list item content with Link
+                                     <li key={envelope.id} className="group relative">
+                                        <Link href={`/dashboard/envelopes/${envelope.id}/transactions`} passHref className="block p-2.5 rounded-md border bg-card hover:bg-muted/50 transition-colors cursor-pointer">
+                                            {/* Edit Button - positioned top right */}
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="absolute top-1 right-1 h-6 w-6 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity focus:opacity-100 z-10" // Ensure button is above link
+                                                onClick={(e) => handleEditClick(e, envelope)}
+                                                aria-label={`Edit ${envelope.name}`}
+                                            >
+                                                <Pencil className="h-4 w-4" />
+                                            </Button>
 
-                                        <div className="flex justify-between items-start mb-1 pr-8"> {/* Added padding-right */}
-                                          <div className="flex-1 min-w-0">
-                                            <span className="font-medium truncate block" title={envelope.name}>{envelope.name}</span>
-                                            {dueDateString && (
-                                              <span className="text-xs text-muted-foreground flex items-center mt-0.5">
-                                                <CalendarClock className="mr-1 h-3 w-3" /> Due: {dueDateString}
+                                            <div className="flex justify-between items-start mb-1 pr-8"> {/* Added padding-right */}
+                                              <div className="flex-1 min-w-0">
+                                                <span className="font-medium truncate block text-sm" title={envelope.name}>{envelope.name}</span>
+                                                {dueDateString && (
+                                                  <span className="text-xs text-muted-foreground flex items-center mt-0.5">
+                                                    <CalendarClock className="mr-1 h-3 w-3" /> Due: {dueDateString}
+                                                  </span>
+                                                )}
+                                              </div>
+                                              {/* Display the available balance including rollover */}
+                                              <span className={`font-semibold text-sm ${availableBalance < 0 ? 'text-destructive' : 'text-green-600 dark:text-green-500'}`}>
+                                                  ${availableBalance.toFixed(2)}
                                               </span>
-                                            )}
-                                          </div>
-                                          {/* Display the available balance including rollover */}
-                                          <span className={`font-semibold ${availableBalance < 0 ? 'text-destructive' : 'text-green-600 dark:text-green-500'}`}>
-                                              ${availableBalance.toFixed(2)}
-                                          </span>
-                                        </div>
-                                        {/* Progress bar still reflects this month's spending */}
-                                        <Progress value={Math.min(progress, 100)} className="h-2" />
-                                        <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                                        {/* Show spending for the current month */}
-                                        <span>Spent (Month): ${spentThisMonth.toFixed(2)}</span>
-                                        <span>Budget (Month): ${envelope.budgetAmount.toFixed(2)}</span>
-                                        </div>
+                                            </div>
+                                            {/* Progress bar still reflects this month's spending */}
+                                            <Progress value={Math.min(progress, 100)} className="h-2" />
+                                            <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                                            {/* Show spending for the current month */}
+                                            <span>Spent (Month): ${spentThisMonth.toFixed(2)}</span>
+                                            <span>Budget (Month): ${envelope.budgetAmount.toFixed(2)}</span>
+                                            </div>
+                                        </Link>
                                     </li>
                                 );
                             })}
