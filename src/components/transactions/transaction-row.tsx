@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import type { Transaction } from "@/types";
@@ -6,7 +7,7 @@ import { TableCell, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { format, parseISO, isValid } from "date-fns"; // Import parseISO and isValid
 import { useAppContext } from "@/context/AppContext";
-import { ArrowUpCircle, ArrowDownCircle, Trash2 } from "lucide-react";
+import { ArrowUpCircle, ArrowDownCircle, Trash2, User } from "lucide-react"; // Added User icon
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -28,11 +29,12 @@ interface TransactionRowProps {
 }
 
 export function TransactionRow({ transaction }: TransactionRowProps) {
-  const { accounts, envelopes, deleteTransaction } = useAppContext();
+  const { accounts, envelopes, payees, deleteTransaction } = useAppContext(); // Added payees
   const { toast } = useToast();
 
   const account = accounts.find(acc => acc.id === transaction.accountId);
   const envelope = transaction.envelopeId ? envelopes.find(env => env.id === transaction.envelopeId) : null;
+  const payee = transaction.payeeId ? payees.find(p => p.id === transaction.payeeId) : null; // Find payee
 
   const handleDelete = () => {
     deleteTransaction(transaction.id);
@@ -52,6 +54,12 @@ export function TransactionRow({ transaction }: TransactionRowProps) {
       <TableCell>
         <div className="font-medium">{transaction.description || <span className="italic text-muted-foreground">No description</span>}</div>
         <div className="text-xs text-muted-foreground">{account?.name || "N/A"}</div>
+        {/* Display Payee if exists */}
+        {payee && (
+          <div className="text-xs text-muted-foreground flex items-center mt-1">
+            <User className="mr-1 h-3 w-3" /> {payee.name}
+          </div>
+        )}
       </TableCell>
       <TableCell className="text-center hidden sm:table-cell">
         {formattedDate}
@@ -103,3 +111,4 @@ export function TransactionRow({ transaction }: TransactionRowProps) {
     </TableRow>
   );
 }
+

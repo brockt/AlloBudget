@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import type { ReactNode } from 'react';
@@ -64,6 +65,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
               // Check if envelopeId exists and is a string, or if it's null/undefined
               if (!(tx.envelopeId === undefined || tx.envelopeId === null || typeof tx.envelopeId === 'string')) {
                   console.warn(`Invalid envelopeId type found in stored transaction ${tx.id}: type='${typeof tx.envelopeId}'. Filtering out.`);
+                  return false;
+              }
+               // Check if payeeId exists and is a string, or if it's null/undefined
+              if (!(tx.payeeId === undefined || tx.payeeId === null || typeof tx.payeeId === 'string')) {
+                  console.warn(`Invalid payeeId type found in stored transaction ${tx.id}: type='${typeof tx.payeeId}'. Filtering out.`);
                   return false;
               }
               const dateObj = parseISO(tx.date);
@@ -143,6 +149,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       amount: Number(transactionData.amount), // Ensure amount is a number
       // Handle envelopeId being null
       envelopeId: transactionData.envelopeId === null ? undefined : transactionData.envelopeId,
+      // Handle payeeId being null
+      payeeId: transactionData.payeeId === null ? undefined : transactionData.payeeId,
       date: formatISO(parseISO(transactionData.date)), // Ensure date is valid ISO string from input
       createdAt: formatISO(new Date()),
     };
@@ -230,3 +238,4 @@ export const useAppContext = () => {
   }
   return context;
 };
+

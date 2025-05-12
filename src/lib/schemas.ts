@@ -1,4 +1,5 @@
 
+
 import { z } from 'zod';
 import { parseISO, isValid } from 'date-fns'; // Import date-fns functions
 
@@ -48,6 +49,8 @@ export const transactionSchema = z.object({
   // Ensure envelopeId is treated as optional, allowing null or undefined.
   // Transform empty strings from the select (if they occur) to null.
   envelopeId: z.string().optional().nullable().transform(val => val === "" ? null : val),
+  // Add optional payeeId
+  payeeId: z.string().optional().nullable().transform(val => val === "" ? null : val),
   amount: z.preprocess(
     (val) => Number(String(val)),
     z.number().positive("Amount must be positive.")
@@ -76,4 +79,5 @@ export const payeeSchema = z.object({
 
 // Ensure envelopeId is present if type is expense and an envelope is selected (or make it more complex)
 // For now, basic schema. If type is expense, envelopeId is highly recommended.
+
 

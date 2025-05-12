@@ -24,6 +24,7 @@ export interface Transaction {
   id: string;
   accountId: string;
   envelopeId?: string; // Optional, as income might not have an envelope or expenses not yet categorized
+  payeeId?: string; // Optional: Link to a payee
   amount: number;
   type: TransactionType;
   description?: string; // Made description optional
@@ -55,6 +56,7 @@ export interface EnvelopeFormData {
 export interface TransactionFormData {
   accountId: string;
   envelopeId?: string | null; // Allow null
+  payeeId?: string | null; // Allow null
   amount: number;
   type: TransactionType;
   description?: string; // Made description optional
@@ -65,4 +67,5 @@ export interface PayeeFormData {
   name: string;
   category?: string;
 }
+
 
