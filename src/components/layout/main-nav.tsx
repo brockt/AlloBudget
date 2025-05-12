@@ -47,22 +47,22 @@ export function MainNav() {
           {/* Apply onClick directly to Link component */}
           <Link href={item.href}
                 passHref
+                legacyBehavior={false} // Required when using asChild with non-<a> direct child
                 onClick={handleLinkClick} // Add onClick here
           >
             <SidebarMenuButton
-              asChild
+              asChild // Use asChild to merge props with the Link's underlying <a>
               isActive={pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href))}
               tooltip={{ children: item.label, side: "right", align: "center" }}
               className="justify-start"
-              // onClick handler removed from here, handled by Link now
             >
-              {/* The underlying anchor tag receives the click from the Link */}
-               <a>
+              {/* Content directly inside SidebarMenuButton, no extra <a> needed */}
+              <>
                 <item.icon className="h-5 w-5" />
                 <span className="group-data-[collapsible=icon]:hidden">
                   {item.label}
                 </span>
-              </a>
+              </>
             </SidebarMenuButton>
           </Link>
         </SidebarMenuItem>
