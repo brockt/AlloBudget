@@ -1,5 +1,4 @@
 
-
 export interface Account {
   id: string;
   name: string;
@@ -104,7 +103,8 @@ export interface AppContextType {
   envelopes: Envelope[];
   transactions: Transaction[];
   payees: Payee[];
-  categories: string[]; // Added categories state
+  categories: string[]; // Original category names
+  orderedCategories: string[]; // Added: maintains the user-defined order of categories
   addAccount: (accountData: AccountFormData) => void;
   updateAccount: (accountData: AccountWithId) => void; // Added updateAccount function
   addEnvelope: (envelopeData: EnvelopeFormData) => void;
@@ -112,6 +112,7 @@ export interface AppContextType {
   addPayee: (payeeData: PayeeFormData) => void;
   updatePayee: (payeeData: PayeeWithId) => void; // Added updatePayee function
   addCategory: (categoryName: string) => void; // Added addCategory function
+  updateCategoryOrder: (newOrder: string[]) => void; // Added function to update category order
   updateEnvelope: (envelopeData: Partial<Envelope> & { id: string }) => void; // Added updateEnvelope function
   updateEnvelopeOrder: (reorderedEnvelopes: Envelope[]) => void; // Added updateEnvelopeOrder function
   deleteTransaction: (transactionId: string) => void; // Example delete
@@ -130,4 +131,3 @@ export interface AppContextType {
   getYtdIncomeTotal: () => number;
   isLoading: boolean;
 }
-

@@ -8,6 +8,7 @@ import type { Account, Envelope, Transaction, Payee, AccountFormData, EnvelopeFo
 // Use parseISO and isValid for robust date handling
 // Import differenceInCalendarMonths for rollover calculation
 import { formatISO, startOfMonth, endOfMonth, isWithinInterval, parseISO, isValid, differenceInCalendarMonths, startOfDay, startOfYear, endOfDay } from 'date-fns'; // Added startOfYear, endOfDay
+import { arrayMove } from '@dnd-kit/sortable'; // Import arrayMove
 
 // Remove AppContextType definition from here as it's now imported from types
 
@@ -20,8 +21,19 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [envelopes, setEnvelopes] = useState<Envelope[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [payees, setPayees] = useState<Payee[]>([]);
-  const [categories, setCategories] = useState<string[]>([]); // Initialize categories state
+  const [categories, setCategories] = useState<string[]>([]); // All unique category names
+  const [orderedCategories, setOrderedCategories] = useState<string[]>([]); // User-defined order
   const [isLoading, setIsLoading] = useState(true);
+
+  // Function to derive sorted unique categories from envelopes
+  const deriveCategoriesFromEnvelopes = (envelopeList: Envelope[]): string[] => {
+    const uniqueCategories = [...new Set(envelopeList.map(env => env.category || "Uncategorized"))];
+    return uniqueCategories.sort((a, b) => {
+        if (a === "Uncategorized") return 1;
+        if (b === "Uncategorized") return -1;
+        return a.localeCompare(b);
+    });
+  };
 
   useEffect(() => {
     try {
@@ -75,9 +87,28 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             }).sort((a: Transaction, b: Transaction) => parseISO(b.date).getTime() - parseISO(a.date).getTime())
           : [];
 
-        const validCategories = Array.isArray(parsedData.categories)
-          ? parsedData.categories.filter((cat: any): cat is string => typeof cat === 'string' && cat.length > 0).sort()
-          : [];
+        // Load or derive categories
+        const derivedCats = deriveCategoriesFromEnvelopes(validEnvelopes);
+        const loadedCategories = Array.isArray(parsedData.categories)
+            ? parsedData.categories.filter((cat: any): cat is string => typeof cat === 'string' && cat.length > 0).sort()
+            : derivedCats; // Fallback to derived if not stored
+
+        // Load orderedCategories or initialize from loaded/derived categories
+        const loadedOrderedCategories = Array.isArray(parsedData.orderedCategories)
+            ? parsedData.orderedCategories.filter((cat: any): cat is string => typeof cat === 'string' && cat.length > 0)
+            : loadedCategories; // Initialize order based on loaded/derived categories
+
+        // Ensure consistency between categories and orderedCategories
+        const uniqueLoadedCats = [...new Set(loadedCategories)];
+        const finalOrderedCategories = uniqueLoadedCats.map(cat =>
+            loadedOrderedCategories.includes(cat) ? cat : null
+        ).filter(Boolean) as string[];
+        // Add any missing categories from uniqueLoadedCats to the end
+        uniqueLoadedCats.forEach(cat => {
+            if (!finalOrderedCategories.includes(cat)) {
+                finalOrderedCategories.push(cat);
+            }
+        });
 
 
         setAccounts(validAccounts);
@@ -96,7 +127,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             ...p,
             category: p.category === null ? undefined : p.category,
         })).sort((a: Payee, b: Payee) => a.name.localeCompare(b.name)));
-        setCategories(validCategories);
+        setCategories(uniqueLoadedCats); // Store the unique, sorted list
+        setOrderedCategories(finalOrderedCategories); // Store the ordered list
+
+      } else {
+          // If no stored data, initialize based on default empty arrays
+          setCategories([]);
+          setOrderedCategories([]);
       }
     } catch (error) {
       console.error("Failed to load or parse data from localStorage", error);
@@ -105,6 +142,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       setTransactions([]);
       setPayees([]);
       setCategories([]);
+      setOrderedCategories([]);
     } finally {
       setIsLoading(false);
     }
@@ -113,13 +151,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     if (!isLoading) {
       try {
-        const dataToStore = JSON.stringify({ accounts, envelopes, transactions, payees, categories });
+        // Save orderedCategories as well
+        const dataToStore = JSON.stringify({ accounts, envelopes, transactions, payees, categories, orderedCategories });
         localStorage.setItem(LOCAL_STORAGE_KEY, dataToStore);
       } catch (error) {
         console.error("Failed to save data to localStorage", error);
       }
     }
-  }, [accounts, envelopes, transactions, payees, categories, isLoading]);
+  }, [accounts, envelopes, transactions, payees, categories, orderedCategories, isLoading]);
 
 
   const addAccount = (accountData: AccountFormData) => {
@@ -149,27 +188,85 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       dueDate: (typeof envelopeData.dueDate === 'number' && !isNaN(envelopeData.dueDate) && envelopeData.dueDate >= 1 && envelopeData.dueDate <= 31) ? envelopeData.dueDate : undefined,
       createdAt: formatISO(startOfDay(new Date())),
     };
+    // Add envelope
     setEnvelopes(prev => [...prev, newEnvelope]);
+    // Update categories if necessary
+    if (!categories.some(cat => cat.toLowerCase() === newEnvelope.category.toLowerCase())) {
+        const newCategories = [...categories, newEnvelope.category].sort((a, b) => a.localeCompare(b));
+        setCategories(newCategories);
+        // Add to ordered categories as well (e.g., at the end)
+        setOrderedCategories(prevOrdered => [...prevOrdered, newEnvelope.category]);
+    }
   };
 
 
   const updateEnvelope = (envelopeData: Partial<Envelope> & { id: string }) => {
-    setEnvelopes(prevEnvelopes =>
-      prevEnvelopes.map(env =>
-        env.id === envelopeData.id ? {
-            ...env,
-            ...envelopeData,
-            estimatedAmount: (typeof envelopeData.estimatedAmount === 'number' && !isNaN(envelopeData.estimatedAmount)) ? envelopeData.estimatedAmount : undefined,
-            dueDate: (typeof envelopeData.dueDate === 'number' && !isNaN(envelopeData.dueDate) && envelopeData.dueDate >= 1 && envelopeData.dueDate <= 31) ? envelopeData.dueDate : undefined,
+    let oldCategory: string | undefined;
+    let newCategory: string | undefined = envelopeData.category;
+
+    setEnvelopes(prevEnvelopes => {
+        const updatedEnvelopes = prevEnvelopes.map(env => {
+            if (env.id === envelopeData.id) {
+                oldCategory = env.category; // Store the old category before updating
+                return {
+                    ...env,
+                    ...envelopeData,
+                    estimatedAmount: (typeof envelopeData.estimatedAmount === 'number' && !isNaN(envelopeData.estimatedAmount)) ? envelopeData.estimatedAmount : undefined,
+                    dueDate: (typeof envelopeData.dueDate === 'number' && !isNaN(envelopeData.dueDate) && envelopeData.dueDate >= 1 && envelopeData.dueDate <= 31) ? envelopeData.dueDate : undefined,
+                };
             }
-        : env
-      )
-    );
+            return env;
+        });
+
+        // After updating envelopes, check if category lists need adjustment
+        const currentCategories = deriveCategoriesFromEnvelopes(updatedEnvelopes);
+        setCategories(currentCategories); // Update the main category list
+
+        // Adjust ordered categories
+        setOrderedCategories(prevOrdered => {
+            let newOrdered = [...prevOrdered];
+            // Add new category if it doesn't exist
+            if (newCategory && !newOrdered.includes(newCategory)) {
+                newOrdered.push(newCategory);
+            }
+            // Remove old category only if it's no longer used by any envelope
+            if (oldCategory && !currentCategories.includes(oldCategory)) {
+                newOrdered = newOrdered.filter(cat => cat !== oldCategory);
+            }
+            // Ensure order contains only current categories
+            newOrdered = newOrdered.filter(cat => currentCategories.includes(cat));
+            // Add any missing current categories to the end
+            currentCategories.forEach(cat => {
+                if (!newOrdered.includes(cat)) {
+                    newOrdered.push(cat);
+                }
+            });
+
+            return newOrdered;
+        });
+
+
+        return updatedEnvelopes;
+    });
   };
 
+
   const updateEnvelopeOrder = (reorderedEnvelopes: Envelope[]) => {
+    // This only updates the order *within* categories, not the category order itself
     setEnvelopes(reorderedEnvelopes);
   };
+
+  const updateCategoryOrder = (newOrder: string[]) => {
+      // Validate that the new order contains the same categories as the current ones
+      const currentCategorySet = new Set(categories);
+      const newOrderSet = new Set(newOrder);
+      if (currentCategorySet.size !== newOrderSet.size || ![...currentCategorySet].every(cat => newOrderSet.has(cat))) {
+          console.error("Category order update failed: Mismatched categories.");
+          // Optionally revert or fallback
+          return;
+      }
+      setOrderedCategories(newOrder);
+  }
 
 
   const addTransaction = useCallback((transactionData: TransactionFormData) => {
@@ -193,7 +290,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       description: transactionData.description || undefined,
       date: formatISO(parsedDate),
       createdAt: formatISO(new Date()),
-      isTransfer: transactionData.isTransfer || false, // Add isTransfer flag
+      isTransfer: transactionData.isTransfer || false, // Default to false if not provided
     };
     setTransactions(prev => [...prev, newTransaction].sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime()));
   }, []);
@@ -231,7 +328,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       if (trimmedName.length === 0) return;
 
       if (!categories.some(cat => cat.toLowerCase() === trimmedName.toLowerCase())) {
-          setCategories(prev => [...prev, trimmedName].sort());
+          const newCategories = [...categories, trimmedName].sort((a,b)=>a.localeCompare(b));
+          setCategories(newCategories);
+          // Add to the end of the ordered list by default
+          setOrderedCategories(prevOrdered => [...prevOrdered, trimmedName]);
       } else {
           console.warn(`Category "${trimmedName}" already exists.`);
       }
@@ -414,14 +514,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
 
     const transfersIn = relevantTransactions
-      .filter(tx => tx.type === 'income')
+      .filter(tx => tx.type === 'income') // Includes transfers from other envelopes
       .reduce((sum, tx) => {
           const amount = typeof tx.amount === 'number' && !isNaN(tx.amount) ? tx.amount : 0;
           return sum + amount;
        }, 0);
 
     const spendingAndTransfersOut = relevantTransactions
-      .filter(tx => tx.type === 'expense')
+      .filter(tx => tx.type === 'expense') // Includes spending and transfers to other envelopes
       .reduce((sum, tx) => {
            const amount = typeof tx.amount === 'number' && !isNaN(tx.amount) ? tx.amount : 0;
            return sum + amount;
@@ -508,7 +608,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       envelopes,
       transactions,
       payees,
-      categories,
+      categories, // Provide the sorted list of unique category names
+      orderedCategories, // Provide the user-ordered list
       addAccount,
       updateAccount,
       addEnvelope,
@@ -516,6 +617,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       addPayee,
       updatePayee, // Provide updatePayee
       addCategory,
+      updateCategoryOrder, // Provide updateCategoryOrder
       updateEnvelope,
       updateEnvelopeOrder,
       deleteTransaction,
@@ -545,4 +647,3 @@ export const useAppContext = () => {
   }
   return context;
 };
-

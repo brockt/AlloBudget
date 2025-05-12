@@ -3,12 +3,9 @@
 
 import { useState } from "react";
 import { useAppContext } from "@/context/AppContext";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Accordion } from "@/components/ui/accordion";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { startOfMonth, endOfMonth } from "date-fns";
 import type { Envelope } from "@/types";
-import { Pencil, GripVertical } from 'lucide-react'; // Added GripVertical for drag handle
-import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -17,7 +14,6 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { EditEnvelopeForm } from "./edit-envelope-form";
-import Link from "next/link";
 import {
   DndContext,
   closestCenter,
@@ -26,6 +22,8 @@ import {
   useSensor,
   useSensors,
   DragEndEvent,
+  DragStartEvent,
+  DragOverlay,
 } from '@dnd-kit/core';
 import {
   arrayMove,
@@ -33,12 +31,13 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
-import { SortableEnvelopeItem } from './sortable-envelope-item'; // Import the new sortable item component
+import { SortableCategoryAccordionItem } from './sortable-category-accordion-item'; // Import the new sortable category item
 
 export default function EnvelopeSummaryList() {
-  const { envelopes, updateEnvelopeOrder, getEnvelopeSpending, getEnvelopeBalanceWithRollover } = useAppContext();
+  const { envelopes, orderedCategories, updateCategoryOrder } = useAppContext();
   const [editingEnvelope, setEditingEnvelope] = useState<Envelope | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [activeId, setActiveId] = useState<string | null>(null); // For drag overlay (optional, but good practice)
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -56,7 +55,7 @@ export default function EnvelopeSummaryList() {
     );
   }
 
-  // Group envelopes by category (order within category depends on the main envelopes array order)
+  // Group envelopes by category using the main envelopes array
   const groupedEnvelopes = envelopes.reduce((acc, envelope) => {
     const category = envelope.category || "Uncategorized";
     if (!acc[category]) {
@@ -66,38 +65,29 @@ export default function EnvelopeSummaryList() {
     return acc;
   }, {} as Record<string, Envelope[]>);
 
+  // Filter orderedCategories to only include those present in groupedEnvelopes
+  const categoriesToDisplay = orderedCategories.filter(cat => groupedEnvelopes[cat] && groupedEnvelopes[cat].length > 0);
 
-  // Sort categories alphabetically, placing "Uncategorized" last
-  const categories = Object.keys(groupedEnvelopes).sort((a, b) => {
-    if (a === "Uncategorized") return 1;
-    if (b === "Uncategorized") return -1;
-    return a.localeCompare(b);
-  });
-  const defaultOpenCategory = categories.length > 0 ? [categories[0]] : [];
+  const defaultOpenCategory = categoriesToDisplay.length > 0 ? [categoriesToDisplay[0]] : [];
 
-  const handleEditClick = (event: React.MouseEvent, envelope: Envelope) => {
-    event.stopPropagation();
-    event.preventDefault();
-    setEditingEnvelope(envelope);
-    setIsEditDialogOpen(true);
-  };
+  function handleCategoryDragStart(event: DragStartEvent) {
+     setActiveId(event.active.id as string);
+  }
 
-  function handleDragEnd(event: DragEndEvent) {
+  function handleCategoryDragEnd(event: DragEndEvent) {
     const { active, over } = event;
+    setActiveId(null); // Clear active ID
 
     if (over && active.id !== over.id) {
-      const originalEnvelopes = [...envelopes]; // Get a copy of the current envelopes array
+       const oldIndex = orderedCategories.findIndex(cat => cat === active.id);
+       const newIndex = orderedCategories.findIndex(cat => cat === over.id);
 
-      const oldIndex = originalEnvelopes.findIndex(env => env.id === active.id);
-      const newIndex = originalEnvelopes.findIndex(env => env.id === over.id);
-
-      if (oldIndex !== -1 && newIndex !== -1) {
-        const reorderedEnvelopes = arrayMove(originalEnvelopes, oldIndex, newIndex);
-        // Call the context function to update the state and persist
-        updateEnvelopeOrder(reorderedEnvelopes);
-      } else {
-        console.error("Could not find dragged items in the original array during drag end");
-      }
+       if (oldIndex !== -1 && newIndex !== -1) {
+           const newOrder = arrayMove(orderedCategories, oldIndex, newIndex);
+           updateCategoryOrder(newOrder); // Update context state and localStorage
+       } else {
+            console.error("Could not find dragged categories in the ordered list during drag end");
+       }
     }
   }
 
@@ -106,42 +96,38 @@ export default function EnvelopeSummaryList() {
     <DndContext
       sensors={sensors}
       collisionDetection={closestCenter}
-      onDragEnd={handleDragEnd}
+      onDragStart={handleCategoryDragStart}
+      onDragEnd={handleCategoryDragEnd}
     >
       <ScrollArea className="h-auto max-h-[600px]">
-        <Accordion type="multiple" defaultValue={defaultOpenCategory} className="w-full">
-          {categories.map(category => {
-            const categoryEnvelopes = groupedEnvelopes[category];
-            const envelopeIds = categoryEnvelopes.map(env => env.id); // Get IDs for SortableContext
-
-            return (
-              <AccordionItem value={category} key={category}>
-                <AccordionTrigger className="text-lg font-semibold px-1 hover:no-underline">
-                  {category} ({categoryEnvelopes.length})
-                </AccordionTrigger>
-                <AccordionContent>
-                  {/* SortableContext wraps the list for drag-and-drop */}
-                  <SortableContext
-                    items={envelopeIds}
-                    strategy={verticalListSortingStrategy}
-                  >
-                    <ul className="space-y-3 pl-1 pr-2">
-                      {categoryEnvelopes.map(envelope => (
-                        <SortableEnvelopeItem
-                          key={envelope.id}
-                          id={envelope.id}
-                          envelope={envelope}
-                          onEditClick={(e) => handleEditClick(e, envelope)}
-                        />
-                      ))}
-                    </ul>
-                  </SortableContext>
-                </AccordionContent>
-              </AccordionItem>
-            );
-          })}
-        </Accordion>
+        {/* SortableContext for Categories */}
+        <SortableContext
+          items={categoriesToDisplay} // Use the filtered list for sortable items
+          strategy={verticalListSortingStrategy}
+        >
+          <Accordion type="multiple" defaultValue={defaultOpenCategory} className="w-full space-y-1">
+            {categoriesToDisplay.map(category => {
+              const categoryEnvelopes = groupedEnvelopes[category];
+              return (
+                <SortableCategoryAccordionItem
+                  key={category}
+                  category={category}
+                  envelopesInCategory={categoryEnvelopes}
+                  setEditingEnvelope={setEditingEnvelope}
+                  setIsEditDialogOpen={setIsEditDialogOpen}
+                />
+              );
+            })}
+          </Accordion>
+        </SortableContext>
       </ScrollArea>
+
+       {/* Optional Drag Overlay for better visual feedback */}
+      {/* <DragOverlay>
+        {activeId ? (
+           <div className="p-4 bg-primary text-primary-foreground rounded-md shadow-lg opacity-75">Dragging {activeId}</div>
+         ) : null}
+       </DragOverlay> */}
 
       {/* Edit Envelope Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
@@ -165,4 +151,3 @@ export default function EnvelopeSummaryList() {
     </DndContext>
   );
 }
-
