@@ -82,16 +82,26 @@ export default function EnvelopeSummaryList() {
     setActiveId(null); // Clear active ID
 
     if (over && active.id !== over.id) {
-       // Use the full orderedCategories list from context for finding indices
-       const oldIndex = orderedCategories.findIndex(cat => cat === active.id);
-       const newIndex = orderedCategories.findIndex(cat => cat === over.id);
+       // Check if both active and over IDs are valid category names (strings) present in the ordered list
+       const isActiveCategory = typeof active.id === 'string' && orderedCategories.includes(active.id);
+       const isOverCategory = typeof over.id === 'string' && orderedCategories.includes(over.id);
 
-       if (oldIndex !== -1 && newIndex !== -1) {
-           const newOrder = arrayMove(orderedCategories, oldIndex, newIndex);
-           updateCategoryOrder(newOrder); // Update context state and localStorage
+       // Only proceed if BOTH IDs belong to categories in the current context
+       if (isActiveCategory && isOverCategory) {
+           const oldIndex = orderedCategories.findIndex(cat => cat === active.id);
+           const newIndex = orderedCategories.findIndex(cat => cat === over.id);
+
+           // Double-check indices just in case (should always be found now)
+           if (oldIndex !== -1 && newIndex !== -1) {
+               const newOrder = arrayMove(orderedCategories, oldIndex, newIndex);
+               updateCategoryOrder(newOrder); // Update context state and localStorage
+           } else {
+                // This should not happen if the above checks pass
+                console.error(`Category indices not found even after validation for IDs: "${active.id}", "${over.id}"`);
+           }
        } else {
-            // This error should be resolved now
-            console.error(`Error during category drag end: Could not find category ID "${active.id}" or "${over.id}" in ordered list:`, orderedCategories);
+         // Log or ignore if it's not a category drag or if IDs are mismatched types/contexts
+         // console.log("Ignoring drag end event - likely an envelope drag:", { activeId: active.id, overId: over.id });
        }
     }
   }
