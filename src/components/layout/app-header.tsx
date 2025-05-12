@@ -2,9 +2,18 @@
 "use client";
 
 import Link from "next/link";
-import { Coins } from "lucide-react"; // Using Coins as a budget/money related icon
+import { Coins, Settings } from "lucide-react"; // Added Settings icon
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { SidebarTrigger } from "@/components/ui/sidebar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
 
 export function AppHeader() {
   return (
@@ -21,6 +30,33 @@ export function AppHeader() {
         </div>
         
         <div className="flex items-center space-x-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <Settings className="h-5 w-5" />
+                <span className="sr-only">Settings</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Manage</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <Link href="/dashboard/accounts" passHref>
+                <DropdownMenuItem>Accounts</DropdownMenuItem>
+              </Link>
+               {/* Assuming an envelopes page will exist */}
+              <Link href="/dashboard/envelopes" passHref>
+                <DropdownMenuItem>Envelopes</DropdownMenuItem>
+              </Link>
+              <Link href="/dashboard/transactions" passHref>
+                <DropdownMenuItem>Transactions</DropdownMenuItem>
+              </Link>
+              {/* Assuming a payees page will exist */}
+              <Link href="/dashboard/payees" passHref> 
+                 <DropdownMenuItem disabled>Payees (Coming Soon)</DropdownMenuItem> 
+              </Link>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
           <ThemeToggle />
           {/* User profile/actions could go here */}
         </div>
