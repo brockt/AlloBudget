@@ -28,7 +28,7 @@ export function AppHeader() {
             <span className="hidden sm:inline-block">Pocket Budgeteer</span>
           </Link>
         </div>
-        
+
         <div className="flex items-center space-x-2">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -40,19 +40,27 @@ export function AppHeader() {
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Manage</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <Link href="/dashboard/accounts" passHref>
-                <DropdownMenuItem>Accounts</DropdownMenuItem>
+              <Link href="/dashboard/accounts" passHref legacyBehavior>
+                <DropdownMenuItem asChild>
+                  <a>Accounts</a>
+                </DropdownMenuItem>
               </Link>
                {/* Assuming an envelopes page will exist */}
-              <Link href="/dashboard/envelopes" passHref>
-                <DropdownMenuItem>Envelopes</DropdownMenuItem>
+              <Link href="/dashboard/envelopes" passHref legacyBehavior>
+                 <DropdownMenuItem asChild>
+                   <a>Envelopes</a>
+                </DropdownMenuItem>
               </Link>
-              <Link href="/dashboard/transactions" passHref>
-                <DropdownMenuItem>Transactions</DropdownMenuItem>
+              <Link href="/dashboard/transactions" passHref legacyBehavior>
+                 <DropdownMenuItem asChild>
+                   <a>Transactions</a>
+                </DropdownMenuItem>
               </Link>
               {/* Assuming a payees page will exist */}
-              <Link href="/dashboard/payees" passHref> 
-                 <DropdownMenuItem disabled>Payees (Coming Soon)</DropdownMenuItem> 
+              <Link href="/dashboard/payees" passHref legacyBehavior>
+                 <DropdownMenuItem asChild disabled>
+                   <a>Payees (Coming Soon)</a>
+                 </DropdownMenuItem>
               </Link>
             </DropdownMenuContent>
           </DropdownMenu>
