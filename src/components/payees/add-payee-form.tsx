@@ -33,7 +33,7 @@ export function AddPayeeForm({ onSuccess }: AddPayeeFormProps) {
     resolver: zodResolver(payeeSchema),
     defaultValues: {
       name: "",
-      category: "",
+      category: "", // Defaulting to "" makes it controlled
     },
   });
 
@@ -75,7 +75,8 @@ export function AddPayeeForm({ onSuccess }: AddPayeeFormProps) {
             <FormItem>
               <FormLabel>Category (Optional)</FormLabel>
               <FormControl>
-                <Input placeholder="e.g., Bills, Personal" {...field} />
+                {/* Provide an empty string if value is null/undefined */}
+                <Input placeholder="e.g., Bills, Personal" {...field} value={field.value ?? ""} />
               </FormControl>
                <FormMessage />
             </FormItem>

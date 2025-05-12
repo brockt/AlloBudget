@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useForm, Controller } from "react-hook-form";
@@ -107,6 +108,14 @@ export function AddTransactionForm({ onSuccess, navigateToTransactions = false }
       if(defaultAccountIdFromQuery && accounts.some(acc => acc.id === defaultAccountIdFromQuery)) {
         form.reset({ ...form.getValues(), accountId: defaultAccountIdFromQuery });
       }
+       // Ensure accountId has a default value if the query param is removed or no accounts exist
+      else if (!defaultAccountIdFromQuery && accounts.length > 0 && !form.getValues('accountId')) {
+         form.reset({ ...form.getValues(), accountId: accounts[0].id });
+      }
+      // Ensure accountId is "" if no accounts exist and no query param
+      else if (accounts.length === 0 && !defaultAccountIdFromQuery) {
+         form.reset({ ...form.getValues(), accountId: "" });
+      }
   }, [defaultAccountIdFromQuery, form, accounts]);
 
 
@@ -158,7 +167,8 @@ export function AddTransactionForm({ onSuccess, navigateToTransactions = false }
           render={({ field }) => (
             <FormItem>
               <FormLabel>Account</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value} required>
+              {/* Ensure value is always a string to keep it controlled */}
+              <Select onValueChange={field.onChange} value={field.value ?? ""} required>
                 <FormControl>
                   <SelectTrigger>
                     <SelectValue placeholder="Select an account" />
@@ -328,3 +338,4 @@ export function AddTransactionForm({ onSuccess, navigateToTransactions = false }
     </Form>
   );
 }
+

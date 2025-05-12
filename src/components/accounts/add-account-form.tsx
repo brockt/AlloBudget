@@ -91,17 +91,15 @@ export function AddAccountForm({ onSuccess }: AddAccountFormProps) {
           render={({ field }) => (
             <FormItem>
               <FormLabel>Account Type (Optional)</FormLabel>
-              {/* Bind value directly, it will be undefined if nothing selected */}
-              <Select onValueChange={field.onChange} value={field.value}>
+              {/* Ensure value is always a string to keep it controlled */}
+              <Select onValueChange={field.onChange} value={field.value ?? ""}>
                 <FormControl>
                   <SelectTrigger>
-                    {/* Placeholder is shown when field.value is undefined */}
+                    {/* Placeholder is shown when field.value is empty string */}
                     <SelectValue placeholder="Select an account type" />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  {/* Remove the explicit "None" item with empty value */}
-                  {/* Rely on placeholder and undefined value for unselected state */}
                   {accountTypes.map((type) => (
                     <SelectItem key={type} value={type}>
                       {type}
