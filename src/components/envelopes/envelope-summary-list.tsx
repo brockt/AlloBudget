@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -7,7 +8,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import type { Envelope } from "@/types";
-import { CalendarClock, Pencil, Info } from 'lucide-react'; // Import Info icon
+import { CalendarClock, Pencil } from 'lucide-react'; // Removed Info icon
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -19,7 +20,8 @@ import {
 } from "@/components/ui/dialog";
 import { EditEnvelopeForm } from "./edit-envelope-form"; // Import the new edit form
 import Link from "next/link"; // Import Link for navigation
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"; // Import Tooltip
+// Remove Tooltip imports as they are no longer needed
+// import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 // Function to get the ordinal suffix for a day number
 function getDaySuffix(day: number): string {
@@ -87,7 +89,8 @@ export default function EnvelopeSummaryList() {
   };
 
   return (
-    <TooltipProvider>
+    // Remove TooltipProvider
+    // <TooltipProvider>
      <ScrollArea className="h-auto max-h-[600px]"> {/* Adjust max height if needed */}
         <Accordion type="multiple" defaultValue={defaultOpenCategory} className="w-full">
             {categories.map(category => (
@@ -124,23 +127,15 @@ export default function EnvelopeSummaryList() {
 
                                             <div className="flex justify-between items-start mb-1 pr-8"> {/* Added padding-right */}
                                               <div className="flex-1 min-w-0">
-                                                <div className="flex items-center">
+                                                <div className="flex items-baseline"> {/* Use baseline alignment */}
                                                     <span className="font-medium truncate block text-sm" title={envelope.name}>{envelope.name}</span>
-                                                    {/* Show Info icon and tooltip only if estimatedAmount is a valid number */}
+                                                    {/* Display estimated amount directly if it exists */}
                                                     {hasEstimatedAmount && (
-                                                        <Tooltip delayDuration={300}>
-                                                            <TooltipTrigger asChild>
-                                                                {/* Use a span that can receive focus/hover */}
-                                                                <span className="ml-1.5 inline-flex items-center justify-center cursor-help" tabIndex={0}>
-                                                                    <Info className="h-3.5 w-3.5 text-muted-foreground" />
-                                                                </span>
-                                                            </TooltipTrigger>
-                                                            <TooltipContent side="top">
-                                                                {/* Ensure the amount is formatted */}
-                                                                <p>Est: ${envelope.estimatedAmount?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                                                            </TooltipContent>
-                                                        </Tooltip>
+                                                      <span className="ml-1.5 text-xs text-muted-foreground">
+                                                        (Est: ${envelope.estimatedAmount?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
+                                                      </span>
                                                     )}
+                                                    {/* Remove Tooltip/Icon */}
                                                 </div>
                                                 {dueDateString && (
                                                   <span className="text-xs text-muted-foreground flex items-center mt-0.5">
@@ -190,6 +185,7 @@ export default function EnvelopeSummaryList() {
           </div>
         </DialogContent>
       </Dialog>
-    </TooltipProvider>
+    // </TooltipProvider>
   );
 }
+
