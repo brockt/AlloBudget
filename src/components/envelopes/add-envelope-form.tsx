@@ -15,6 +15,13 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"; // Import Select components
 import { envelopeSchema } from "@/lib/schemas";
 import { useAppContext } from "@/context/AppContext";
 import type { EnvelopeFormData } from "@/types";
@@ -26,28 +33,32 @@ interface AddEnvelopeFormProps {
 }
 
 export function AddEnvelopeForm({ onSuccess }: AddEnvelopeFormProps) {
-  const { addEnvelope } = useAppContext();
+  const { addEnvelope, envelopes } = useAppContext(); // Get envelopes to derive categories
   const { toast } = useToast();
+
+  // Derive unique categories from existing envelopes
+  const categories = [...new Set(envelopes.map(e => e.category).filter((c): c is string => !!c))].sort();
 
   const form = useForm<z.infer<typeof envelopeSchema>>({
     resolver: zodResolver(envelopeSchema),
     defaultValues: {
       name: "",
       budgetAmount: 0,
-      category: "", // Default empty category
+      category: "", // Default to empty string, user must select
     },
   });
 
   function onSubmit(values: z.infer<typeof envelopeSchema>) {
+    // Category is now guaranteed by the schema
     const dataToAdd: EnvelopeFormData = {
       name: values.name,
       budgetAmount: values.budgetAmount,
-      ...(values.category && { category: values.category }), // Only include category if provided
+      category: values.category,
     };
     addEnvelope(dataToAdd);
     toast({
       title: "Envelope Added",
-      description: `Envelope "${values.name}" has been successfully added.`,
+      description: `Envelope "${values.name}" has been successfully added to category "${values.category}".`,
     });
     form.reset();
     if (onSuccess) onSuccess();
@@ -87,15 +98,33 @@ export function AddEnvelopeForm({ onSuccess }: AddEnvelopeFormProps) {
           name="category"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Category (Optional)</FormLabel>
-              <FormControl>
-                <Input placeholder="e.g., Housing, Food, Fun Money" {...field} />
-              </FormControl>
+              <FormLabel>Category</FormLabel>
+              <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a category" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {categories.length === 0 && (
+                    <SelectItem value="" disabled>
+                      No categories created yet. Add one via the 'Add Category Group' button first.
+                    </SelectItem>
+                  )}
+                  {categories.map((category) => (
+                    <SelectItem key={category} value={category}>
+                      {category}
+                    </SelectItem>
+                  ))}
+                  {/* Maybe add an option here to trigger the Add Category dialog? */}
+                </SelectContent>
+              </Select>
               <FormMessage />
             </FormItem>
           )}
         />
-        <Button type="submit" className="w-full sm:w-auto">
+        <Button type="submit" className="w-full sm:w-auto" disabled={categories.length === 0 && !form.formState.errors.category}>
+           {/* Disable submit if no categories exist and no category error is shown (i.e., initial state) */}
           <PlusCircle className="mr-2 h-4 w-4" /> Add Envelope
         </Button>
       </form>

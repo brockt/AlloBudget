@@ -1,5 +1,4 @@
 
-
 import { z } from 'zod';
 import { parseISO, isValid } from 'date-fns'; // Import date-fns functions
 
@@ -33,7 +32,8 @@ export const envelopeSchema = z.object({
     (val) => Number(String(val)), // Convert to number
     z.number().min(0, "Budget amount must be non-negative.") // Allow 0 budget
   ),
-  category: z.string().max(100, "Category too long.").optional(), // Optional category field
+  // Make category mandatory
+  category: z.string().min(1, "Category is required.").max(100, "Category name is too long."),
   // Add createdAt for completeness if needed elsewhere, though not in form
   // createdAt: z.string().optional(), // Typically set server-side or in context
 });
