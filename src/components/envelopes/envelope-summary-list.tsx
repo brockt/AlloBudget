@@ -9,7 +9,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import type { Envelope } from "@/types";
-import { CalendarClock, Pencil } from 'lucide-react'; // Import icon
+import { CalendarClock, Pencil, Info } from 'lucide-react'; // Import Info icon
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/dialog";
 import { EditEnvelopeForm } from "./edit-envelope-form"; // Import the new edit form
 import Link from "next/link"; // Import Link for navigation
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"; // Import Tooltip
 
 // Function to get the ordinal suffix for a day number
 function getDaySuffix(day: number): string {
@@ -88,7 +89,7 @@ export default function EnvelopeSummaryList() {
   };
 
   return (
-    <>
+    <TooltipProvider>
      <ScrollArea className="h-auto max-h-[600px]"> {/* Adjust max height if needed */}
         <Accordion type="multiple" defaultValue={defaultOpenCategory} className="w-full">
             {categories.map(category => (
@@ -123,7 +124,19 @@ export default function EnvelopeSummaryList() {
 
                                             <div className="flex justify-between items-start mb-1 pr-8"> {/* Added padding-right */}
                                               <div className="flex-1 min-w-0">
-                                                <span className="font-medium truncate block text-sm" title={envelope.name}>{envelope.name}</span>
+                                                <div className="flex items-center">
+                                                    <span className="font-medium truncate block text-sm" title={envelope.name}>{envelope.name}</span>
+                                                    {envelope.estimatedAmount !== undefined && (
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <Info className="ml-1.5 h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                                                            </TooltipTrigger>
+                                                            <TooltipContent side="top">
+                                                                <p>Estimated: ${envelope.estimatedAmount.toFixed(2)}</p>
+                                                            </TooltipContent>
+                                                        </Tooltip>
+                                                    )}
+                                                </div>
                                                 {dueDateString && (
                                                   <span className="text-xs text-muted-foreground flex items-center mt-0.5">
                                                     <CalendarClock className="mr-1 h-3 w-3" /> Due: {dueDateString}
@@ -172,7 +185,7 @@ export default function EnvelopeSummaryList() {
           </div>
         </DialogContent>
       </Dialog>
-    </>
+    </TooltipProvider>
   );
 }
 
