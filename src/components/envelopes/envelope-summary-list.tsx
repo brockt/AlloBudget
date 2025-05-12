@@ -8,7 +8,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import type { Envelope } from "@/types";
-import { CalendarClock, Pencil } from 'lucide-react'; // Removed Info icon
+import { CalendarClock, Pencil } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -20,8 +20,6 @@ import {
 } from "@/components/ui/dialog";
 import { EditEnvelopeForm } from "./edit-envelope-form"; // Import the new edit form
 import Link from "next/link"; // Import Link for navigation
-// Remove Tooltip imports as they are no longer needed
-// import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 // Function to get the ordinal suffix for a day number
 function getDaySuffix(day: number): string {
@@ -89,8 +87,7 @@ export default function EnvelopeSummaryList() {
   };
 
   return (
-    // Remove TooltipProvider
-    // <TooltipProvider>
+    <> {/* Use a fragment to wrap multiple top-level elements */}
      <ScrollArea className="h-auto max-h-[600px]"> {/* Adjust max height if needed */}
         <Accordion type="multiple" defaultValue={defaultOpenCategory} className="w-full">
             {categories.map(category => (
@@ -131,11 +128,10 @@ export default function EnvelopeSummaryList() {
                                                     <span className="font-medium truncate block text-sm" title={envelope.name}>{envelope.name}</span>
                                                     {/* Display estimated amount directly if it exists */}
                                                     {hasEstimatedAmount && (
-                                                      <span className="ml-1.5 text-xs text-muted-foreground">
-                                                        (Est: ${envelope.estimatedAmount?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
-                                                      </span>
+                                                       <span className="ml-1.5 text-xs text-muted-foreground">
+                                                          (Est: ${envelope.estimatedAmount?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
+                                                       </span>
                                                     )}
-                                                    {/* Remove Tooltip/Icon */}
                                                 </div>
                                                 {dueDateString && (
                                                   <span className="text-xs text-muted-foreground flex items-center mt-0.5">
@@ -185,7 +181,6 @@ export default function EnvelopeSummaryList() {
           </div>
         </DialogContent>
       </Dialog>
-    // </TooltipProvider>
+    </> // Close the fragment
   );
 }
-
