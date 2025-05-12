@@ -21,6 +21,7 @@ interface AppContextType {
   addCategory: (categoryName: string) => void; // Added addCategory function
   deleteTransaction: (transactionId: string) => void; // Example delete
   getAccountBalance: (accountId: string) => number;
+  getAccountById: (accountId: string) => Account | undefined; // Added function definition
   getEnvelopeSpending: (envelopeId: string, period?: { start: Date, end: Date }) => number;
   getPayeeTransactions: (payeeId: string) => Transaction[]; // Added function to get payee transactions
   isLoading: boolean;
@@ -208,6 +209,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }, account.initialBalance);
   }, [accounts, transactions]);
 
+  const getAccountById = useCallback((accountId: string): Account | undefined => {
+    return accounts.find(acc => acc.id === accountId);
+  }, [accounts]); // Added getAccountById implementation
+
+
   const getEnvelopeSpending = useCallback((envelopeId: string, period?: { start: Date, end: Date }): number => {
     const targetPeriod = period || { start: startOfMonth(new Date()), end: endOfMonth(new Date()) };
 
@@ -245,6 +251,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       addCategory, // Expose addCategory
       deleteTransaction,
       getAccountBalance,
+      getAccountById, // Expose getAccountById
       getEnvelopeSpending,
       getPayeeTransactions, // Expose getPayeeTransactions
       isLoading
@@ -261,4 +268,3 @@ export const useAppContext = () => {
   }
   return context;
 };
-

@@ -34,24 +34,28 @@ import type { TransactionFormData, TransactionType } from "@/types";
 import { PlusCircle, CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import { useRouter } from "next/navigation"; // For redirecting after add
-
+import { useRouter, useSearchParams } from "next/navigation"; // Added useSearchParams
 
 interface AddTransactionFormProps {
-  defaultAccountId?: string;
+  // Removed defaultAccountId prop, will use query param instead
   onSuccess?: () => void;
   navigateToTransactions?: boolean; // If true, navigates to /transactions on success
 }
 
-export function AddTransactionForm({ defaultAccountId, onSuccess, navigateToTransactions = false }: AddTransactionFormProps) {
+export function AddTransactionForm({ onSuccess, navigateToTransactions = false }: AddTransactionFormProps) {
   const { accounts, envelopes, payees, addTransaction } = useAppContext(); // Added payees
   const { toast } = useToast();
   const router = useRouter();
+  const searchParams = useSearchParams(); // Get query params
+
+  // Get accountId from query parameters if present
+  const defaultAccountIdFromQuery = searchParams.get('accountId');
 
   const form = useForm<z.infer<typeof transactionSchema>>({
     resolver: zodResolver(transactionSchema),
     defaultValues: {
-      accountId: defaultAccountId || (accounts.length > 0 ? accounts[0].id : ""),
+      // Use accountId from query param or fallback
+      accountId: defaultAccountIdFromQuery || (accounts.length > 0 ? accounts[0].id : ""),
       envelopeId: null, // Default to null instead of ""
       payeeId: "", // Default payee to empty string (as it's required now)
       amount: 0,
@@ -67,11 +71,11 @@ export function AddTransactionForm({ defaultAccountId, onSuccess, navigateToTran
     // Ensure the date string is valid before passing to context
     const transactionDataWithParsedDate: TransactionFormData = {
         ...values,
-        description: values.description || undefined, 
+        description: values.description || undefined,
         payeeId: values.payeeId,
         // If type is income, ensure envelopeId is null/undefined, otherwise use value from form
-        envelopeId: values.type === 'income' ? null : values.envelopeId, 
-        date: values.date 
+        envelopeId: values.type === 'income' ? null : values.envelopeId,
+        date: values.date
     }
     addTransaction(transactionDataWithParsedDate);
     toast({
@@ -79,17 +83,33 @@ export function AddTransactionForm({ defaultAccountId, onSuccess, navigateToTran
       description: `Transaction for $${values.amount} has been successfully added.`,
     });
     form.reset({
-        accountId: form.getValues('accountId'), 
+        // Keep the selected account when resetting, unless it was from a query param and we navigate away
+        accountId: navigateToTransactions ? (accounts.length > 0 ? accounts[0].id : "") : form.getValues('accountId'),
         amount: 0,
-        description: "", 
-        type: form.getValues('type'), 
+        description: "",
+        type: form.getValues('type'),
         envelopeId: form.getValues('type') === 'income' ? null : (envelopes.length > 0 && form.getValues('type') === 'expense' ? form.getValues('envelopeId') : null), // Reset or keep envelope based on type and availability
-        payeeId: "", 
+        payeeId: "",
         date: format(new Date(), "yyyy-MM-dd")
     });
     if (onSuccess) onSuccess();
-    if (navigateToTransactions) router.push("/dashboard/transactions");
+    // Navigate back to the specific account's transaction page if came from there, otherwise general transactions
+    if (navigateToTransactions) {
+        if (defaultAccountIdFromQuery) {
+            router.push(`/dashboard/accounts/${defaultAccountIdFromQuery}/transactions`);
+        } else {
+            router.push("/dashboard/transactions");
+        }
+    }
   }
+
+  // Reset accountId if defaultAccountIdFromQuery changes (e.g., navigation)
+  useEffect(() => {
+      if(defaultAccountIdFromQuery && accounts.some(acc => acc.id === defaultAccountIdFromQuery)) {
+        form.reset({ ...form.getValues(), accountId: defaultAccountIdFromQuery });
+      }
+  }, [defaultAccountIdFromQuery, form, accounts]);
+
 
   return (
     <Form {...form}>
@@ -105,7 +125,7 @@ export function AddTransactionForm({ defaultAccountId, onSuccess, navigateToTran
                   onValueChange={(value) => {
                     field.onChange(value as TransactionType);
                     if (value === 'income') {
-                      form.setValue('envelopeId', null); 
+                      form.setValue('envelopeId', null);
                     } else {
                         // If switching to expense and no envelope is selected, or no envelopes exist,
                         // RHF will use the default (null) or current value. Zod validation will catch it.
@@ -139,7 +159,7 @@ export function AddTransactionForm({ defaultAccountId, onSuccess, navigateToTran
           render={({ field }) => (
             <FormItem>
               <FormLabel>Account</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value} required>
+              <Select onValueChange={field.onChange} value={field.value} required>
                 <FormControl>
                   <SelectTrigger>
                     <SelectValue placeholder="Select an account" />
@@ -166,9 +186,9 @@ export function AddTransactionForm({ defaultAccountId, onSuccess, navigateToTran
             <FormItem>
               <FormLabel>Payee</FormLabel>
               <Select
-                onValueChange={field.onChange} 
-                value={field.value ?? ""} 
-                required 
+                onValueChange={field.onChange}
+                value={field.value ?? ""}
+                required
               >
                 <FormControl>
                   <SelectTrigger>
@@ -197,8 +217,8 @@ export function AddTransactionForm({ defaultAccountId, onSuccess, navigateToTran
               <FormItem>
                 <FormLabel>Envelope</FormLabel>
                 <Select
-                  onValueChange={(value) => field.onChange(value || null)} 
-                  value={field.value ?? ""} 
+                  onValueChange={(value) => field.onChange(value || null)}
+                  value={field.value ?? ""}
                   required // Mark as required for expense
                 >
                   <FormControl>
@@ -247,7 +267,7 @@ export function AddTransactionForm({ defaultAccountId, onSuccess, navigateToTran
               <FormControl>
                 <Input placeholder="e.g., Groceries, Salary" {...field} value={field.value ?? ""} />
               </FormControl>
-              <FormMessage /> 
+              <FormMessage />
             </FormItem>
           )}
         />
@@ -291,11 +311,11 @@ export function AddTransactionForm({ defaultAccountId, onSuccess, navigateToTran
           )}
         />
 
-        <Button 
-          type="submit" 
-          className="w-full sm:w-auto" 
+        <Button
+          type="submit"
+          className="w-full sm:w-auto"
           disabled={
-            payees.length === 0 || 
+            payees.length === 0 ||
             accounts.length === 0 ||
             (form.getValues('type') === 'expense' && envelopes.length === 0)
           }
@@ -306,4 +326,3 @@ export function AddTransactionForm({ defaultAccountId, onSuccess, navigateToTran
     </Form>
   );
 }
-

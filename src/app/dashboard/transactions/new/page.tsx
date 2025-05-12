@@ -9,9 +9,19 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { useAppContext } from "@/context/AppContext";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useSearchParams } from 'next/navigation'; // Import useSearchParams
 
 export default function NewTransactionPage() {
   const { isLoading } = useAppContext();
+  const searchParams = useSearchParams();
+  const accountId = searchParams.get('accountId'); // Check if accountId is in query
+
+  // Determine the back link based on whether accountId is present
+  const backLink = accountId
+    ? `/dashboard/accounts/${accountId}/transactions`
+    : "/dashboard/transactions";
+  const backLinkText = accountId ? "Back to Account Transactions" : "Back to All Transactions";
+
 
   if (isLoading) {
      return (
@@ -40,9 +50,9 @@ export default function NewTransactionPage() {
         title="New Transaction"
         description="Record a new income or expense."
         actions={
-          <Link href="/dashboard/transactions" passHref>
+          <Link href={backLink} passHref>
             <Button variant="outline">
-              <ArrowLeft className="mr-2 h-4 w-4" /> Back to Transactions
+              <ArrowLeft className="mr-2 h-4 w-4" /> {backLinkText}
             </Button>
           </Link>
         }
@@ -52,6 +62,7 @@ export default function NewTransactionPage() {
           <CardTitle>Enter Transaction Details</CardTitle>
         </CardHeader>
         <CardContent>
+          {/* Pass navigateToTransactions so it redirects correctly */}
           <AddTransactionForm navigateToTransactions={true} />
         </CardContent>
       </Card>
