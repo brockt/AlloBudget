@@ -1,15 +1,15 @@
-
 "use client";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect } from "react"; // Import useEffect
 import {
   LayoutDashboard,
   Landmark,
   ArrowRightLeft,
   BarChart3,
   Users,
-  Package, // Corrected icon name
+  Package, 
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -31,31 +31,35 @@ export const navItems = [
 
 export function MainNav() {
   const pathname = usePathname();
-  const { setOpenMobile, isMobile } = useSidebar(); // Use useSidebar hook
+  // Get openMobile state as well for the useEffect dependency
+  const { setOpenMobile, isMobile, openMobile } = useSidebar(); 
 
-  // Removed handleLinkClick function
+  // Close mobile sidebar on route change if it was open
+  useEffect(() => {
+    if (isMobile && openMobile) {
+      setOpenMobile(false);
+    }
+    // Add all relevant dependencies for the effect
+  }, [pathname, isMobile, openMobile, setOpenMobile]);
 
   return (
     <SidebarMenu>
       {navItems.map((item) => (
         <SidebarMenuItem key={item.href}>
-          {/* SidebarMenuButton handles its own Tooltip internally via the tooltip prop */}
-          {/* Use asChild to pass props down to Link */}
           <SidebarMenuButton
             asChild
             isActive={pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href))}
             tooltip={{ children: item.label, side: "right", align: "center" }}
             className="justify-start"
-            onClick={() => { // Add onClick directly to the button
+            onClick={() => { 
+              // Attempt to close immediately on click for better responsiveness
               if (isMobile) {
-                setOpenMobile(false); // Close mobile sidebar
+                setOpenMobile(false); 
               }
-              // Link's default navigation will still happen
+              // Link component will handle navigation
             }}
           >
-            {/* Link handles the navigation */}
             <Link href={item.href}>
-              {/* Content goes inside the Link */}
               <item.icon className="h-5 w-5" />
               <span className="group-data-[collapsible=icon]:hidden">
                 {item.label}
@@ -67,4 +71,3 @@ export function MainNav() {
     </SidebarMenu>
   );
 }
-
