@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from "react";
@@ -105,7 +104,7 @@ export default function EnvelopeSummaryList() {
                                 // Get the total available balance including rollover
                                 const availableBalance = getEnvelopeBalanceWithRollover(envelope.id);
                                 const dueDateString = envelope.dueDate ? `${envelope.dueDate}${getDaySuffix(envelope.dueDate)}` : '';
-                                // Check if estimatedAmount exists and is a valid number
+                                // Check if estimatedAmount exists and is a valid number (not null/undefined/NaN)
                                 const hasEstimatedAmount = typeof envelope.estimatedAmount === 'number' && !isNaN(envelope.estimatedAmount);
 
                                 return (
@@ -131,14 +130,14 @@ export default function EnvelopeSummaryList() {
                                                     {hasEstimatedAmount && (
                                                         <Tooltip delayDuration={300}>
                                                             <TooltipTrigger asChild>
-                                                                {/* Use a button or span that can receive focus */}
+                                                                {/* Use a span that can receive focus/hover */}
                                                                 <span className="ml-1.5 inline-flex items-center justify-center cursor-help" tabIndex={0}>
                                                                     <Info className="h-3.5 w-3.5 text-muted-foreground" />
                                                                 </span>
                                                             </TooltipTrigger>
                                                             <TooltipContent side="top">
                                                                 {/* Ensure the amount is formatted */}
-                                                                <p>Estimated: ${envelope.estimatedAmount?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                                                                <p>Est: ${envelope.estimatedAmount?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                                                             </TooltipContent>
                                                         </Tooltip>
                                                     )}
