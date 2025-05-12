@@ -99,23 +99,25 @@ export function AddEnvelopeForm({ onSuccess }: AddEnvelopeFormProps) {
           render={({ field }) => (
             <FormItem>
               <FormLabel>Category</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
+              <Select onValueChange={field.onChange} value={field.value}> {/* Removed defaultValue */}
                 <FormControl>
                   <SelectTrigger>
                     <SelectValue placeholder="Select a category" />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  {categories.length === 0 && (
-                    <SelectItem value="" disabled>
+                  {categories.length === 0 ? (
+                    // Display a message instead of a SelectItem with empty value
+                    <div className="px-2 py-1.5 text-sm text-muted-foreground">
                       No categories created yet. Add one via the 'Add Category Group' button first.
-                    </SelectItem>
+                    </div>
+                  ) : (
+                    categories.map((category) => (
+                      <SelectItem key={category} value={category}>
+                        {category}
+                      </SelectItem>
+                    ))
                   )}
-                  {categories.map((category) => (
-                    <SelectItem key={category} value={category}>
-                      {category}
-                    </SelectItem>
-                  ))}
                   {/* Maybe add an option here to trigger the Add Category dialog? */}
                 </SelectContent>
               </Select>
@@ -123,8 +125,8 @@ export function AddEnvelopeForm({ onSuccess }: AddEnvelopeFormProps) {
             </FormItem>
           )}
         />
-        <Button type="submit" className="w-full sm:w-auto" disabled={categories.length === 0 && !form.formState.errors.category}>
-           {/* Disable submit if no categories exist and no category error is shown (i.e., initial state) */}
+        <Button type="submit" className="w-full sm:w-auto" disabled={categories.length === 0}>
+           {/* Disable submit if no categories exist, as category is mandatory */}
           <PlusCircle className="mr-2 h-4 w-4" /> Add Envelope
         </Button>
       </form>
