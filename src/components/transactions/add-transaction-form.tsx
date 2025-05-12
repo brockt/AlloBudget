@@ -1,11 +1,10 @@
-
-
 "use client";
 
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type * as z from "zod";
 import { format, parseISO } from "date-fns"; // Import parseISO
+import { useEffect } from 'react'; // Import useEffect
 
 import { Button } from "@/components/ui/button";
 import {
@@ -228,11 +227,14 @@ export function AddTransactionForm({ onSuccess, navigateToTransactions = false }
                   </FormControl>
                   <SelectContent>
                      {envelopes.length === 0 ? (
-                        <div className="px-2 py-1.5 text-sm text-muted-foreground text-center">No envelopes available.</div>
+                        // Display a message instead of a SelectItem with empty value
+                        <div className="px-2 py-1.5 text-sm text-muted-foreground text-center">
+                            No envelopes available.<br/> Add one on the Dashboard first.
+                        </div>
                      ) : (
                         envelopes.map(envelope => (
                           <SelectItem key={envelope.id} value={envelope.id}>
-                            {envelope.name}
+                            {envelope.name} ({envelope.category})
                           </SelectItem>
                         ))
                      )}
