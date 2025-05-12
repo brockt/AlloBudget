@@ -93,6 +93,7 @@ export function TransferAccountFundsForm({ onSuccess }: TransferAccountFundsForm
   }, [sourceAccountBalance]); // Re-run only when sourceAccountBalance updates.
 
   function onSubmit(values: z.infer<typeof transferAccountFundsSchema>) {
+    // Call the context function to handle the transfer and transaction creation
     transferBetweenAccounts(values as TransferAccountFundsFormData);
     const fromAccName = accounts.find(acc => acc.id === values.fromAccountId)?.name;
     const toAccName = accounts.find(acc => acc.id === values.toAccountId)?.name;

@@ -312,9 +312,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
     if (!fromAccount || !toAccount) {
         console.error("Invalid source or destination account for transfer.");
+        // Potentially show a toast error to the user
         return;
     }
 
+    // Ensure a payee exists for internal transfers
     let internalTransferPayee = payees.find(p => p.name === "Internal Account Transfer");
     if (!internalTransferPayee) {
         const newPayeeId = crypto.randomUUID();
@@ -330,27 +332,27 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const expenseTransaction: TransactionFormData = {
         accountId: fromAccountId, // Source account ID
         envelopeId: null,         // No envelope involved in account transfer
-        payeeId: internalTransferPayee.id,
+        payeeId: internalTransferPayee.id, // Use the dedicated payee ID
         amount,
         type: 'expense',
         description: description || `Transfer to ${toAccount.name}`,
         date,
     };
-    addTransaction(expenseTransaction);
+    addTransaction(expenseTransaction); // Add the expense transaction
 
     // Transaction into destination account
     const incomeTransaction: TransactionFormData = {
         accountId: toAccountId,   // Destination account ID
         envelopeId: null,         // No envelope involved
-        payeeId: internalTransferPayee.id,
+        payeeId: internalTransferPayee.id, // Use the dedicated payee ID
         amount,
         type: 'income',
         description: description || `Transfer from ${fromAccount.name}`,
         date,
     };
-    addTransaction(incomeTransaction);
+    addTransaction(incomeTransaction); // Add the income transaction
 
-}, [addTransaction, accounts, payees]);
+  }, [addTransaction, accounts, payees]); // Added accounts and payees to dependencies
 
 
   const getAccountBalance = useCallback((accountId: string): number => {

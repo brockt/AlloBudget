@@ -74,6 +74,7 @@ export function AddTransactionForm({ onSuccess, navigateToTransactions = false }
         description: values.description || undefined,
         payeeId: values.payeeId,
         // If type is income, ensure envelopeId is null/undefined, otherwise use value from form
+        // For account transfers, envelopeId should also be null/undefined (handled by transfer functions)
         envelopeId: values.type === 'income' ? null : values.envelopeId,
         date: values.date
     }
@@ -133,7 +134,7 @@ export function AddTransactionForm({ onSuccess, navigateToTransactions = false }
                   onValueChange={(value) => {
                     field.onChange(value as TransactionType);
                     if (value === 'income') {
-                      form.setValue('envelopeId', null);
+                      form.setValue('envelopeId', null); // Explicitly set envelopeId to null for income
                     } else {
                         // If switching to expense and no envelope is selected, or no envelopes exist,
                         // RHF will use the default (null) or current value. Zod validation will catch it.
@@ -226,7 +227,9 @@ export function AddTransactionForm({ onSuccess, navigateToTransactions = false }
               <FormItem>
                 <FormLabel>Envelope</FormLabel>
                 <Select
+                  // Ensure value sent to field.onChange is null if it's an empty string
                   onValueChange={(value) => field.onChange(value || null)}
+                  // Provide an empty string for the Select value if field.value is null
                   value={field.value ?? ""}
                   required // Mark as required for expense
                 >
@@ -338,4 +341,3 @@ export function AddTransactionForm({ onSuccess, navigateToTransactions = false }
     </Form>
   );
 }
-
