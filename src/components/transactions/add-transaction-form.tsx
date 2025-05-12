@@ -54,7 +54,7 @@ export function AddTransactionForm({ defaultAccountId, onSuccess, navigateToTran
       envelopeId: null, // Default to null instead of ""
       amount: 0,
       type: "expense",
-      description: "",
+      description: "", // Empty string is a valid optional value
       date: format(new Date(), "yyyy-MM-dd"), // Default to today's date string
     },
   });
@@ -65,6 +65,9 @@ export function AddTransactionForm({ defaultAccountId, onSuccess, navigateToTran
     // Ensure the date string is valid before passing to context
     const transactionDataWithParsedDate: TransactionFormData = {
         ...values,
+        // Description will be "" if empty, or undefined if field was absent (not typical for controlled form)
+        // Zod schema .optional() handles this.
+        description: values.description || undefined, // Ensure undefined if empty string for clarity, though schema handles ""
         date: values.date // Already validated by Zod schema to be a parseable date string
     }
     addTransaction(transactionDataWithParsedDate);
@@ -75,7 +78,7 @@ export function AddTransactionForm({ defaultAccountId, onSuccess, navigateToTran
     form.reset({
         accountId: form.getValues('accountId'), // Keep account if selected
         amount: 0,
-        description: "",
+        description: "", // Reset description to empty string
         type: form.getValues('type'), // Keep type
         envelopeId: form.getValues('type') === 'income' ? null : form.getValues('envelopeId'), // Reset envelope only if type was income, default to null
         date: format(new Date(), "yyyy-MM-dd") // Reset date to today
@@ -204,11 +207,11 @@ export function AddTransactionForm({ defaultAccountId, onSuccess, navigateToTran
           name="description"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Description</FormLabel>
+              <FormLabel>Description (Optional)</FormLabel>
               <FormControl>
                 <Input placeholder="e.g., Groceries, Salary" {...field} />
               </FormControl>
-              <FormMessage />
+              <FormMessage /> {/* Will show zod error if .max(200) is violated */}
             </FormItem>
           )}
         />

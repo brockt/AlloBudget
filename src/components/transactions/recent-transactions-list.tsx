@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useAppContext } from "@/context/AppContext";
@@ -46,7 +47,7 @@ export default function RecentTransactionsList({ limit = 5, showViewAllLink = tr
               // Using a simplified row structure for dashboard
               <TableRow key={transaction.id} className="hover:bg-muted/50 transition-colors">
                  <TableCell>
-                    <div className="font-medium">{transaction.description}</div>
+                    <div className="font-medium">{transaction.description || <span className="italic text-muted-foreground">No description</span>}</div>
                     <div className="text-xs text-muted-foreground">
                         {accounts.find(a => a.id === transaction.accountId)?.name || ''}
                     </div>

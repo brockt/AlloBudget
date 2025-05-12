@@ -50,7 +50,7 @@ export function TransactionRow({ transaction }: TransactionRowProps) {
   return (
     <TableRow className="hover:bg-muted/50 transition-colors">
       <TableCell>
-        <div className="font-medium">{transaction.description}</div>
+        <div className="font-medium">{transaction.description || <span className="italic text-muted-foreground">No description</span>}</div>
         <div className="text-xs text-muted-foreground">{account?.name || "N/A"}</div>
       </TableCell>
       <TableCell className="text-center hidden sm:table-cell">
@@ -87,8 +87,8 @@ export function TransactionRow({ transaction }: TransactionRowProps) {
             <AlertDialogHeader>
               <AlertDialogTitle>Are you sure?</AlertDialogTitle>
               <AlertDialogDescription>
-                This action cannot be undone. This will permanently delete the transaction
-                "{transaction.description}".
+                This action cannot be undone. This will permanently delete the transaction{' '}
+                {transaction.description ? `"${transaction.description}"` : "(with no description)"}.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

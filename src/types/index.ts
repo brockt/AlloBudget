@@ -26,7 +26,7 @@ export interface Transaction {
   envelopeId?: string; // Optional, as income might not have an envelope or expenses not yet categorized
   amount: number;
   type: TransactionType;
-  description: string;
+  description?: string; // Made description optional
   date: string; // ISO string date
   createdAt: string;
 }
@@ -57,7 +57,7 @@ export interface TransactionFormData {
   envelopeId?: string | null; // Allow null
   amount: number;
   type: TransactionType;
-  description: string;
+  description?: string; // Made description optional
   date: string; // Should be string for form input, then parsed
 }
 
@@ -65,3 +65,4 @@ export interface PayeeFormData {
   name: string;
   category?: string;
 }
+

@@ -53,7 +53,7 @@ export const transactionSchema = z.object({
     z.number().positive("Amount must be positive.")
   ),
   type: z.enum(['income', 'expense'], { required_error: "Transaction type is required." }),
-  description: z.string().min(1, "Description is required.").max(200, "Description too long."),
+  description: z.string().max(200, "Description too long.").optional(), // Made description optional
   // Validate that the date string is in 'yyyy-MM-dd' format and represents a valid date
   date: z.string().refine((dateString) => {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(dateString)) return false; // Check basic format
@@ -76,3 +76,4 @@ export const payeeSchema = z.object({
 
 // Ensure envelopeId is present if type is expense and an envelope is selected (or make it more complex)
 // For now, basic schema. If type is expense, envelopeId is highly recommended.
+
