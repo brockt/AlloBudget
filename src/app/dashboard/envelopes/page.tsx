@@ -14,6 +14,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { AddEnvelopeForm } from "@/components/envelopes/add-envelope-form";
+import { AddCategoryForm } from "@/components/envelopes/add-category-form"; // Import the new form
 import EnvelopeSummaryList from "@/components/envelopes/envelope-summary-list";
 import { useAppContext } from "@/context/AppContext";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -22,7 +23,7 @@ import { Card, CardContent } from "@/components/ui/card";
 
 export default function EnvelopesPage() {
   const [isAddEnvelopeDialogOpen, setIsAddEnvelopeDialogOpen] = useState(false);
-  // const [isAddCategoryDialogOpen, setIsAddCategoryDialogOpen] = useState(false); // State for new dialog
+  const [isAddCategoryDialogOpen, setIsAddCategoryDialogOpen] = useState(false); // State for new dialog
   const { isLoading, envelopes } = useAppContext();
 
   if (isLoading) {
@@ -48,6 +49,7 @@ export default function EnvelopesPage() {
         title="Envelopes"
         description="Manage your budget categories (envelopes), grouped by category."
         actions={<div className="flex flex-col sm:flex-row gap-2">
+          {/* Add Envelope Dialog */}
           <Dialog open={isAddEnvelopeDialogOpen} onOpenChange={setIsAddEnvelopeDialogOpen}>
             <DialogTrigger asChild>
               <Button>
@@ -55,7 +57,6 @@ export default function EnvelopesPage() {
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">
-              {/* Ensure DialogHeader and DialogTitle are present */}
               <DialogHeader>
                 <DialogTitle>Add New Envelope</DialogTitle>
                 <DialogDescription>
@@ -67,30 +68,26 @@ export default function EnvelopesPage() {
               </div>
             </DialogContent>
           </Dialog>
-          {/* Placeholder Button for Add Category - Needs Dialog Implementation */}
-          <Button variant="outline" onClick={() => alert('Add Category functionality not implemented yet.')} >
-            <PlusCircle className="mr-2 h-4 w-4" /> Add Category Group
-          </Button>
-          {/* Add Dialog for Category - Example Structure
+
+          {/* Add Category Group Dialog */}
           <Dialog open={isAddCategoryDialogOpen} onOpenChange={setIsAddCategoryDialogOpen}>
             <DialogTrigger asChild>
                <Button variant="outline">
-                 <PlusCircle className="mr-2 h-4 w-4" /> Add Category
+                 <PlusCircle className="mr-2 h-4 w-4" /> Add Category Group
                </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">
               <DialogHeader>
                 <DialogTitle>Add New Category Group</DialogTitle>
                 <DialogDescription>
-                  Enter the name for the new category group.
+                  Enter the name for the new category group. Envelopes can be assigned to this group.
                 </DialogDescription>
               </DialogHeader>
               <div className="py-4">
-                 {/* Add Category Form Component Here }
+                 <AddCategoryForm onSuccess={() => setIsAddCategoryDialogOpen(false)} />
               </div>
             </DialogContent>
           </Dialog>
-           */}
         </div>}
       />
 
