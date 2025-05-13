@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useState } from "react"; // Added useState
@@ -83,7 +82,7 @@ export function TransactionList({ transactions: transactionsProp, limit, showCap
                 <TableHead className="text-center hidden sm:table-cell">Date</TableHead>
                 <TableHead className="text-center hidden md:table-cell">Envelope</TableHead>
                 <TableHead className="text-right">Amount</TableHead>
-                <TableHead className="text-right w-[80px]">Actions</TableHead> {/* Increased width for two buttons */}
+                <TableHead className="text-right w-[80px]">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
