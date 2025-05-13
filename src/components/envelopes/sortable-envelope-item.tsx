@@ -6,11 +6,11 @@ import { CSS } from '@dnd-kit/utilities';
 import type { Envelope } from '@/types';
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { Pencil, GripVertical, CalendarClock, Trash2 } from 'lucide-react'; // Import GripVertical, Trash2
+import { Pencil, GripVertical, CalendarClock, Trash2 } from 'lucide-react';
 import { useAppContext } from "@/context/AppContext";
 import { startOfMonth, endOfMonth } from "date-fns";
 import Link from "next/link";
-import { cn } from "@/lib/utils"; // Import cn
+import { cn } from "@/lib/utils";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,8 +21,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"; // Import AlertDialog components
-import { useToast } from "@/hooks/use-toast"; // Import useToast
+} from "@/components/ui/alert-dialog";
+import { useToast } from "@/hooks/use-toast";
 
 interface SortableEnvelopeItemProps {
   id: string;
@@ -42,8 +42,8 @@ function getDaySuffix(day: number): string {
 }
 
 export function SortableEnvelopeItem({ id, envelope, onEditClick }: SortableEnvelopeItemProps) {
-  const { getEnvelopeSpending, getEnvelopeBalanceWithRollover, deleteEnvelope } = useAppContext(); // Added deleteEnvelope
-  const { toast } = useToast(); // Added toast
+  const { getEnvelopeSpending, getEnvelopeBalanceWithRollover, deleteEnvelope } = useAppContext();
+  const { toast } = useToast();
   const {
     attributes,
     listeners,
@@ -68,16 +68,19 @@ export function SortableEnvelopeItem({ id, envelope, onEditClick }: SortableEnve
   const hasEstimatedAmount = typeof envelope.estimatedAmount === 'number' && !isNaN(envelope.estimatedAmount);
 
   const handleDeleteClick = (event: React.MouseEvent) => {
-      event.stopPropagation(); // Prevent click from bubbling to the Link and causing navigation
-      // No event.preventDefault() here, as it would stop the AlertDialogTrigger.
-      // The AlertDialog component will handle opening the dialog.
+      event.stopPropagation(); // Prevent click from bubbling up to the Link.
+      // Prevent other listeners on the same element (like NextLink's) from firing.
+      // This should stop the Link navigation while allowing AlertDialogTrigger to open.
+      if (event.nativeEvent && typeof event.nativeEvent.stopImmediatePropagation === 'function') {
+        event.nativeEvent.stopImmediatePropagation();
+      }
   };
 
   const confirmDelete = () => {
     deleteEnvelope(envelope.id);
     toast({
       title: "Envelope Deleted",
-      description: `Envelope "${envelope.name}" and associated transactions have been modified.`, // Updated message
+      description: `Envelope "${envelope.name}" has been modified.`, // Simplified message
       variant: "destructive",
     });
   };
@@ -86,28 +89,23 @@ export function SortableEnvelopeItem({ id, envelope, onEditClick }: SortableEnve
     <li
         ref={setNodeRef}
         style={style}
-        className="group relative" // Remove touch-none from li
-        {...attributes} // Spread attributes here, not on the handle
+        className="group relative"
+        {...attributes}
     >
       <div className="flex items-center gap-2">
-        {/* Drag Handle */}
          <Button
             variant="ghost"
             size="icon"
-            // Apply touch-none specifically to the handle
             className={cn("cursor-grab h-8 w-8 text-muted-foreground hover:bg-muted/70 active:cursor-grabbing touch-none")}
-            {...listeners} // Spread listeners onto the handle
+            {...listeners}
             aria-label={`Drag ${envelope.name}`}
         >
             <GripVertical className="h-4 w-4" />
         </Button>
 
-        {/* Envelope Content */}
         <Link href={`/dashboard/envelopes/${envelope.id}/transactions`} passHref className="flex-1 block p-2.5 rounded-md border bg-card hover:bg-muted/50 transition-colors cursor-pointer">
-          <div className="relative"> {/* Container for positioning edit/delete buttons */}
-            {/* Buttons Container */}
+          <div className="relative">
             <div className="absolute top-0 right-0 flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity focus-within:opacity-100 z-10">
-              {/* Edit Button */}
               <Button
                 variant="ghost"
                 size="icon"
@@ -117,14 +115,13 @@ export function SortableEnvelopeItem({ id, envelope, onEditClick }: SortableEnve
               >
                 <Pencil className="h-4 w-4" />
               </Button>
-              {/* Delete Button with Confirmation */}
                <AlertDialog>
                  <AlertDialogTrigger asChild>
                    <Button
                      variant="ghost"
                      size="icon"
                      className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                     onClick={handleDeleteClick} // This onClick now only calls stopPropagation
+                     onClick={handleDeleteClick}
                      aria-label={`Delete ${envelope.name}`}
                    >
                      <Trash2 className="h-4 w-4" />
@@ -148,8 +145,7 @@ export function SortableEnvelopeItem({ id, envelope, onEditClick }: SortableEnve
                </AlertDialog>
             </div>
 
-            {/* Envelope Details */}
-            <div className="flex justify-between items-start mb-1 pr-16"> {/* Adjust padding for buttons */}
+            <div className="flex justify-between items-start mb-1 pr-16">
               <div className="flex-1 min-w-0">
                 <div className="flex items-baseline">
                   <span className="font-medium truncate block text-sm" title={envelope.name}>{envelope.name}</span>
