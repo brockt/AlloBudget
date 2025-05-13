@@ -54,7 +54,7 @@ export function TransactionList({ transactions: transactionsProp, limit, showCap
 
   if (displayTransactions.length === 0) {
     return (
-      <div className="text-center py-10 border rounded-lg bg-card">
+      <Card className="text-center py-10 border rounded-lg bg-card shadow-md">
         <ArrowRightLeft className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
         <h3 className="text-xl font-semibold text-foreground mb-2">No Transactions Found</h3>
         <p className="text-muted-foreground">There are no transactions matching the current filter.</p>
@@ -66,16 +66,18 @@ export function TransactionList({ transactions: transactionsProp, limit, showCap
             className="mx-auto mt-6 rounded-lg shadow-md"
             data-ai-hint="empty ledger"
           />
-      </div>
+      </Card>
     );
   }
 
   return (
      <>
       <Card className="shadow-md">
+        {/* Wrap Table with ScrollArea */}
         <ScrollArea className="h-auto max-h-[500px] rounded-md border">
           <Table>
             {showCaption && transactionsProp === undefined && <TableCaption>A list of all your recent transactions.</TableCaption>}
+            {/* Make TableHeader sticky */}
             <TableHeader className="sticky top-0 bg-card z-10">
               <TableRow>
                 <TableHead>Description</TableHead>
