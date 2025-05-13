@@ -1,8 +1,10 @@
+
 "use client";
 
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts";
 import {
   ChartContainer,
+  ChartTooltip, // Import ChartTooltip
   ChartTooltipContent,
   ChartLegend,
   ChartLegendContent,
@@ -37,7 +39,7 @@ export default function SpendingByEnvelopeChart() {
   if (envelopes.length === 0) {
     return <div className="flex items-center justify-center h-full text-muted-foreground">No envelope data to display.</div>;
   }
-  
+
   const filteredChartData = chartData.filter(d => d.spent > 0 || d.budgeted > 0);
 
   if (filteredChartData.length === 0) {
@@ -60,7 +62,7 @@ export default function SpendingByEnvelopeChart() {
             height={50} // Adjust height for angled labels if used
              tickFormatter={(value) => value.length > 10 ? `${value.substring(0,10)}...` : value} // Truncate long labels
           />
-          <YAxis 
+          <YAxis
             tickFormatter={(value) => `$${value}`}
             tickLine={false}
             axisLine={false}
