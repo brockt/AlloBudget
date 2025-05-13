@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useAppContext } from "@/context/AppContext";
@@ -173,7 +174,7 @@ export default function DashboardPage() {
       <Card className="shadow-lg flex-grow flex flex-col overflow-hidden">
         <CardHeader>
           <CardTitle>All Envelopes</CardTitle>
-          <CardDescription>Track your spending against budgets, grouped by category.</CardDescription>
+          {/* Removed CardDescription from here */}
         </CardHeader>
         {/* Ensure CardContent takes remaining space and allows internal scrolling */}
         <CardContent className="flex-grow overflow-hidden">
@@ -185,3 +186,4 @@ export default function DashboardPage() {
     </div>
   );
 }
+
