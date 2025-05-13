@@ -2,7 +2,6 @@
 "use client";
 
 import type { ReactNode } from 'react';
-import { Coins } from "lucide-react";
 import {
   SidebarProvider,
   Sidebar,
@@ -17,6 +16,23 @@ import { AppHeader } from "@/components/layout/app-header";
 // import { Button } from '@/components/ui/button'; // For potential footer actions
 import Link from 'next/link';
 
+// Custom SVG Logo component (same as in AppHeader)
+function AlloBudgetLogo({ className }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 100 100"
+      className={className}
+      fill="currentColor" // Use currentColor to inherit text color
+    >
+      {/* Geometric 'A' */}
+      <path d="M20 85 L50 15 L80 85 L70 85 L55 55 L45 55 L30 85 Z" />
+      {/* Geometric 'B' integrated - using negative space/overlap */}
+      <path d="M48 45 A 15 15 0 0 1 48 75 L 35 75 L 35 45 Z M 48 45 L 65 45 A 15 15 0 0 1 65 75 L 48 75" fill="hsl(var(--background))" />
+      <path d="M48 45 A 15 15 0 0 1 48 75 M 48 45 L 65 45 A 15 15 0 0 1 65 75" stroke="currentColor" strokeWidth="5" fill="none"/>
+    </svg>
+  );
+}
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   return (
@@ -28,9 +44,10 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         {/* Set side back to "left" */}
         <Sidebar variant="sidebar" collapsible="icon" side="left">
           <SidebarHeader className="p-4 flex items-center justify-between group-data-[collapsible=icon]:justify-center">
+             {/* Link wrapping the logo and text */}
              <Link href="/dashboard" className="flex items-center gap-2 text-lg font-semibold text-sidebar-primary group-data-[collapsible=icon]:justify-center">
-               <Coins className="h-7 w-7" />
-               {/* Updated App Name */}
+               {/* Use the new SVG logo */}
+               <AlloBudgetLogo className="h-7 w-7" />
                <span className="group-data-[collapsible=icon]:hidden">AlloBudget</span>
              </Link>
              {/* Optional: Add a close button specifically for the mobile sheet header if needed */}
@@ -58,4 +75,3 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     </SidebarProvider>
   );
 }
-
