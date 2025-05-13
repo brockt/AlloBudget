@@ -109,6 +109,7 @@ export interface AppContextType {
   payees: Payee[];
   categories: string[]; // Original category names
   orderedCategories: string[]; // Added: maintains the user-defined order of categories
+  lastModified: string | null; // Added to track last data modification time
   addAccount: (accountData: AccountFormData) => void;
   updateAccount: (accountData: AccountWithId) => void; // Added updateAccount function
   addEnvelope: (envelopeData: EnvelopeFormData) => void;
@@ -137,4 +138,5 @@ export interface AppContextType {
   getYtdIncomeTotal: () => number;
   isLoading: boolean;
 }
+
 

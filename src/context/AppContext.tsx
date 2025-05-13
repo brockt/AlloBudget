@@ -25,6 +25,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [categories, setCategories] = useState<string[]>([]); // All unique category names
   const [orderedCategories, setOrderedCategories] = useState<string[]>([]); // User-defined order
   const [isLoading, setIsLoading] = useState(true);
+  const [lastModified, setLastModified] = useState<string | null>(null); // State for last modified timestamp
 
   // Function to derive sorted unique categories from envelopes
   const deriveCategoriesFromEnvelopes = (envelopeList: Envelope[]): string[] => {
@@ -129,11 +130,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         })).sort((a: Payee, b: Payee) => a.name.localeCompare(b.name)));
         setCategories(uniqueLoadedCats); // Store the unique, sorted list
         setOrderedCategories(finalOrderedCategories); // Store the ordered list
+        setLastModified(parsedData.lastModified || null); // Load lastModified timestamp
 
       } else {
           // If no stored data, initialize based on default empty arrays
           setCategories([]);
           setOrderedCategories([]);
+          setLastModified(null);
       }
     } catch (error) {
       console.error("Failed to load or parse data from localStorage", error);
@@ -143,6 +146,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       setPayees([]);
       setCategories([]);
       setOrderedCategories([]);
+      setLastModified(null);
     } finally {
       setIsLoading(false);
     }
@@ -151,8 +155,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     if (!isLoading) {
       try {
-        // Save orderedCategories as well
-        const dataToStore = JSON.stringify({ accounts, envelopes, transactions, payees, categories, orderedCategories });
+        const newLastModified = formatISO(new Date());
+        setLastModified(newLastModified); // Update lastModified timestamp whenever data changes
+        // Save orderedCategories and lastModified as well
+        const dataToStore = JSON.stringify({ accounts, envelopes, transactions, payees, categories, orderedCategories, lastModified: newLastModified });
         localStorage.setItem(LOCAL_STORAGE_KEY, dataToStore);
       } catch (error) {
         console.error("Failed to save data to localStorage", error);
@@ -683,6 +689,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       payees,
       categories, // Provide the sorted list of unique category names
       orderedCategories, // Provide the user-ordered list
+      lastModified, // Provide lastModified timestamp
       addAccount,
       updateAccount,
       addEnvelope,

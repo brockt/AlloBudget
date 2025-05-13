@@ -6,9 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/PageHeader";
 import Link from "next/link";
-import { DollarSign, PlusCircle, Wallet, TrendingUp, TrendingDown, PackagePlus, CalendarCheck } from "lucide-react"; // Added new icons
+import { DollarSign, PlusCircle, Wallet, TrendingUp, TrendingDown, PackagePlus, CalendarCheck, Edit3 } from "lucide-react"; // Added new icons
 import { Skeleton } from "@/components/ui/skeleton";
 import EnvelopeSummaryList from "@/components/envelopes/envelope-summary-list";
+import { format, parseISO } from 'date-fns'; // Import for formatting timestamp
 
 // Helper function for currency formatting
 const formatCurrency = (amount: number): string => {
@@ -27,6 +28,7 @@ export default function DashboardPage() {
     getMonthlySpendingTotal,
     getTotalMonthlyBudgeted,
     getYtdIncomeTotal,
+    lastModified, // Get lastModified timestamp
   } = useAppContext();
 
   if (isLoading) {
@@ -34,6 +36,7 @@ export default function DashboardPage() {
       <div className="space-y-6">
         {/* Updated App Name */}
         <PageHeader title="Dashboard" description="Welcome back to AlloBudget!" />
+        <p className="text-xs italic text-muted-foreground mb-4">Loading data...</p>
         {/* Skeletons for summary cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <Skeleton className="h-28 rounded-lg" />
@@ -68,6 +71,8 @@ export default function DashboardPage() {
   const monthlySpending = getMonthlySpendingTotal();
   const ytdIncome = getYtdIncomeTotal();
 
+  const formattedLastModified = lastModified ? format(parseISO(lastModified), "MMM d, yyyy 'at' h:mm a") : "Data not yet modified.";
+
   return (
     <div className="space-y-6 flex flex-col h-full"> {/* Use flex column and full height */}
       <PageHeader
@@ -83,6 +88,11 @@ export default function DashboardPage() {
           </div>
         }
       />
+      {/* Last Modified Timestamp */}
+      <p className="text-xs italic text-muted-foreground -mt-4 mb-4 flex items-center">
+        <Edit3 className="mr-1.5 h-3 w-3" /> Last modified: {formattedLastModified}
+      </p>
+
 
       {/* Monthly and YTD Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
