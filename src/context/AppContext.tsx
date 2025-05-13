@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { ReactNode } from 'react';
@@ -99,9 +100,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
         // Ensure consistency between categories and orderedCategories
         const uniqueLoadedCats = [...new Set(loadedCategories)];
-        const finalOrderedCategories = uniqueLoadedCats.map(cat =>
-            loadedOrderedCategories.includes(cat) ? cat : null
-        ).filter(Boolean) as string[];
+        let finalOrderedCategories = loadedOrderedCategories.filter(cat => uniqueLoadedCats.includes(cat));
+
         // Add any missing categories from uniqueLoadedCats to the end
         uniqueLoadedCats.forEach(cat => {
             if (!finalOrderedCategories.includes(cat)) {
@@ -259,11 +259,16 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       // Validate that the new order contains the same categories as the current ones
       const currentCategorySet = new Set(categories);
       const newOrderSet = new Set(newOrder);
+
+      // Check if sizes are different or if any category in the current set is missing from the new order set.
       if (currentCategorySet.size !== newOrderSet.size || ![...currentCategorySet].every(cat => newOrderSet.has(cat))) {
-          console.error("Category order update failed: Mismatched categories.");
-          // Optionally revert or fallback
+          console.error("Category order update failed: Mismatched categories. Provided:", newOrder, "Expected:", categories);
+          // Optionally revert or show an error message to the user
+          // For now, we just prevent the state update
           return;
       }
+
+      // If validation passes, update the state. This will trigger the useEffect to save to localStorage.
       setOrderedCategories(newOrder);
   }
 
@@ -679,3 +684,4 @@ export const useAppContext = () => {
   }
   return context;
 };
+
