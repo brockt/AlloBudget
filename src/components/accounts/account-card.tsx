@@ -61,9 +61,12 @@ export function AccountCard({ account, onEdit }: AccountCardProps) {
               <DollarSign className="mr-1 h-5 w-5 text-green-500" />
               Current Balance: ${balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
+            {/* Initial Balance Removed */}
+            {/*
             <p className="text-sm text-muted-foreground">
               Initial Balance: ${account.initialBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </p>
+            */}
           </CardContent>
         </div>
       </Link>
