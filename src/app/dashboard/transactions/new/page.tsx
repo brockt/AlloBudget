@@ -1,4 +1,3 @@
-
 "use client";
 
 import { AddTransactionForm } from "@/components/transactions/add-transaction-form";
@@ -10,6 +9,8 @@ import { ArrowLeft } from "lucide-react";
 import { useAppContext } from "@/context/AppContext";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSearchParams } from 'next/navigation'; // Import useSearchParams
+
+export const dynamic = 'force-dynamic'; // Ensures the page is dynamically rendered
 
 export default function NewTransactionPage() {
   const { isLoading } = useAppContext();
