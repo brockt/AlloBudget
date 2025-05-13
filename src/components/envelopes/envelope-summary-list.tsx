@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -134,7 +135,7 @@ export default function EnvelopeSummaryList() {
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd} // Use the updated handler
     >
-      <ScrollArea className="h-auto max-h-[600px]">
+      <ScrollArea className="h-auto max-h-[400px]">
         {/* SortableContext for Categories */}
         <SortableContext
           // Provide the *full* ordered list of categories to the context
