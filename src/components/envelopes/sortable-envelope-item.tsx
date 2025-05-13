@@ -69,24 +69,33 @@ export function SortableEnvelopeItem({ id, envelope, onEditClick }: SortableEnve
   const dueDateString = envelope.dueDate ? `${envelope.dueDate}${getDaySuffix(envelope.dueDate)}` : '';
   const hasEstimatedAmount = typeof envelope.estimatedAmount === 'number' && !isNaN(envelope.estimatedAmount);
 
-  // Updated handler to stop propagation
+  // Remove stopPropagation from this handler - let AlertDialogTrigger manage the interaction
   const handleDeleteTriggerClick = (event: React.MouseEvent) => {
-      event.stopPropagation();
-      event.preventDefault(); // Also prevent default to be safe
-      // The AlertDialogTrigger will handle opening the dialog
+      // No need to stop propagation here; let the trigger work
+      // event.stopPropagation();
+      // event.preventDefault();
   };
 
 
   const confirmDelete = (event: React.MouseEvent) => {
-    // Stop propagation here too if needed, though usually action buttons are okay
-    event.stopPropagation();
+    // Stop propagation might not be needed here either, but harmless for now.
+    // event.stopPropagation();
     deleteEnvelope(envelope.id);
     toast({
       title: "Envelope Deleted",
       description: `Envelope "${envelope.name}" has been deleted.`,
       variant: "destructive",
     });
+    // Closing the dialog is handled by Radix UI automatically after action
   };
+
+  // Keep stopPropagation for the edit button to prevent link navigation
+  const handleEditClick = (event: React.MouseEvent) => {
+    event.stopPropagation();
+    event.preventDefault();
+    onEditClick(event); // Call the passed-in handler
+  };
+
 
   return (
     <li
@@ -117,20 +126,21 @@ export function SortableEnvelopeItem({ id, envelope, onEditClick }: SortableEnve
                 variant="ghost"
                 size="icon"
                 className="h-6 w-6 text-muted-foreground hover:text-foreground"
-                onClick={onEditClick} // Let this propagate to open edit dialog via parent
+                onClick={handleEditClick} // Use the specific edit handler
                 aria-label={`Edit ${envelope.name}`}
               >
                 <Pencil className="h-4 w-4" />
               </Button>
               {/* Delete Confirmation */}
               <AlertDialog>
-                {/* Use the handler that stops propagation */}
-                <AlertDialogTrigger asChild onClick={handleDeleteTriggerClick}>
+                {/* Let the trigger handle itself, remove onClick here */}
+                <AlertDialogTrigger asChild>
                   <Button
                     variant="ghost"
                     size="icon"
                     className="h-6 w-6 text-muted-foreground hover:text-destructive"
                     aria-label={`Delete ${envelope.name}`}
+                    // onClick={handleDeleteTriggerClick} // Remove onClick from here
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
