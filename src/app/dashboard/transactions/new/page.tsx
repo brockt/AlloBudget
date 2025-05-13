@@ -9,9 +9,11 @@ import { ArrowLeft } from "lucide-react";
 import { useAppContext } from "@/context/AppContext";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSearchParams } from 'next/navigation';
-import { useState, useEffect } from 'react'; // Import useState and useEffect
+import { useState, useEffect } from 'react';
 
-export const dynamic = 'force-dynamic'; // Ensures the page is dynamically rendered
+// Removing `export const dynamic = 'force-dynamic';` as child component AddTransactionForm
+// now handles searchParams correctly, which was the likely cause of prerender issues.
+// export const dynamic = 'force-dynamic'; 
 
 export default function NewTransactionPage() {
   const { isLoading } = useAppContext();

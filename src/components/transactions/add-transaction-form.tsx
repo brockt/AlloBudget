@@ -1,11 +1,10 @@
-
 "use client";
 
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type * as z from "zod";
-import { format, parseISO } from "date-fns"; // Import parseISO
-import { useEffect } from 'react'; // Import useEffect
+import { format, parseISO } from "date-fns";
+import { useEffect, useState } from 'react'; // Import useState
 
 import { Button } from "@/components/ui/button";
 import {
@@ -34,93 +33,129 @@ import type { TransactionFormData, TransactionType } from "@/types";
 import { PlusCircle, CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import { useRouter, useSearchParams } from "next/navigation"; // Added useSearchParams
+import { useRouter, useSearchParams } from "next/navigation";
 
 interface AddTransactionFormProps {
-  // Removed defaultAccountId prop, will use query param instead
   onSuccess?: () => void;
-  navigateToTransactions?: boolean; // If true, navigates to /transactions on success
+  navigateToTransactions?: boolean;
 }
 
 export function AddTransactionForm({ onSuccess, navigateToTransactions = false }: AddTransactionFormProps) {
-  const { accounts, envelopes, payees, addTransaction } = useAppContext(); // Added payees
+  const { accounts, envelopes, payees, addTransaction, isLoading: isAppContextLoading } = useAppContext();
   const { toast } = useToast();
   const router = useRouter();
-  const searchParams = useSearchParams(); // Get query params
+  const searchParams = useSearchParams();
 
-  // Get accountId from query parameters if present
-  const defaultAccountIdFromQuery = searchParams.get('accountId');
+  const [initialAccountId, setInitialAccountId] = useState<string | undefined>(undefined);
+  const [formReady, setFormReady] = useState(false);
+
+  // Effect to derive initialAccountId from query params or fallback once client-side and context is ready
+  useEffect(() => {
+    if (!isAppContextLoading) { // Wait for AppContext to load
+      const accountIdFromQuery = searchParams.get('accountId');
+      if (accountIdFromQuery && accounts.some(acc => acc.id === accountIdFromQuery)) {
+        setInitialAccountId(accountIdFromQuery);
+      } else if (accounts.length > 0) {
+        setInitialAccountId(accounts[0].id);
+      } else {
+        setInitialAccountId(""); // No accounts, set to empty string
+      }
+      setFormReady(true); // Mark form as ready to initialize
+    }
+  }, [isAppContextLoading, searchParams, accounts]);
+
 
   const form = useForm<z.infer<typeof transactionSchema>>({
     resolver: zodResolver(transactionSchema),
-    defaultValues: {
-      // Use accountId from query param or fallback
-      accountId: defaultAccountIdFromQuery || (accounts.length > 0 ? accounts[0].id : ""),
-      envelopeId: null, // Default to null instead of ""
-      payeeId: "", // Default payee to empty string (as it's required now)
-      amount: 0,
-      type: "expense",
-      description: "", // Empty string is a valid optional value
-      date: format(new Date(), "yyyy-MM-dd"), // Default to today's date string
-      isTransfer: false, // Ensure default is false
-    },
+    // Default values will be set by useEffect below once initialAccountId is determined
   });
+
+  // Effect to initialize/reset form defaultValues once initialAccountId is ready
+  useEffect(() => {
+    if (formReady) {
+      form.reset({
+        accountId: initialAccountId || (accounts.length > 0 ? accounts[0].id : ""),
+        envelopeId: null,
+        payeeId: "",
+        amount: 0,
+        type: "expense",
+        description: "",
+        date: format(new Date(), "yyyy-MM-dd"),
+        isTransfer: false,
+      });
+    }
+  }, [formReady, initialAccountId, form, accounts]);
+
 
   const transactionType = form.watch("type");
 
   function onSubmit(values: z.infer<typeof transactionSchema>) {
-    // Ensure the date string is valid before passing to context
     const transactionDataWithParsedDate: TransactionFormData = {
         ...values,
         description: values.description || undefined,
         payeeId: values.payeeId,
-        // If type is income, ensure envelopeId is null/undefined, otherwise use value from form
-        // For account transfers, envelopeId should also be null/undefined (handled by transfer functions)
         envelopeId: values.type === 'income' ? null : values.envelopeId,
         date: values.date,
-        isTransfer: values.isTransfer || false, // Ensure boolean value
-    }
+        isTransfer: values.isTransfer || false,
+    };
     addTransaction(transactionDataWithParsedDate);
     toast({
       title: "Transaction Added",
       description: `Transaction for $${values.amount} has been successfully added.`,
     });
+
+    // Reset logic:
+    let resetAccountId = form.getValues('accountId'); // Keep current account by default
+    if (navigateToTransactions) { // If navigating away
+        const queryAccountId = searchParams.get('accountId');
+        if (!queryAccountId) { // If not navigating from a specific account's page, reset to first available or empty
+             resetAccountId = accounts.length > 0 ? accounts[0].id : "";
+        } else {
+            // If navigating from a specific account's page (e.g., after adding txn from there),
+            // the navigation will happen, so the next form instance will pick up the new context.
+            // Here, we can keep it or reset, doesn't hugely matter as page will change.
+            // For consistency, if `navigateToTransactions` is true and we had a `defaultAccountIdFromQuery`,
+            // the actual navigation will determine the context for the *next* visit.
+            // So, resetting to the general default is fine.
+            resetAccountId = initialAccountId || (accounts.length > 0 ? accounts[0].id : "");
+        }
+    }
+
+
     form.reset({
-        // Keep the selected account when resetting, unless it was from a query param and we navigate away
-        accountId: navigateToTransactions ? (accounts.length > 0 ? accounts[0].id : "") : form.getValues('accountId'),
+        accountId: resetAccountId,
         amount: 0,
         description: "",
         type: form.getValues('type'),
-        envelopeId: form.getValues('type') === 'income' ? null : (envelopes.length > 0 && form.getValues('type') === 'expense' ? form.getValues('envelopeId') : null), // Reset or keep envelope based on type and availability
+        envelopeId: form.getValues('type') === 'income' ? null : (envelopes.length > 0 && form.getValues('type') === 'expense' ? form.getValues('envelopeId') : null),
         payeeId: "",
         date: format(new Date(), "yyyy-MM-dd"),
-        isTransfer: false, // Reset transfer flag
+        isTransfer: false,
     });
+
     if (onSuccess) onSuccess();
-    // Navigate back to the specific account's transaction page if came from there, otherwise general transactions
+
     if (navigateToTransactions) {
-        if (defaultAccountIdFromQuery) {
-            router.push(`/dashboard/accounts/${defaultAccountIdFromQuery}/transactions`);
+        const accountIdFromQuery = searchParams.get('accountId'); // Re-check for navigation target
+        if (accountIdFromQuery) {
+            router.push(`/dashboard/accounts/${accountIdFromQuery}/transactions`);
         } else {
             router.push("/dashboard/transactions");
         }
     }
   }
 
-  // Reset accountId if defaultAccountIdFromQuery changes (e.g., navigation)
-  useEffect(() => {
-      if(defaultAccountIdFromQuery && accounts.some(acc => acc.id === defaultAccountIdFromQuery)) {
-        form.reset({ ...form.getValues(), accountId: defaultAccountIdFromQuery });
-      }
-       // Ensure accountId has a default value if the query param is removed or no accounts exist
-      else if (!defaultAccountIdFromQuery && accounts.length > 0 && !form.getValues('accountId')) {
-         form.reset({ ...form.getValues(), accountId: accounts[0].id });
-      }
-      // Ensure accountId is "" if no accounts exist and no query param
-      else if (accounts.length === 0 && !defaultAccountIdFromQuery) {
-         form.reset({ ...form.getValues(), accountId: "" });
-      }
-  }, [defaultAccountIdFromQuery, form, accounts]);
+  if (!formReady) {
+    // You can return a skeleton or null here while waiting for form readiness
+    return (
+      <div className="space-y-4">
+        <div className="h-10 w-full bg-muted rounded-md animate-pulse"></div>
+        <div className="h-10 w-full bg-muted rounded-md animate-pulse"></div>
+        <div className="h-10 w-full bg-muted rounded-md animate-pulse"></div>
+        <div className="h-10 w-1/2 bg-muted rounded-md animate-pulse"></div>
+      </div>
+    );
+  }
 
 
   return (
@@ -137,13 +172,10 @@ export function AddTransactionForm({ onSuccess, navigateToTransactions = false }
                   onValueChange={(value) => {
                     field.onChange(value as TransactionType);
                     if (value === 'income') {
-                      form.setValue('envelopeId', null); // Explicitly set envelopeId to null for income
-                    } else {
-                        // If switching to expense and no envelope is selected, or no envelopes exist,
-                        // RHF will use the default (null) or current value. Zod validation will catch it.
+                      form.setValue('envelopeId', null);
                     }
                   }}
-                  defaultValue={field.value}
+                  value={field.value} // Changed from defaultValue
                   className="flex flex-col space-y-1 sm:flex-row sm:space-y-0 sm:space-x-4"
                 >
                   <FormItem className="flex items-center space-x-3 space-y-0">
@@ -171,7 +203,6 @@ export function AddTransactionForm({ onSuccess, navigateToTransactions = false }
           render={({ field }) => (
             <FormItem>
               <FormLabel>Account</FormLabel>
-              {/* Ensure value is always a string to keep it controlled */}
               <Select onValueChange={field.onChange} value={field.value ?? ""} required>
                 <FormControl>
                   <SelectTrigger>
@@ -230,11 +261,9 @@ export function AddTransactionForm({ onSuccess, navigateToTransactions = false }
               <FormItem>
                 <FormLabel>Envelope</FormLabel>
                 <Select
-                  // Ensure value sent to field.onChange is null if it's an empty string
                   onValueChange={(value) => field.onChange(value || null)}
-                  // Provide an empty string for the Select value if field.value is null
                   value={field.value ?? ""}
-                  required // Mark as required for expense
+                  required
                 >
                   <FormControl>
                     <SelectTrigger>
@@ -243,7 +272,6 @@ export function AddTransactionForm({ onSuccess, navigateToTransactions = false }
                   </FormControl>
                   <SelectContent>
                      {envelopes.length === 0 ? (
-                        // Display a message instead of a SelectItem with empty value
                         <div className="px-2 py-1.5 text-sm text-muted-foreground text-center">
                             No envelopes available.<br/> Add one on the Dashboard first.
                         </div>
@@ -283,7 +311,6 @@ export function AddTransactionForm({ onSuccess, navigateToTransactions = false }
             <FormItem>
               <FormLabel>Description (Optional)</FormLabel>
               <FormControl>
-                 {/* Always provide a string value to the input */}
                 <Input placeholder="e.g., Groceries, Salary" {...field} value={field.value ?? ""} />
               </FormControl>
               <FormMessage />
@@ -329,9 +356,6 @@ export function AddTransactionForm({ onSuccess, navigateToTransactions = false }
             </FormItem>
           )}
         />
-
-        {/* Hidden field for isTransfer, not directly editable */}
-        {/* <FormField control={form.control} name="isTransfer" render={() => <FormItem />} /> */}
 
         <Button
           type="submit"
