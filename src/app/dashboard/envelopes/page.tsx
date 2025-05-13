@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from "react";
@@ -33,7 +32,7 @@ export default function EnvelopesPage() {
       <div className="space-y-6">
         <PageHeader title="Envelopes" description="Manage your budget categories." />
         <Card>
-          <CardContent className="pt-6"> 
+          <CardContent className="pt-6">
             <div className="space-y-4">
               <Skeleton className="h-12 w-full" />
               <Skeleton className="h-12 w-full" />
@@ -46,7 +45,7 @@ export default function EnvelopesPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 flex flex-col h-full"> {/* Use flex column and full height */}
       <PageHeader
         title="Envelopes"
         description="Manage your budget categories (envelopes), grouped by category."
@@ -114,10 +113,13 @@ export default function EnvelopesPage() {
         </div>}
       />
 
-      <Card className="shadow-lg">
-        <CardContent className="pt-4">
+       {/* Make the Card flex-grow and its content overflow */}
+      <Card className="shadow-lg flex-grow flex flex-col overflow-hidden">
+         {/* Ensure CardContent takes remaining space and allows internal scrolling */}
+        <CardContent className="pt-4 flex-grow overflow-hidden">
           {envelopes.length > 0 ? (
-            <EnvelopeSummaryList /> 
+             // EnvelopeSummaryList contains the ScrollArea
+            <EnvelopeSummaryList />
           ) : (
             <div className="flex flex-col items-center justify-center h-48 text-center border-2 border-dashed rounded-lg p-4">
               <Package className="h-12 w-12 text-muted-foreground mb-3" />

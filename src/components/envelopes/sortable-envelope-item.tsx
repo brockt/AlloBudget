@@ -1,4 +1,3 @@
-
 "use client";
 
 import React from 'react';
@@ -11,6 +10,7 @@ import { Pencil, GripVertical, CalendarClock } from 'lucide-react'; // Import Gr
 import { useAppContext } from "@/context/AppContext";
 import { startOfMonth, endOfMonth } from "date-fns";
 import Link from "next/link";
+import { cn } from "@/lib/utils"; // Import cn
 
 interface SortableEnvelopeItemProps {
   id: string;
@@ -58,7 +58,7 @@ export function SortableEnvelopeItem({ id, envelope, onEditClick }: SortableEnve
     <li
         ref={setNodeRef}
         style={style}
-        className="group relative touch-none" // Add touch-none for better mobile drag
+        className="group relative" // Remove touch-none from li
         {...attributes} // Spread attributes here, not on the handle
     >
       <div className="flex items-center gap-2">
@@ -66,7 +66,8 @@ export function SortableEnvelopeItem({ id, envelope, onEditClick }: SortableEnve
          <Button
             variant="ghost"
             size="icon"
-            className="cursor-grab h-8 w-8 text-muted-foreground hover:bg-muted/70 active:cursor-grabbing"
+            // Apply touch-none specifically to the handle
+            className={cn("cursor-grab h-8 w-8 text-muted-foreground hover:bg-muted/70 active:cursor-grabbing touch-none")}
             {...listeners} // Spread listeners onto the handle
             aria-label={`Drag ${envelope.name}`}
         >

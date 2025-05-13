@@ -11,7 +11,9 @@ import EnvelopeSummaryList from "@/components/envelopes/envelope-summary-list";
 
 // Helper function for currency formatting
 const formatCurrency = (amount: number): string => {
-  return amount.toLocaleString(undefined, { style: 'currency', currency: 'USD' }); // Adjust currency code if needed
+  // Use user's locale and default currency (USD for now)
+  // Consider making currency configurable later
+  return amount.toLocaleString(undefined, { style: 'currency', currency: 'USD' });
 };
 
 export default function DashboardPage() {
@@ -20,7 +22,6 @@ export default function DashboardPage() {
     envelopes,
     getAccountBalance,
     isLoading,
-    // getEnvelopeSpending, // No longer needed directly here
     getMonthlyIncomeTotal,
     getMonthlySpendingTotal,
     getTotalMonthlyBudgeted,
@@ -31,14 +32,14 @@ export default function DashboardPage() {
     return (
       <div className="space-y-6">
         <PageHeader title="Dashboard" description="Welcome back to Pocket Budgeteer!" />
-        {/* Skeletons for new summary cards */}
+        {/* Skeletons for summary cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <Skeleton className="h-28 rounded-lg" />
           <Skeleton className="h-28 rounded-lg" />
           <Skeleton className="h-28 rounded-lg" />
           <Skeleton className="h-28 rounded-lg" />
         </div>
-        {/* Skeletons for existing cards */}
+        {/* Skeletons for balance/available cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <Skeleton className="h-32 rounded-lg" />
           <Skeleton className="h-32 rounded-lg" />
@@ -66,7 +67,7 @@ export default function DashboardPage() {
   const ytdIncome = getYtdIncomeTotal();
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 flex flex-col h-full"> {/* Use flex column and full height */}
       <PageHeader
         title="Dashboard"
         description="Your financial overview and envelope management."
@@ -138,7 +139,7 @@ export default function DashboardPage() {
       </div>
 
 
-      {/* Existing Total Balance and Available to Spend Cards */}
+      {/* Total Balance and Available to Spend Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -167,13 +168,15 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      {/* Envelope Summary List */}
-      <Card className="shadow-lg">
+       {/* Envelope Summary List - Make Card flex-grow */}
+      <Card className="shadow-lg flex-grow flex flex-col overflow-hidden">
         <CardHeader>
           <CardTitle>All Envelopes</CardTitle>
           <CardDescription>Track your spending against budgets, grouped by category.</CardDescription>
         </CardHeader>
-        <CardContent>
+        {/* Ensure CardContent takes remaining space and allows internal scrolling */}
+        <CardContent className="flex-grow overflow-hidden">
+           {/* EnvelopeSummaryList contains the ScrollArea */}
           <EnvelopeSummaryList />
         </CardContent>
       </Card>

@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from "react";
@@ -33,6 +32,7 @@ import {
 } from '@dnd-kit/sortable';
 import { SortableCategoryAccordionItem } from './sortable-category-accordion-item'; // Import the new sortable category item
 import { Package } from "lucide-react"; // Import Package icon
+import { cn } from "@/lib/utils"; // Import cn
 
 export default function EnvelopeSummaryList() {
   const { envelopes, orderedCategories, updateCategoryOrder, updateEnvelopeOrder } = useAppContext(); // Added updateEnvelopeOrder
@@ -139,8 +139,8 @@ export default function EnvelopeSummaryList() {
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd} // Use the updated handler
     >
-      {/* Removed h-auto, increased max-h slightly */}
-      <ScrollArea className="max-h-[500px]">
+      {/* Ensure ScrollArea has explicit overflow and max-height */}
+      <ScrollArea className={cn("max-h-[500px] overflow-y-auto")}>
         {/* SortableContext for Categories */}
         <SortableContext
           // Provide the *full* ordered list of categories to the context
