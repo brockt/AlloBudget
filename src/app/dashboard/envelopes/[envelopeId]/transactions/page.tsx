@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useParams, useRouter } from 'next/navigation';
@@ -20,21 +19,18 @@ export default function EnvelopeTransactionsPage() {
 
   const envelope = getEnvelopeById(envelopeId); // Fetch envelope details
 
-  // Note: The edit dialog logic is currently inside TransactionList.
-  // If needed, it could be moved here for better separation.
-
   if (isLoading) {
      return (
-      <div className="space-y-6">
+      <div className="space-y-6 flex flex-col h-full">
         <PageHeader title="Envelope Transactions" description="Loading transactions..." />
-        <Skeleton className="h-[400px] w-full rounded-lg" />
+        <Skeleton className="h-[400px] w-full rounded-lg flex-grow" />
       </div>
     )
   }
 
   if (!envelope) {
      return (
-      <div className="space-y-6">
+      <div className="space-y-6 flex flex-col h-full">
         <PageHeader
             title="Error"
             description="Envelope not found."
@@ -54,7 +50,7 @@ export default function EnvelopeTransactionsPage() {
   const envelopeTransactions: Transaction[] = transactions.filter(tx => tx.envelopeId === envelopeId);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 flex flex-col h-full">
       <PageHeader
         title={
           <span className='flex items-center'>
@@ -70,7 +66,6 @@ export default function EnvelopeTransactionsPage() {
           </Link>
         }
       />
-      {/* Pass filtered transactions; TransactionList contains edit dialog */}
       <TransactionList transactions={envelopeTransactions} showCaption={false} />
     </div>
   );

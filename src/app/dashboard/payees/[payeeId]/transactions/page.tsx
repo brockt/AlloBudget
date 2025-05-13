@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useParams, useRouter } from 'next/navigation';
@@ -20,21 +19,18 @@ export default function PayeeTransactionsPage() {
 
   const payee = payees.find(p => p.id === payeeId); // Find the payee
 
-  // Note: The edit dialog logic is currently inside TransactionList.
-  // If needed, it could be moved here for better separation.
-
   if (isLoading) {
      return (
-      <div className="space-y-6">
+      <div className="space-y-6 flex flex-col h-full">
         <PageHeader title="Payee Transactions" description="Loading transactions..." />
-        <Skeleton className="h-[400px] w-full rounded-lg" />
+        <Skeleton className="h-[400px] w-full rounded-lg flex-grow" />
       </div>
     )
   }
 
   if (!payee) {
      return (
-      <div className="space-y-6">
+      <div className="space-y-6 flex flex-col h-full">
         <PageHeader
             title="Error"
             description="Payee not found."
@@ -53,7 +49,7 @@ export default function PayeeTransactionsPage() {
   const payeeTransactions: Transaction[] = getPayeeTransactions(payeeId);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 flex flex-col h-full">
       <PageHeader
         title={
           <span className='flex items-center'>
@@ -69,7 +65,6 @@ export default function PayeeTransactionsPage() {
             </Link>
         }
       />
-      {/* Pass filtered transactions; TransactionList contains edit dialog */}
       <TransactionList transactions={payeeTransactions} showCaption={false} />
     </div>
   );

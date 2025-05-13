@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { TransactionList } from "@/components/transactions/transaction-list";
@@ -18,15 +17,15 @@ export default function TransactionsPage() {
 
   if (isLoading) {
      return (
-      <div className="space-y-6">
+      <div className="space-y-6 flex flex-col h-full">
         <PageHeader title="All Transactions" description="A complete history of your financial activities." />
-        <Skeleton className="h-[400px] w-full rounded-lg" />
+        <Skeleton className="h-[400px] w-full rounded-lg flex-grow" />
       </div>
     )
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 flex flex-col h-full">
       <PageHeader
         title="All Transactions"
         description="A complete history of your financial activities."
@@ -38,7 +37,7 @@ export default function TransactionsPage() {
           </Link>
         }
       />
-      {/* TransactionList now contains the Edit dialog */}
+      {/* TransactionList now contains the Edit dialog and its Card will flex-grow */}
       <TransactionList />
     </div>
   );

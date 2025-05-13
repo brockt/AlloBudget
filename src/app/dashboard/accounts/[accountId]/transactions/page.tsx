@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useParams, useRouter } from 'next/navigation';
@@ -20,21 +19,18 @@ export default function AccountTransactionsPage() {
 
   const account = getAccountById(accountId); // Fetch account details
 
-  // Note: The edit dialog logic is currently inside TransactionList.
-  // If needed, it could be moved here for better separation.
-
   if (isLoading) {
      return (
-      <div className="space-y-6">
+      <div className="space-y-6 flex flex-col h-full">
         <PageHeader title="Account Transactions" description="Loading transactions..." />
-        <Skeleton className="h-[400px] w-full rounded-lg" />
+        <Skeleton className="h-[400px] w-full rounded-lg flex-grow" />
       </div>
     )
   }
 
   if (!account) {
      return (
-      <div className="space-y-6">
+      <div className="space-y-6 flex flex-col h-full">
         <PageHeader
             title="Error"
             description="Account not found."
@@ -53,7 +49,7 @@ export default function AccountTransactionsPage() {
   const accountTransactions: Transaction[] = transactions.filter(tx => tx.accountId === accountId);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 flex flex-col h-full">
       <PageHeader
         title={`${account.name} Transactions`}
         description={`Showing all transactions for the account: ${account.name}`}
@@ -72,7 +68,6 @@ export default function AccountTransactionsPage() {
           </div>
         }
       />
-      {/* Pass filtered transactions; TransactionList contains edit dialog */}
       <TransactionList transactions={accountTransactions} showCaption={false} />
     </div>
   );
