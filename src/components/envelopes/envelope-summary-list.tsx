@@ -85,6 +85,8 @@ export default function EnvelopeSummaryList() {
        // Check if the dragged item is a category
        const isActiveCategory = orderedCategories.includes(active.id as string);
        const isOverCategory = over.id && orderedCategories.includes(over.id as string);
+       const isActiveEnvelope = envelopes.some(env => env.id === active.id);
+       const isOverEnvelope = envelopes.some(env => env.id === over.id);
 
        if (isActiveCategory && isOverCategory) {
            // --- Category Reordering Logic ---
@@ -95,11 +97,10 @@ export default function EnvelopeSummaryList() {
                const newOrder = arrayMove(orderedCategories, oldIndex, newIndex);
                updateCategoryOrder(newOrder); // Update context state and localStorage
            } else {
-                console.error(`Category indices not found during drag end for IDs: "${active.id}", "${over.id}"`, { orderedCategories });
+                console.error(`Error during category drag end: Could not find category ID "${active.id}" or "${over.id}" in ordered list:`, { orderedCategories });
            }
-       } else {
+       } else if (isActiveEnvelope && isOverEnvelope) {
            // --- Envelope Reordering Logic ---
-           // Check if both IDs are valid envelope IDs from the current state
            const activeEnvelopeId = active.id as string;
            const overEnvelopeId = over.id as string;
 
@@ -120,12 +121,15 @@ export default function EnvelopeSummaryList() {
                     console.log("Attempted to drag envelope between different categories - ignored.");
                 }
            } else {
-                // Could be dragging a category over an envelope, or vice versa, or invalid IDs. Ignore these cases.
-                console.warn("Ignoring drag end event - mixed types or invalid IDs:", { activeId: active.id, overId: over.id });
+                // Should not happen if isActiveEnvelope/isOverEnvelope are true, but log just in case
+                console.error(`Error during envelope drag end: Could not find envelope indices for IDs: "${activeEnvelopeId}", "${overEnvelopeId}"`, { envelopes });
            }
+       } else {
+           // Could be dragging a category over an envelope, or vice versa, or invalid IDs. Ignore these cases.
+           console.warn("Ignoring drag end event - mixed types or invalid IDs:", { activeId: active.id, overId: over.id });
        }
     }
-  }
+}
 
 
   return (
@@ -135,7 +139,8 @@ export default function EnvelopeSummaryList() {
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd} // Use the updated handler
     >
-      <ScrollArea className="h-auto max-h-[400px]">
+      {/* Removed h-auto, increased max-h slightly */}
+      <ScrollArea className="max-h-[500px]">
         {/* SortableContext for Categories */}
         <SortableContext
           // Provide the *full* ordered list of categories to the context
