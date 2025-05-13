@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import type { ReactNode } from 'react';
@@ -341,6 +342,37 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setTransactions(prev => prev.filter(t => t.id !== transactionId));
   };
 
+  const deleteEnvelope = useCallback((envelopeId: string) => {
+    const envelopeToDelete = envelopes.find(env => env.id === envelopeId);
+    if (!envelopeToDelete) return;
+
+    // 1. Remove the envelope
+    const updatedEnvelopes = envelopes.filter(env => env.id !== envelopeId);
+    setEnvelopes(updatedEnvelopes);
+
+    // 2. Detach transactions from the deleted envelope
+    setTransactions(prevTransactions =>
+      prevTransactions.map(tx =>
+        tx.envelopeId === envelopeId ? { ...tx, envelopeId: undefined } : tx
+      )
+    );
+
+    // 3. Update category lists if necessary
+    const remainingCategories = deriveCategoriesFromEnvelopes(updatedEnvelopes);
+    setCategories(remainingCategories);
+
+    // Check if the deleted envelope's category is no longer used
+    const categoryWasUsed = updatedEnvelopes.some(env => env.category === envelopeToDelete.category);
+    if (!categoryWasUsed) {
+      setOrderedCategories(prevOrdered => prevOrdered.filter(cat => cat !== envelopeToDelete.category));
+    } else {
+      // Ensure ordered categories only contain remaining categories
+       setOrderedCategories(prevOrdered => prevOrdered.filter(cat => remainingCategories.includes(cat)));
+    }
+
+  }, [envelopes]);
+
+
   const transferBetweenEnvelopes = useCallback((data: TransferEnvelopeFundsFormData) => {
     const { fromEnvelopeId, toEnvelopeId, amount, accountId, date, description } = data;
 
@@ -621,6 +653,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       updateEnvelope,
       updateEnvelopeOrder,
       deleteTransaction,
+      deleteEnvelope, // Provide deleteEnvelope
       transferBetweenEnvelopes,
       transferBetweenAccounts,
       getAccountBalance,
@@ -647,3 +680,4 @@ export const useAppContext = () => {
   }
   return context;
 };
+

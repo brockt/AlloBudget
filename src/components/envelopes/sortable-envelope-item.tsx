@@ -1,3 +1,4 @@
+
 "use client";
 
 import React from 'react';
@@ -6,11 +7,23 @@ import { CSS } from '@dnd-kit/utilities';
 import type { Envelope } from '@/types';
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { Pencil, GripVertical, CalendarClock } from 'lucide-react'; // Import GripVertical
+import { Pencil, GripVertical, CalendarClock, Trash2 } from 'lucide-react'; // Import GripVertical, Trash2
 import { useAppContext } from "@/context/AppContext";
 import { startOfMonth, endOfMonth } from "date-fns";
 import Link from "next/link";
 import { cn } from "@/lib/utils"; // Import cn
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"; // Import AlertDialog components
+import { useToast } from "@/hooks/use-toast"; // Import useToast
 
 interface SortableEnvelopeItemProps {
   id: string;
@@ -30,7 +43,8 @@ function getDaySuffix(day: number): string {
 }
 
 export function SortableEnvelopeItem({ id, envelope, onEditClick }: SortableEnvelopeItemProps) {
-  const { getEnvelopeSpending, getEnvelopeBalanceWithRollover } = useAppContext();
+  const { getEnvelopeSpending, getEnvelopeBalanceWithRollover, deleteEnvelope } = useAppContext(); // Added deleteEnvelope
+  const { toast } = useToast(); // Added toast
   const {
     attributes,
     listeners,
@@ -54,6 +68,21 @@ export function SortableEnvelopeItem({ id, envelope, onEditClick }: SortableEnve
   const dueDateString = envelope.dueDate ? `${envelope.dueDate}${getDaySuffix(envelope.dueDate)}` : '';
   const hasEstimatedAmount = typeof envelope.estimatedAmount === 'number' && !isNaN(envelope.estimatedAmount);
 
+  const handleDeleteClick = (event: React.MouseEvent) => {
+      event.stopPropagation(); // Prevent link navigation
+      event.preventDefault();
+      // The AlertDialog takes over from here
+  };
+
+  const confirmDelete = () => {
+    deleteEnvelope(envelope.id);
+    toast({
+      title: "Envelope Deleted",
+      description: `Envelope "${envelope.name}" and associated transactions have been deleted.`,
+      variant: "destructive",
+    });
+  };
+
   return (
     <li
         ref={setNodeRef}
@@ -76,20 +105,52 @@ export function SortableEnvelopeItem({ id, envelope, onEditClick }: SortableEnve
 
         {/* Envelope Content */}
         <Link href={`/dashboard/envelopes/${envelope.id}/transactions`} passHref className="flex-1 block p-2.5 rounded-md border bg-card hover:bg-muted/50 transition-colors cursor-pointer">
-          <div className="relative"> {/* Container for positioning edit button */}
-            {/* Edit Button */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="absolute top-0 right-0 h-6 w-6 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity focus:opacity-100 z-10"
-              onClick={onEditClick}
-              aria-label={`Edit ${envelope.name}`}
-            >
-              <Pencil className="h-4 w-4" />
-            </Button>
+          <div className="relative"> {/* Container for positioning edit/delete buttons */}
+            {/* Buttons Container */}
+            <div className="absolute top-0 right-0 flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity focus-within:opacity-100 z-10">
+              {/* Edit Button */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                onClick={onEditClick}
+                aria-label={`Edit ${envelope.name}`}
+              >
+                <Pencil className="h-4 w-4" />
+              </Button>
+              {/* Delete Button with Confirmation */}
+               <AlertDialog>
+                 <AlertDialogTrigger asChild>
+                   <Button
+                     variant="ghost"
+                     size="icon"
+                     className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                     onClick={handleDeleteClick} // Prevent link navigation on trigger click
+                     aria-label={`Delete ${envelope.name}`}
+                   >
+                     <Trash2 className="h-4 w-4" />
+                   </Button>
+                 </AlertDialogTrigger>
+                 <AlertDialogContent>
+                   <AlertDialogHeader>
+                     <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                     <AlertDialogDescription>
+                       This action cannot be undone. This will permanently delete the envelope
+                       "{envelope.name}" and detach all associated transactions (they will become uncategorized).
+                     </AlertDialogDescription>
+                   </AlertDialogHeader>
+                   <AlertDialogFooter>
+                     <AlertDialogCancel>Cancel</AlertDialogCancel>
+                     <AlertDialogAction onClick={confirmDelete} className={cn("bg-destructive text-destructive-foreground hover:bg-destructive/90")}>
+                       Delete
+                     </AlertDialogAction>
+                   </AlertDialogFooter>
+                 </AlertDialogContent>
+               </AlertDialog>
+            </div>
 
             {/* Envelope Details */}
-            <div className="flex justify-between items-start mb-1 pr-8"> {/* Padding for edit button */}
+            <div className="flex justify-between items-start mb-1 pr-16"> {/* Adjust padding for buttons */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-baseline">
                   <span className="font-medium truncate block text-sm" title={envelope.name}>{envelope.name}</span>

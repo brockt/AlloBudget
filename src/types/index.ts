@@ -1,4 +1,5 @@
 
+
 export interface Account {
   id: string;
   name: string;
@@ -116,6 +117,7 @@ export interface AppContextType {
   updateEnvelope: (envelopeData: Partial<Envelope> & { id: string }) => void; // Added updateEnvelope function
   updateEnvelopeOrder: (reorderedEnvelopes: Envelope[]) => void; // Added updateEnvelopeOrder function
   deleteTransaction: (transactionId: string) => void; // Example delete
+  deleteEnvelope: (envelopeId: string) => void; // Added deleteEnvelope function signature
   transferBetweenEnvelopes: (data: TransferEnvelopeFundsFormData) => void; // New function
   transferBetweenAccounts: (data: TransferAccountFundsFormData) => void; // Function to transfer between accounts
   getAccountBalance: (accountId: string) => number;
@@ -131,3 +133,4 @@ export interface AppContextType {
   getYtdIncomeTotal: () => number;
   isLoading: boolean;
 }
+
