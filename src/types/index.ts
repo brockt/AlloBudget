@@ -71,6 +71,9 @@ export interface TransactionFormData {
   isTransfer?: boolean; // Flag for inter-account transfers
 }
 
+// For updating a transaction, ensure ID is present
+export type TransactionWithId = Partial<TransactionFormData> & { id: string };
+
 export interface PayeeFormData {
   name: string;
   category?: string;
@@ -110,6 +113,7 @@ export interface AppContextType {
   updateAccount: (accountData: AccountWithId) => void; // Added updateAccount function
   addEnvelope: (envelopeData: EnvelopeFormData) => void;
   addTransaction: (transactionData: TransactionFormData) => void;
+  updateTransaction: (transactionData: TransactionWithId) => void; // Added updateTransaction function
   addPayee: (payeeData: PayeeFormData) => void;
   updatePayee: (payeeData: PayeeWithId) => void; // Added updatePayee function
   addCategory: (categoryName: string) => void; // Added addCategory function

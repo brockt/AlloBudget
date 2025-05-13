@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { TransactionList } from "@/components/transactions/transaction-list";
@@ -11,6 +12,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export default function TransactionsPage() {
   const { isLoading } = useAppContext();
+
+  // Note: The edit dialog logic is currently inside TransactionList.
+  // If needed, it could be moved here for better separation.
 
   if (isLoading) {
      return (
@@ -34,6 +38,7 @@ export default function TransactionsPage() {
           </Link>
         }
       />
+      {/* TransactionList now contains the Edit dialog */}
       <TransactionList />
     </div>
   );

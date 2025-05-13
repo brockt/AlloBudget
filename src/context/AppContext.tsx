@@ -1,10 +1,11 @@
 
+
 "use client";
 
 import type { ReactNode } from 'react';
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 // Added PayeeWithId type
-import type { Account, Envelope, Transaction, Payee, AccountFormData, EnvelopeFormData, TransactionFormData, PayeeFormData, PayeeWithId, TransferEnvelopeFundsFormData, AccountWithId, TransferAccountFundsFormData, AppContextType } from '@/types';
+import type { Account, Envelope, Transaction, Payee, AccountFormData, EnvelopeFormData, TransactionFormData, PayeeFormData, PayeeWithId, TransferEnvelopeFundsFormData, AccountWithId, TransferAccountFundsFormData, AppContextType, TransactionWithId } from '@/types'; // Added TransactionWithId
 // Use parseISO and isValid for robust date handling
 // Import differenceInCalendarMonths for rollover calculation
 import { formatISO, startOfMonth, endOfMonth, isWithinInterval, parseISO, isValid, differenceInCalendarMonths, startOfDay, startOfYear, endOfDay } from 'date-fns'; // Added startOfYear, endOfDay
@@ -297,6 +298,42 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       isTransfer: transactionData.isTransfer || false, // Default to false if not provided
     };
     setTransactions(prev => [...prev, newTransaction].sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime()));
+  }, []);
+
+  const updateTransaction = useCallback((transactionData: TransactionWithId) => {
+      if (!transactionData.id) {
+          console.error("Cannot update transaction without an ID.");
+          return;
+      }
+      if (!transactionData.payeeId) {
+          console.error("Cannot update transaction without a payee ID.");
+          return;
+      }
+      const parsedDate = transactionData.date ? parseISO(transactionData.date) : null;
+      if (!parsedDate || !isValid(parsedDate)) {
+          console.error("Invalid date provided for transaction update:", transactionData.date);
+          return;
+      }
+
+      setTransactions(prev =>
+          prev.map(tx =>
+              tx.id === transactionData.id
+                  ? {
+                      ...tx, // Spread existing transaction data
+                      // Apply updates from transactionData
+                      accountId: transactionData.accountId ?? tx.accountId, // Use new value or keep old
+                      envelopeId: transactionData.envelopeId === null ? undefined : transactionData.envelopeId ?? tx.envelopeId, // Handle null and undefined
+                      payeeId: transactionData.payeeId ?? tx.payeeId,
+                      amount: transactionData.amount !== undefined ? Number(transactionData.amount) : tx.amount,
+                      type: transactionData.type ?? tx.type,
+                      description: transactionData.description === null ? undefined : transactionData.description ?? tx.description,
+                      date: formatISO(parsedDate), // Always update date based on input
+                      isTransfer: transactionData.isTransfer !== undefined ? transactionData.isTransfer : tx.isTransfer, // Keep existing if not provided
+                      // Note: createdAt should generally not be updated
+                  }
+                  : tx
+          ).sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime()) // Resort after update
+      );
   }, []);
 
 
@@ -650,6 +687,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       updateAccount,
       addEnvelope,
       addTransaction,
+      updateTransaction, // Add updateTransaction to context
       addPayee,
       updatePayee, // Provide updatePayee
       addCategory,

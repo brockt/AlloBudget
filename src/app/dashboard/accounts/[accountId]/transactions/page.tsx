@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useParams, useRouter } from 'next/navigation';
@@ -18,6 +19,9 @@ export default function AccountTransactionsPage() {
   const accountId = params.accountId as string;
 
   const account = getAccountById(accountId); // Fetch account details
+
+  // Note: The edit dialog logic is currently inside TransactionList.
+  // If needed, it could be moved here for better separation.
 
   if (isLoading) {
      return (
@@ -68,7 +72,7 @@ export default function AccountTransactionsPage() {
           </div>
         }
       />
-      {/* Pass filtered transactions to the list */}
+      {/* Pass filtered transactions; TransactionList contains edit dialog */}
       <TransactionList transactions={accountTransactions} showCaption={false} />
     </div>
   );

@@ -1,8 +1,11 @@
 
+
 "use client";
 
+import { useState } from "react"; // Added useState
 import { useAppContext } from "@/context/AppContext";
 import { TransactionRow } from "./transaction-row";
+import { EditTransactionForm } from "./edit-transaction-form"; // Added EditTransactionForm import
 import {
   Table,
   TableBody,
@@ -16,6 +19,13 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import Image from "next/image";
 import type { Transaction } from "@/types"; // Import Transaction type
 import { Card } from "@/components/ui/card"; // Assuming Card is used
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+} from "@/components/ui/dialog"; // Added Dialog imports
 
 interface TransactionListProps {
   transactions?: Transaction[]; // Optional: Pass specific transactions to display
@@ -25,11 +35,23 @@ interface TransactionListProps {
 
 export function TransactionList({ transactions: transactionsProp, limit, showCaption = true }: TransactionListProps) {
   const { transactions: allTransactions } = useAppContext();
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
 
   // Use provided transactions if available, otherwise use all from context
   const transactionsToDisplay = transactionsProp || allTransactions;
 
   const displayTransactions = limit ? transactionsToDisplay.slice(0, limit) : transactionsToDisplay;
+
+  const handleEditTransaction = (transaction: Transaction) => {
+    setEditingTransaction(transaction);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleEditSuccess = () => {
+    setIsEditDialogOpen(false);
+    setEditingTransaction(null);
+  };
 
   if (displayTransactions.length === 0) {
     return (
@@ -50,26 +72,52 @@ export function TransactionList({ transactions: transactionsProp, limit, showCap
   }
 
   return (
-    <Card className="shadow-md">
-      <ScrollArea className="h-auto max-h-[500px] rounded-md border">
-        <Table>
-          {showCaption && transactionsProp === undefined && <TableCaption>A list of all your recent transactions.</TableCaption>}
-          <TableHeader className="sticky top-0 bg-card z-10">
-            <TableRow>
-              <TableHead>Description</TableHead>
-              <TableHead className="text-center hidden sm:table-cell">Date</TableHead>
-              <TableHead className="text-center hidden md:table-cell">Envelope</TableHead>
-              <TableHead className="text-right">Amount</TableHead>
-              <TableHead className="text-right w-[50px]">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {displayTransactions.map((transaction) => (
-              <TransactionRow key={transaction.id} transaction={transaction} />
-            ))}
-          </TableBody>
-        </Table>
-      </ScrollArea>
-    </Card>
+     <>
+      <Card className="shadow-md">
+        <ScrollArea className="h-auto max-h-[500px] rounded-md border">
+          <Table>
+            {showCaption && transactionsProp === undefined && <TableCaption>A list of all your recent transactions.</TableCaption>}
+            <TableHeader className="sticky top-0 bg-card z-10">
+              <TableRow>
+                <TableHead>Description</TableHead>
+                <TableHead className="text-center hidden sm:table-cell">Date</TableHead>
+                <TableHead className="text-center hidden md:table-cell">Envelope</TableHead>
+                <TableHead className="text-right">Amount</TableHead>
+                <TableHead className="text-right w-[80px]">Actions</TableHead> {/* Increased width for two buttons */}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {displayTransactions.map((transaction) => (
+                <TransactionRow
+                  key={transaction.id}
+                  transaction={transaction}
+                  onEdit={handleEditTransaction} // Pass the edit handler
+                />
+              ))}
+            </TableBody>
+          </Table>
+        </ScrollArea>
+      </Card>
+
+      {/* Edit Transaction Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Edit Transaction</DialogTitle>
+            <DialogDescription>
+              Update the details for this transaction.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            {editingTransaction && (
+              <EditTransactionForm
+                transaction={editingTransaction}
+                onSuccess={handleEditSuccess}
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

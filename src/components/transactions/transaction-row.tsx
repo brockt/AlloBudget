@@ -7,7 +7,7 @@ import { TableCell, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { format, parseISO, isValid } from "date-fns"; // Import parseISO and isValid
 import { useAppContext } from "@/context/AppContext";
-import { ArrowUpCircle, ArrowDownCircle, Trash2, User } from "lucide-react"; // Added User icon
+import { ArrowUpCircle, ArrowDownCircle, Trash2, User, Pencil } from "lucide-react"; // Added User icon, Pencil icon
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -21,14 +21,15 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { cn } from "@/lib/utils"; // Added missing import
+import { cn } from "@/lib/utils";
 
 
 interface TransactionRowProps {
   transaction: Transaction;
+  onEdit: (transaction: Transaction) => void; // Add onEdit handler prop
 }
 
-export function TransactionRow({ transaction }: TransactionRowProps) {
+export function TransactionRow({ transaction, onEdit }: TransactionRowProps) {
   const { accounts, envelopes, payees, deleteTransaction } = useAppContext(); // Added payees
   const { toast } = useToast();
 
@@ -44,6 +45,12 @@ export function TransactionRow({ transaction }: TransactionRowProps) {
       variant: "destructive"
     });
   };
+
+  const handleEditClick = (event: React.MouseEvent) => {
+    event.stopPropagation(); // Prevent potential parent link navigation if row becomes clickable later
+    onEdit(transaction);
+  };
+
 
   // Safely parse and format the date
   const transactionDate = parseISO(transaction.date);
@@ -84,31 +91,38 @@ export function TransactionRow({ transaction }: TransactionRowProps) {
         </span>
       </TableCell>
       <TableCell className="text-right">
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive">
-              <Trash2 className="h-4 w-4" />
-              <span className="sr-only">Delete Transaction</span>
+         <div className="flex justify-end space-x-1">
+            {/* Edit Button */}
+            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary h-7 w-7" onClick={handleEditClick}>
+                <Pencil className="h-4 w-4" />
+                <span className="sr-only">Edit Transaction</span>
             </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-              <AlertDialogDescription>
-                This action cannot be undone. This will permanently delete the transaction{' '}
-                {transaction.description ? `"${transaction.description}"` : "(with no description)"}.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={handleDelete} className={cn("bg-destructive text-destructive-foreground hover:bg-destructive/90")}>
-                Delete
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+            {/* Delete Button */}
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive h-7 w-7">
+                  <Trash2 className="h-4 w-4" />
+                  <span className="sr-only">Delete Transaction</span>
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This action cannot be undone. This will permanently delete the transaction{' '}
+                    {transaction.description ? `"${transaction.description}"` : "(with no description)"}.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleDelete} className={cn("bg-destructive text-destructive-foreground hover:bg-destructive/90")}>
+                    Delete
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+        </div>
       </TableCell>
     </TableRow>
   );
 }
-

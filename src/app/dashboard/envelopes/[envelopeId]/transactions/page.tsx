@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useParams, useRouter } from 'next/navigation';
@@ -18,6 +19,9 @@ export default function EnvelopeTransactionsPage() {
   const envelopeId = params.envelopeId as string;
 
   const envelope = getEnvelopeById(envelopeId); // Fetch envelope details
+
+  // Note: The edit dialog logic is currently inside TransactionList.
+  // If needed, it could be moved here for better separation.
 
   if (isLoading) {
      return (
@@ -66,7 +70,7 @@ export default function EnvelopeTransactionsPage() {
           </Link>
         }
       />
-      {/* Pass filtered transactions to the list */}
+      {/* Pass filtered transactions; TransactionList contains edit dialog */}
       <TransactionList transactions={envelopeTransactions} showCaption={false} />
     </div>
   );
