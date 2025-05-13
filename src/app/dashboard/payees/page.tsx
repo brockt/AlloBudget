@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from "react";
@@ -54,7 +53,7 @@ export default function PayeesPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 flex flex-col h-full"> {/* Changed: Added flex flex-col h-full */}
       <PageHeader
         title="Payees"
         description="Manage your frequent payees and contacts."
@@ -80,16 +79,18 @@ export default function PayeesPage() {
         }
       />
 
-      <Card className="shadow-lg">
+      {/* Changed: Added flex-grow flex flex-col overflow-hidden to Card */}
+      <Card className="shadow-lg flex-grow flex flex-col overflow-hidden">
         <CardHeader>
           <CardTitle>Payee List</CardTitle>
           <CardDescription>Your saved payees.</CardDescription>
         </CardHeader>
-        <CardContent>
+        {/* Changed: Added flex-grow overflow-hidden to CardContent. Adjusted padding. */}
+        <CardContent className="pt-4 flex-grow overflow-hidden">
           {payees.length > 0 ? (
              <PayeeList onEditPayee={handleEditPayee} /> // Pass handleEditPayee to PayeeList
           ) : (
-            <div className="flex flex-col items-center justify-center h-64 text-center border-2 border-dashed rounded-lg p-4 bg-muted/20">
+            <div className="flex flex-col items-center justify-center h-full text-center border-2 border-dashed rounded-lg p-4 bg-muted/20"> {/* Changed: h-full */}
               <Users className="h-16 w-16 text-muted-foreground mb-4" />
               <h3 className="text-lg font-semibold text-foreground">No Payees Yet</h3>
               <p className="text-muted-foreground mt-2">

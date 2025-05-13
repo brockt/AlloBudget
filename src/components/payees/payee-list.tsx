@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useAppContext } from "@/context/AppContext";
@@ -32,8 +31,8 @@ export function PayeeList({ onEditPayee }: PayeeListProps) { // Add onEditPayee 
 
 
   return (
-    <ScrollArea className="h-auto max-h-[500px]">
-      <div className="space-y-3">
+    <ScrollArea className="h-full"> {/* Changed: h-full to fill container */}
+      <div className="space-y-3 pr-2"> {/* Added pr-2 for scrollbar spacing */}
         {payees.map((payee) => {
           // Safely parse and format the date
           const createdAtDate = parseISO(payee.createdAt);
