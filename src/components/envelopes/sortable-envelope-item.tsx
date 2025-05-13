@@ -1,4 +1,3 @@
-
 "use client";
 
 import React from 'react';
@@ -69,16 +68,16 @@ export function SortableEnvelopeItem({ id, envelope, onEditClick }: SortableEnve
   const hasEstimatedAmount = typeof envelope.estimatedAmount === 'number' && !isNaN(envelope.estimatedAmount);
 
   const handleDeleteClick = (event: React.MouseEvent) => {
-      event.stopPropagation(); // Prevent link navigation
-      event.preventDefault();
-      // The AlertDialog takes over from here
+      event.stopPropagation(); // Prevent click from bubbling to the Link and causing navigation
+      // No event.preventDefault() here, as it would stop the AlertDialogTrigger.
+      // The AlertDialog component will handle opening the dialog.
   };
 
   const confirmDelete = () => {
     deleteEnvelope(envelope.id);
     toast({
       title: "Envelope Deleted",
-      description: `Envelope "${envelope.name}" and associated transactions have been deleted.`,
+      description: `Envelope "${envelope.name}" and associated transactions have been modified.`, // Updated message
       variant: "destructive",
     });
   };
@@ -125,7 +124,7 @@ export function SortableEnvelopeItem({ id, envelope, onEditClick }: SortableEnve
                      variant="ghost"
                      size="icon"
                      className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                     onClick={handleDeleteClick} // Prevent link navigation on trigger click
+                     onClick={handleDeleteClick} // This onClick now only calls stopPropagation
                      aria-label={`Delete ${envelope.name}`}
                    >
                      <Trash2 className="h-4 w-4" />
@@ -136,7 +135,7 @@ export function SortableEnvelopeItem({ id, envelope, onEditClick }: SortableEnve
                      <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                      <AlertDialogDescription>
                        This action cannot be undone. This will permanently delete the envelope
-                       "{envelope.name}" and detach all associated transactions (they will become uncategorized).
+                       "{envelope.name}". Transactions associated with this envelope will become uncategorized.
                      </AlertDialogDescription>
                    </AlertDialogHeader>
                    <AlertDialogFooter>

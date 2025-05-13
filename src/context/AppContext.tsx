@@ -1,5 +1,3 @@
-
-
 "use client";
 
 import type { ReactNode } from 'react';
@@ -350,7 +348,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const updatedEnvelopes = envelopes.filter(env => env.id !== envelopeId);
     setEnvelopes(updatedEnvelopes);
 
-    // 2. Detach transactions from the deleted envelope
+    // 2. Detach transactions from the deleted envelope (make them uncategorized)
     setTransactions(prevTransactions =>
       prevTransactions.map(tx =>
         tx.envelopeId === envelopeId ? { ...tx, envelopeId: undefined } : tx
@@ -361,16 +359,17 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const remainingCategories = deriveCategoriesFromEnvelopes(updatedEnvelopes);
     setCategories(remainingCategories);
 
-    // Check if the deleted envelope's category is no longer used
-    const categoryWasUsed = updatedEnvelopes.some(env => env.category === envelopeToDelete.category);
-    if (!categoryWasUsed) {
+    // Check if the deleted envelope's category is no longer used by any *other* envelope
+    const categoryIsStillUsed = updatedEnvelopes.some(env => env.category === envelopeToDelete.category);
+    if (!categoryIsStillUsed) {
+      // If the category is no longer used by any envelope, remove it from orderedCategories
       setOrderedCategories(prevOrdered => prevOrdered.filter(cat => cat !== envelopeToDelete.category));
     } else {
-      // Ensure ordered categories only contain remaining categories
+      // If the category is still used, just ensure orderedCategories only contains valid, remaining categories
        setOrderedCategories(prevOrdered => prevOrdered.filter(cat => remainingCategories.includes(cat)));
     }
 
-  }, [envelopes]);
+  }, [envelopes]); // Keep `envelopes` as a dependency
 
 
   const transferBetweenEnvelopes = useCallback((data: TransferEnvelopeFundsFormData) => {
@@ -680,4 +679,3 @@ export const useAppContext = () => {
   }
   return context;
 };
-
