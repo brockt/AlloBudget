@@ -9,7 +9,7 @@ import Link from "next/link";
 import { DollarSign, PlusCircle, Wallet, TrendingUp, TrendingDown, PackagePlus, CalendarCheck, Edit3 } from "lucide-react"; // Added new icons
 import { Skeleton } from "@/components/ui/skeleton";
 import EnvelopeSummaryList from "@/components/envelopes/envelope-summary-list";
-import { format, parseISO } from 'date-fns'; // Import for formatting timestamp
+import { format, parseISO, isValid as isValidDate } from 'date-fns'; // Import for formatting timestamp, renamed isValid to isValidDate
 
 // Helper function for currency formatting
 const formatCurrency = (amount: number): string => {
@@ -71,7 +71,10 @@ export default function DashboardPage() {
   const monthlySpending = getMonthlySpendingTotal();
   const ytdIncome = getYtdIncomeTotal();
 
-  const formattedLastModified = lastModified ? format(parseISO(lastModified), "MMM d, yyyy 'at' h:mm a") : "Data not yet modified.";
+  const formattedLastModified = lastModified && isValidDate(parseISO(lastModified)) 
+    ? format(parseISO(lastModified), "MMM d, yyyy 'at' h:mm a") 
+    : "Data not yet modified or unavailable.";
+
 
   return (
     <div className="space-y-6 flex flex-col h-full"> {/* Use flex column and full height */}
@@ -196,4 +199,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-

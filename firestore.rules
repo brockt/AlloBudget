@@ -1,0 +1,13 @@
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // WARNING: This allows read and write access to all users.
+    // This is insecure and should be replaced with proper authentication
+    // and user-specific rules for a production application.
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}
