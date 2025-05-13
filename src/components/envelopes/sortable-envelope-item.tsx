@@ -24,7 +24,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"; // Added Tooltip
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip"; // Ensure TooltipProvider is imported
 
 interface SortableEnvelopeItemProps {
   id: string;
@@ -69,18 +69,21 @@ export function SortableEnvelopeItem({ id, envelope, onEditClick }: SortableEnve
   const dueDateString = envelope.dueDate ? `${envelope.dueDate}${getDaySuffix(envelope.dueDate)}` : '';
   const hasEstimatedAmount = typeof envelope.estimatedAmount === 'number' && !isNaN(envelope.estimatedAmount);
 
-  const handleDeleteClick = (event: React.MouseEvent) => {
-      // *** Crucial fix: Stop the event from bubbling up to the Link ***
+  // Updated handler to stop propagation
+  const handleDeleteTriggerClick = (event: React.MouseEvent) => {
       event.stopPropagation();
-      // Optionally prevent default behavior if needed, though stopPropagation is usually sufficient here
-      // event.preventDefault();
+      event.preventDefault(); // Also prevent default to be safe
+      // The AlertDialogTrigger will handle opening the dialog
   };
 
-  const confirmDelete = () => {
+
+  const confirmDelete = (event: React.MouseEvent) => {
+    // Stop propagation here too if needed, though usually action buttons are okay
+    event.stopPropagation();
     deleteEnvelope(envelope.id);
     toast({
       title: "Envelope Deleted",
-      description: `Envelope "${envelope.name}" has been deleted.`, // Simplified message
+      description: `Envelope "${envelope.name}" has been deleted.`,
       variant: "destructive",
     });
   };
@@ -92,6 +95,7 @@ export function SortableEnvelopeItem({ id, envelope, onEditClick }: SortableEnve
         className="group relative"
         {...attributes} // Keep attributes for the sortable item itself
     >
+        <TooltipProvider> {/* Wrap with TooltipProvider */}
       <div className="flex items-center gap-2">
          <Button
             variant="ghost"
@@ -103,29 +107,29 @@ export function SortableEnvelopeItem({ id, envelope, onEditClick }: SortableEnve
             <GripVertical className="h-4 w-4" />
         </Button>
 
+        {/* Link wraps the main content area */}
         <Link href={`/dashboard/envelopes/${envelope.id}/transactions`} passHref className="flex-1 block p-2.5 rounded-md border bg-card hover:bg-muted/50 transition-colors cursor-pointer">
           <div className="relative">
-            {/* Action buttons container */}
+            {/* Action buttons container - Positioned relative to the Link's content */}
             <div className="absolute top-0 right-0 flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity focus-within:opacity-100 z-10">
+              {/* Edit Button */}
               <Button
                 variant="ghost"
                 size="icon"
                 className="h-6 w-6 text-muted-foreground hover:text-foreground"
-                onClick={onEditClick} // Propagates by default, which is ok for edit
+                onClick={onEditClick} // Let this propagate to open edit dialog via parent
                 aria-label={`Edit ${envelope.name}`}
               >
                 <Pencil className="h-4 w-4" />
               </Button>
               {/* Delete Confirmation */}
               <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  {/* The button that triggers the dialog */}
+                {/* Use the handler that stops propagation */}
+                <AlertDialogTrigger asChild onClick={handleDeleteTriggerClick}>
                   <Button
                     variant="ghost"
                     size="icon"
                     className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                    // *** Attach the click handler here to stop propagation ***
-                    onClick={handleDeleteClick}
                     aria-label={`Delete ${envelope.name}`}
                   >
                     <Trash2 className="h-4 w-4" />
@@ -140,7 +144,7 @@ export function SortableEnvelopeItem({ id, envelope, onEditClick }: SortableEnve
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogCancel onClick={(e) => e.stopPropagation()}>Cancel</AlertDialogCancel>
                     <AlertDialogAction onClick={confirmDelete} className={cn("bg-destructive text-destructive-foreground hover:bg-destructive/90")}>
                       Delete
                     </AlertDialogAction>
@@ -179,6 +183,8 @@ export function SortableEnvelopeItem({ id, envelope, onEditClick }: SortableEnve
           </div>
         </Link>
       </div>
+      </TooltipProvider> {/* Close TooltipProvider */}
     </li>
   );
 }
+
