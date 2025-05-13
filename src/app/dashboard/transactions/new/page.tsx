@@ -8,23 +8,30 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { useAppContext } from "@/context/AppContext";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useSearchParams } from 'next/navigation'; // Import useSearchParams
+import { useSearchParams } from 'next/navigation';
+import { useState, useEffect } from 'react'; // Import useState and useEffect
 
 export const dynamic = 'force-dynamic'; // Ensures the page is dynamically rendered
 
 export default function NewTransactionPage() {
   const { isLoading } = useAppContext();
   const searchParams = useSearchParams();
-  const accountId = searchParams.get('accountId'); // Check if accountId is in query
 
-  // Determine the back link based on whether accountId is present
-  const backLink = accountId
-    ? `/dashboard/accounts/${accountId}/transactions`
-    : "/dashboard/transactions";
-  const backLinkText = accountId ? "Back to Account Transactions" : "Back to All Transactions";
+  const [derivedAccountId, setDerivedAccountId] = useState<string | null>(null);
+  const [linksReady, setLinksReady] = useState(false);
 
+  useEffect(() => {
+    // Only derive accountId and set links as ready when AppContext is no longer loading.
+    // This ensures searchParams are accessed after the initial client-side setup.
+    if (!isLoading) {
+      const accountIdFromQuery = searchParams.get('accountId');
+      setDerivedAccountId(accountIdFromQuery);
+      setLinksReady(true);
+    }
+  }, [isLoading, searchParams]);
 
-  if (isLoading) {
+  // Show skeleton if AppContext is loading or if derived links aren't ready yet.
+  if (isLoading || !linksReady) {
      return (
       <div className="space-y-6">
         <PageHeader title="New Transaction" description="Record a new income or expense."/>
@@ -42,8 +49,14 @@ export default function NewTransactionPage() {
           </CardContent>
         </Card>
       </div>
-    )
+    );
   }
+
+  // Determine the back link based on the derived accountId
+  const backLink = derivedAccountId
+    ? `/dashboard/accounts/${derivedAccountId}/transactions`
+    : "/dashboard/transactions";
+  const backLinkText = derivedAccountId ? "Back to Account Transactions" : "Back to All Transactions";
 
   return (
     <div className="space-y-6">
