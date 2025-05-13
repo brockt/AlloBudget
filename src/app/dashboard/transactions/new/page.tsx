@@ -1,30 +1,27 @@
 "use client";
 
+import { Suspense, useState, useEffect } from 'react'; // Combine React imports
+import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { AddTransactionForm } from "@/components/transactions/add-transaction-form";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { useAppContext } from "@/context/AppContext";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useSearchParams } from 'next/navigation';
-import { useState, useEffect } from 'react';
 
-// Removing `export const dynamic = 'force-dynamic';` as child component AddTransactionForm
-// now handles searchParams correctly, which was the likely cause of prerender issues.
-// export const dynamic = 'force-dynamic'; 
-
-export default function NewTransactionPage() {
+// This component contains the logic that uses useSearchParams
+function NewTransactionPageContent() {
   const { isLoading } = useAppContext();
-  const searchParams = useSearchParams();
+  const searchParams = useSearchParams(); // useSearchParams is called here
 
   const [derivedAccountId, setDerivedAccountId] = useState<string | null>(null);
   const [linksReady, setLinksReady] = useState(false);
 
   useEffect(() => {
-    // Only derive accountId and set links as ready when AppContext is no longer loading.
-    // This ensures searchParams are accessed after the initial client-side setup.
+    // This effect runs on the client after initial render and when dependencies change.
+    // useSearchParams() is safe to use here.
     if (!isLoading) {
       const accountIdFromQuery = searchParams.get('accountId');
       setDerivedAccountId(accountIdFromQuery);
@@ -83,5 +80,34 @@ export default function NewTransactionPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+// This is the default export for the page route
+export default function NewTransactionPage() {
+  // Fallback UI for Suspense
+  const SkeletonFallback = (
+    <div className="space-y-6">
+      <PageHeader title="New Transaction" description="Loading transaction form..." />
+      <Card className="max-w-2xl mx-auto">
+        <CardHeader>
+          <CardTitle>Transaction Details</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-1/2" />
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+
+  return (
+    <Suspense fallback={SkeletonFallback}>
+      <NewTransactionPageContent />
+    </Suspense>
   );
 }
