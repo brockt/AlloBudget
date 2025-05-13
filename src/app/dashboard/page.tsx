@@ -31,7 +31,8 @@ export default function DashboardPage() {
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <PageHeader title="Dashboard" description="Welcome back to Pocket Budgeteer!" />
+        {/* Updated App Name */}
+        <PageHeader title="Dashboard" description="Welcome back to AlloBudget!" />
         {/* Skeletons for summary cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <Skeleton className="h-28 rounded-lg" />

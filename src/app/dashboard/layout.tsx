@@ -30,7 +30,8 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           <SidebarHeader className="p-4 flex items-center justify-between group-data-[collapsible=icon]:justify-center">
              <Link href="/dashboard" className="flex items-center gap-2 text-lg font-semibold text-sidebar-primary group-data-[collapsible=icon]:justify-center">
                <Coins className="h-7 w-7" />
-               <span className="group-data-[collapsible=icon]:hidden">Pocket Budgeteer</span>
+               {/* Updated App Name */}
+               <span className="group-data-[collapsible=icon]:hidden">AlloBudget</span>
              </Link>
              {/* Optional: Add a close button specifically for the mobile sheet header if needed */}
              {/* <SidebarTrigger className="md:hidden" /> */}

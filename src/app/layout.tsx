@@ -16,8 +16,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Pocket Budgeteer',
-  description: 'Manage your finances with ease.',
+  title: 'AlloBudget', // Updated title
+  description: 'Smart budgeting with AlloBudget.', // Updated description
 };
 
 export default function RootLayout({

@@ -21,7 +21,8 @@ export function AppHeader() {
            {/* App Logo/Name */}
           <Link href="/dashboard" className="flex items-center space-x-2 text-lg font-bold text-primary">
             <Coins className="h-7 w-7" />
-            <span className="hidden sm:inline-block">Pocket Budgeteer</span>
+            {/* Updated App Name */}
+            <span className="hidden sm:inline-block">AlloBudget</span>
           </Link>
         </div>
 
