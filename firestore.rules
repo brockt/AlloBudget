@@ -1,49 +1,65 @@
-
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper function to check if user is authenticated
+    // Default deny all access to prevent accidental exposure
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helper Functions ---
     function isAuthenticated() {
       return request.auth != null;
     }
 
-    // Helper function to check if the authenticated user matches the userId in the path
-    function isOwner(userId) {
+    // Function to check if the requesting user is the userId in the path
+    function isRequestingOwnData(userId) {
       return isAuthenticated() && request.auth.uid == userId;
     }
-
-    // Users collection (if you store user profiles - optional for now)
-    // match /users/{userId} {
-    //   allow read, write: if isOwner(userId);
-    // }
-
-    // User-specific data collections
-    match /users/{userId}/accounts/{accountId} {
-      allow read, write, delete: if isOwner(userId);
+    
+    // Function to check if the requesting user is the designated admin
+    function isAdmin() {
+      return isAuthenticated() && request.auth.uid == '3ll8Y9BJkFeGFl3nVpBxtnEVm8q2'; // Your User ID
     }
 
-    match /users/{userId}/envelopes/{envelopeId} {
-      allow read, write, delete: if isOwner(userId);
-    }
+    // --- User Document & Subcollection Rules ---
+    match /users/{userId} {
+      // Allow users to read and write their own user document (if you create one)
+      allow read, write: if isRequestingOwnData(userId);
 
-    match /users/{userId}/transactions/{transactionId} {
-      allow read, write, delete: if isOwner(userId);
-    }
+      // Accounts subcollection
+      match /accounts/{accountId} {
+        allow create, read, update, delete: if isRequestingOwnData(userId);
+      }
 
-    match /users/{userId}/payees/{payeeId} {
-      allow read, write, delete: if isOwner(userId);
+      // Envelopes subcollection
+      match /envelopes/{envelopeId} {
+        allow create, read, update, delete: if isRequestingOwnData(userId);
+      }
+
+      // Transactions subcollection
+      match /transactions/{transactionId} {
+        allow create, read, update, delete: if isRequestingOwnData(userId);
+      }
+
+      // Payees subcollection
+      match /payees/{payeeId} {
+        allow create, read, update, delete: if isRequestingOwnData(userId);
+      }
+      
+      // User-specific app_metadata (e.g., for category order)
+      match /app_metadata/{docId} { // Assuming this is typically a single doc like 'main' or 'user_settings'
+        allow create, read, update, delete: if isRequestingOwnData(userId);
+      }
     }
     
-    // User-specific app metadata (like categories order)
-    match /users/{userId}/app_metadata/{docId} {
-      allow read, write: if isOwner(userId);
-    }
-
-    // Deny all other access by default for security
-    match /{document=**} {
-      allow read, write: if false;
+    // --- Global App Metadata (Admin-Only Write) ---
+    // This is for settings you, as admin, want to manage for all users.
+    // All authenticated users can read these global settings.
+    match /app_metadata/main {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin(); 
     }
   }
 }

@@ -1,4 +1,3 @@
-
 "use client";
 
 import type { ReactNode } from 'react';
@@ -189,7 +188,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const accountsPath = getCollectionPath(ACCOUNTS_COLLECTION);
     if (!accountsPath) return;
 
-    const newAccount: Omit<Account, 'id'> = { ...accountData, createdAt: formatISO(new Date()) };
+    const newAccount: Omit<Account, 'id'> = {
+      userId: currentUser.uid,
+      ...accountData,
+      createdAt: formatISO(new Date())
+    };
     try {
       const docRef = doc(collection(db, accountsPath));
       await setDoc(docRef, newAccount);
@@ -218,6 +221,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     if (!envelopesPath || !metadataDocRef) return;
 
     const newEnvelopeData: Omit<Envelope, 'id'> = {
+      userId: currentUser.uid,
       ...envelopeData,
       estimatedAmount: envelopeData.estimatedAmount ?? undefined,
       dueDate: envelopeData.dueDate ?? undefined,
@@ -326,6 +330,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     if (!parsedDate || !isValid(parsedDate)) { console.error("Invalid date for transaction."); return; }
 
     const newTransactionData: Omit<Transaction, 'id'> = {
+      userId: currentUser.uid,
       ...transactionData,
       amount: Number(transactionData.amount),
       envelopeId: transactionData.envelopeId || undefined,
@@ -378,8 +383,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const payeesPath = getCollectionPath(PAYEES_COLLECTION);
     if(!payeesPath) return;
 
-    const newPayeeData: PayeeWithOptionalCategory = { name: payeeData.name, createdAt: formatISO(new Date()) };
-    if (payeeData.category?.trim()) newPayeeData.category = payeeData.category.trim();
+    const newPayeeData: Omit<Payee, 'id'> = {
+        userId: currentUser.uid,
+        name: payeeData.name,
+        createdAt: formatISO(new Date()),
+        // Conditionally add category only if it has a value after trimming
+        ...(payeeData.category?.trim() && { category: payeeData.category.trim() }),
+    };
 
     try {
       const docRef = doc(collection(db, payeesPath));

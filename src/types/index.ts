@@ -1,7 +1,6 @@
-
-
 export interface Account {
   id: string;
+  userId: string;
   name: string;
   initialBalance: number;
   // Optional: type like 'checking', 'savings', 'credit card'
@@ -11,6 +10,7 @@ export interface Account {
 
 export interface Envelope {
   id: string;
+  userId: string;
   name: string;
   budgetAmount: number; // Typically monthly budget
   estimatedAmount?: number | undefined; // Optional: Estimated amount (explicitly allow undefined)
@@ -23,6 +23,7 @@ export type TransactionType = 'income' | 'expense';
 
 export interface Transaction {
   id:string;
+  userId: string;
   accountId: string;
   envelopeId?: string; // Optional, used for expenses and for transfers (both income/expense legs)
   payeeId: string; // Mandatory: Link to a payee
@@ -36,6 +37,7 @@ export interface Transaction {
 
 export interface Payee {
   id: string;
+  userId: string;
   name: string;
   category?: string;
   createdAt: string;
