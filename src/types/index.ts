@@ -16,6 +16,7 @@ export interface Envelope {
   estimatedAmount?: number | undefined; // Optional: Estimated amount (explicitly allow undefined)
   category: string; // Category is mandatory
   dueDate?: number; // Optional: Day of the month (1-31)
+  orderIndex: number; // Added to manage display and persistence of envelope order
   createdAt: string;
 }
 

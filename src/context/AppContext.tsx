@@ -123,9 +123,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         const envelopesSnapshot = await getDocs(collection(db, envelopesPath));
         const fetchedEnvelopes = envelopesSnapshot.docs.map(d => ({
             id: d.id, ...d.data(),
+            orderIndex: typeof d.data().orderIndex === 'number' ? d.data().orderIndex : Infinity,
             estimatedAmount: d.data().estimatedAmount === null || d.data().estimatedAmount === undefined ? undefined : d.data().estimatedAmount,
             dueDate: d.data().dueDate === null || d.data().dueDate === undefined ? undefined : d.data().dueDate,
-        } as Envelope));
+        } as Envelope))
+        .sort((a, b) => a.orderIndex - b.orderIndex);
+        
         setEnvelopes(fetchedEnvelopes);
 
         const transactionsQuery = query(collection(db, transactionsPath), orderBy("date", "desc"));
@@ -229,6 +232,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       budgetAmount: number;
       category: string;
       createdAt: string;
+      orderIndex: number;
       estimatedAmount?: number; // Optional field
       dueDate?: number;       // Optional field
     } = {
@@ -237,6 +241,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       budgetAmount,
       category,
       createdAt: formatISO(startOfDay(new Date())),
+      orderIndex: envelopes.length,
     };
 
     if (estimatedAmount !== undefined) {
@@ -258,6 +263,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         budgetAmount,
         category,
         createdAt: dataToSave.createdAt,
+        orderIndex: dataToSave.orderIndex,
         estimatedAmount: estimatedAmount, // Can be undefined, as per Envelope type
         dueDate: dueDate,                 // Can be undefined, as per Envelope type
       };
@@ -327,10 +333,48 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   };
   
   const updateEnvelopeOrder = async (reorderedEnvelopes: Envelope[]) => {
-    // This is primarily a local UI state update.
-    // For persistent order, each envelope would need an 'orderIndex' field in Firestore.
-    setEnvelopes(reorderedEnvelopes);
-    // If you implement orderIndex, you'd batch update those here.
+    if (!db || !currentUser) {
+      console.error("Firestore db or user not available for updateEnvelopeOrder");
+      setEnvelopes(reorderedEnvelopes); // Fallback to local update if db/user not available
+      return;
+    }
+    const envelopesPath = getCollectionPath(ENVELOPES_COLLECTION);
+    if (!envelopesPath) {
+      console.error("Could not get envelopes path for updateEnvelopeOrder");
+      setEnvelopes(reorderedEnvelopes); // Fallback to local update
+      return;
+    }
+
+    const batch = writeBatch(db);
+    const updatedEnvelopesForState: Envelope[] = [];
+
+    reorderedEnvelopes.forEach((envelope, index) => {
+      // Create the updated envelope object with the new orderIndex for local state
+      const updatedEnvelope = { ...envelope, orderIndex: index };
+      updatedEnvelopesForState.push(updatedEnvelope);
+
+      // Add to batch only if the orderIndex actually changed to avoid unnecessary writes
+      // This requires comparing with the original orderIndex from the state or fetching fresh before update.
+      // For simplicity now, we update all, but this could be optimized.
+      // To optimize, we would need to compare `envelope.orderIndex` (old) with `index` (new).
+      // However, `reorderedEnvelopes` comes from the UI and might not have the most up-to-date `orderIndex` from Firestore
+      // if multiple quick reorders happen. The most robust is to update based on the new array sequence.
+      
+      const envelopeDocRef = doc(db, envelopesPath, envelope.id);
+      batch.update(envelopeDocRef, { orderIndex: index });
+    });
+
+    try {
+      await batch.commit();
+      setEnvelopes(updatedEnvelopesForState); // Update local state with new orderIndices
+      await updateLastModified();
+      console.log("Envelope order updated successfully in Firestore and local state.");
+    } catch (error) {
+      console.error("Error updating envelope order in Firestore:", error);
+      // If Firestore update fails, we might want to revert local state or notify user
+      // For now, local state will reflect the attempted reorder.
+      setEnvelopes(reorderedEnvelopes); // Potentially revert to original reorderedEnvelopes if commit failed
+    }
   };
 
   const updateCategoryOrder = async (newOrder: string[]) => {
