@@ -9,15 +9,16 @@ const firebaseConfig = {
   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-  // measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID, // Removed this line
 };
 
 let app: FirebaseApp;
 
 if (!getApps().length) {
   app = initializeApp(firebaseConfig);
+  console.log("Firebase initialized successfully in firebase.ts (new app instance). Project ID:", firebaseConfig.projectId);
 } else {
   app = getApps()[0];
+  console.log("Firebase already initialized in firebase.ts (existing app instance). Project ID:", firebaseConfig.projectId);
 }
 
 const db = getFirestore(app);
@@ -33,4 +34,3 @@ const db = getFirestore(app);
 // }
 
 export { db, app };
-
