@@ -82,54 +82,63 @@ export default function EnvelopeSummaryList() {
     setActiveId(null); // Clear active ID
 
     if (over && active.id !== over.id) {
-       // Check if the dragged item is a category
-       const isActiveCategory = orderedCategories.includes(active.id as string);
-       const isOverCategory = over.id && orderedCategories.includes(over.id as string);
-       const isActiveEnvelope = envelopes.some(env => env.id === active.id);
-       const isOverEnvelope = envelopes.some(env => env.id === over.id);
+      const activeIdStr = active.id as string;
+      const overIdStr = over.id as string;
 
-       if (isActiveCategory && isOverCategory) {
-           // --- Category Reordering Logic ---
-           const oldIndex = orderedCategories.findIndex(cat => cat === active.id);
-           const newIndex = orderedCategories.findIndex(cat => cat === over.id);
+      const isActiveCategory = orderedCategories.includes(activeIdStr);
+      const isOverCategory = orderedCategories.includes(overIdStr);
 
-           if (oldIndex !== -1 && newIndex !== -1) {
-               const newOrder = arrayMove(orderedCategories, oldIndex, newIndex);
-               updateCategoryOrder(newOrder); // Update context state and localStorage
-           } else {
-                console.error(`Error during category drag end: Could not find category ID "${active.id}" or "${over.id}" in ordered list:`, { orderedCategories });
-           }
-       } else if (isActiveEnvelope && isOverEnvelope) {
-           // --- Envelope Reordering Logic ---
-           const activeEnvelopeId = active.id as string;
-           const overEnvelopeId = over.id as string;
+      if (isActiveCategory && isOverCategory) {
+        // --- Category Reordering Logic ---
+        const oldIndex = orderedCategories.findIndex(cat => cat === activeIdStr);
+        const newIndex = orderedCategories.findIndex(cat => cat === overIdStr);
 
-           const activeEnvelopeIndex = envelopes.findIndex(env => env.id === activeEnvelopeId);
-           const overEnvelopeIndex = envelopes.findIndex(env => env.id === overEnvelopeId);
+        if (oldIndex !== -1 && newIndex !== -1) {
+          const newOrder = arrayMove(orderedCategories, oldIndex, newIndex);
+          updateCategoryOrder(newOrder); // Update context state and persistence
+        } else {
+          console.error(`Error during category drag end: Could not find category indices for IDs: "${activeIdStr}", "${overIdStr}"`, { orderedCategories });
+        }
+      } else {
+        // --- Envelope Reordering Logic (or invalid drag) ---
+        // This block is now an 'else', so it only runs if it's not a category-on-category drag.
+        const activeEnvelope = envelopes.find(env => env.id === activeIdStr);
+        const overEnvelope = envelopes.find(env => env.id === overIdStr);
 
-           if (activeEnvelopeIndex !== -1 && overEnvelopeIndex !== -1) {
-                // Envelopes are valid, check if they belong to the same category
-                const activeEnvelope = envelopes[activeEnvelopeIndex];
-                const overEnvelope = envelopes[overEnvelopeIndex];
+        if (activeEnvelope && overEnvelope) {
+          if (activeEnvelope.category === overEnvelope.category) {
+            // Envelopes are valid and in the same category, reorder them.
+            // updateEnvelopeOrder expects the full list of envelopes to re-calculate global orderIndex.
+            const activeEnvelopeGlobalIndex = envelopes.findIndex(env => env.id === activeEnvelope.id);
+            const overEnvelopeGlobalIndex = envelopes.findIndex(env => env.id === overEnvelope.id);
 
-                if (activeEnvelope.category === overEnvelope.category) {
-                    // Same category, reorder envelopes globally
-                    const reorderedEnvelopes = arrayMove(envelopes, activeEnvelopeIndex, overEnvelopeIndex);
-                    updateEnvelopeOrder(reorderedEnvelopes);
-                } else {
-                    // Dragging between categories is not supported by UI, ignore
-                    console.log("Attempted to drag envelope between different categories - ignored.");
-                }
-           } else {
-                // Should not happen if isActiveEnvelope/isOverEnvelope are true, but log just in case
-                console.error(`Error during envelope drag end: Could not find envelope indices for IDs: "${activeEnvelopeId}", "${overEnvelopeId}"`, { envelopes });
-           }
-       } else {
-           // Could be dragging a category over an envelope, or vice versa, or invalid IDs. Ignore these cases.
-           console.warn("Ignoring drag end event - mixed types or invalid IDs:", { activeId: active.id, overId: over.id });
-       }
+            if (activeEnvelopeGlobalIndex !== -1 && overEnvelopeGlobalIndex !== -1) {
+              const reorderedEnvelopes = arrayMove(envelopes, activeEnvelopeGlobalIndex, overEnvelopeGlobalIndex);
+              updateEnvelopeOrder(reorderedEnvelopes);
+            } else {
+              // This should ideally not happen if find succeeded earlier.
+              console.error(`Error during envelope drag end: Could not find global envelope indices for IDs: "${activeIdStr}", "${overIdStr}"`, { envelopes });
+            }
+          } else {
+            // Dragging an envelope to a different category.
+            // Current UI/setup doesn't directly support this reordering action, so we ignore.
+            console.log("Attempted to drag envelope between different categories - operation ignored.", { activeEnvelope, overEnvelope });
+          }
+        } else {
+          // Not category-on-category, and not envelope-on-envelope.
+          // Could be dragging a category over an envelope, or vice versa, or invalid IDs.
+          console.warn("Ignoring drag end event - mixed types, invalid IDs, or item not found:", { activeId: activeIdStr, overId: overIdStr });
+        }
+      }
+    } else if (over && active.id === over.id) {
+      // Item dropped on itself, no action.
+      console.log("Item dropped on itself, no reorder action taken.");
+    } else {
+      // `over` is null (dropped outside a valid target) or `active.id === over.id` was already handled.
+      // No action needed.
+      console.log("Drag ended outside a valid target or was cancelled.");
     }
-}
+  }
 
 
   return (
