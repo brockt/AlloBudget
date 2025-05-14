@@ -220,25 +220,56 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const metadataDocRef = getMetadataDocRef();
     if (!envelopesPath || !metadataDocRef) return;
 
-    const newEnvelopeData: Omit<Envelope, 'id'> = {
+    const { name, budgetAmount, category, estimatedAmount, dueDate } = envelopeData;
+
+    // Object to be saved to Firestore, conditionally including optional fields
+    const dataToSave: {
+      userId: string;
+      name: string;
+      budgetAmount: number;
+      category: string;
+      createdAt: string;
+      estimatedAmount?: number; // Optional field
+      dueDate?: number;       // Optional field
+    } = {
       userId: currentUser.uid,
-      ...envelopeData,
-      estimatedAmount: envelopeData.estimatedAmount ?? undefined,
-      dueDate: envelopeData.dueDate ?? undefined,
+      name,
+      budgetAmount,
+      category,
       createdAt: formatISO(startOfDay(new Date())),
     };
+
+    if (estimatedAmount !== undefined) {
+      dataToSave.estimatedAmount = estimatedAmount;
+    }
+    if (dueDate !== undefined) {
+      dataToSave.dueDate = dueDate;
+    }
+
     try {
       const docRef = doc(collection(db, envelopesPath));
-      await setDoc(docRef, newEnvelopeData);
-      const newEnvelopeWithId = { id: docRef.id, ...newEnvelopeData };
-      setEnvelopes(prev => [...prev, newEnvelopeWithId]); 
+      await setDoc(docRef, dataToSave); // Use the cleaned dataToSave object
+
+      // For local state, construct the full envelope object as per the Envelope type
+      const newEnvelopeWithId: Envelope = {
+        id: docRef.id,
+        userId: currentUser.uid,
+        name,
+        budgetAmount,
+        category,
+        createdAt: dataToSave.createdAt,
+        estimatedAmount: estimatedAmount, // Can be undefined, as per Envelope type
+        dueDate: dueDate,                 // Can be undefined, as per Envelope type
+      };
+      setEnvelopes(prev => [...prev, newEnvelopeWithId]);
 
       let updatedCategories = categories;
       let updatedOrderedCategories = orderedCategories;
-      if (!categories.some(cat => cat.toLowerCase() === newEnvelopeData.category.toLowerCase())) {
-        updatedCategories = [...categories, newEnvelopeData.category].sort((a, b) => a.localeCompare(b));
+      // Use category from the original envelopeData (guaranteed by schema)
+      if (!categories.some(cat => cat.toLowerCase() === envelopeData.category.toLowerCase())) {
+        updatedCategories = [...categories, envelopeData.category].sort((a, b) => a.localeCompare(b));
         setCategories(updatedCategories);
-        updatedOrderedCategories = [...orderedCategories, newEnvelopeData.category]; 
+        updatedOrderedCategories = [...orderedCategories, envelopeData.category];
         setOrderedCategories(updatedOrderedCategories);
       }
       await updateDoc(metadataDocRef, { categories: updatedCategories, orderedCategories: updatedOrderedCategories });
