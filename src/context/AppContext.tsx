@@ -1,4 +1,3 @@
-
 "use client";
 
 import type { ReactNode } from 'react';
@@ -31,6 +30,7 @@ const PAYEES_COLLECTION = 'payees';
 const APP_METADATA_COLLECTION = 'app_metadata';
 const APP_METADATA_DOC_ID = 'main';
 
+type PayeeWithOptionalCategory = Omit<Payee, 'id' | 'category'> & { category?: string };
 
 export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -462,15 +462,22 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const addPayee = async (payeeData: PayeeFormData) => {
     console.log("AppContext: Attempting to add payee:", payeeData.name);
-     if (!db) {
+    if (!db) {
       console.error("AppContext: Firestore db instance is not available for addPayee. Payee not saved.");
       return;
     }
-    const newPayeeData: Omit<Payee, 'id'> = {
+
+    const trimmedCategory = payeeData.category?.trim();
+
+    const newPayeeData: PayeeWithOptionalCategory = {
       name: payeeData.name,
-      category: payeeData.category?.trim() ? payeeData.category.trim() : undefined,
       createdAt: formatISO(new Date()),
     };
+
+    if (trimmedCategory) {
+      newPayeeData.category = trimmedCategory;
+    }
+
     try {
       const docRef = doc(collection(db, PAYEES_COLLECTION));
       await setDoc(docRef, newPayeeData);
