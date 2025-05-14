@@ -11,6 +11,8 @@ for (const key in process.env) {
   }
 }
 
+console.log("[firebase.ts] Value of process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID before use:", process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID);
+
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -22,8 +24,10 @@ const firebaseConfig = {
 };
 
 // Explicitly log the projectId and apiKey being used by the config
-console.log("[firebase.ts] Attempting to initialize Firebase with projectId:", firebaseConfig.projectId);
-console.log("[firebase.ts] Attempting to initialize Firebase with apiKey:", firebaseConfig.apiKey ? "********" : undefined); // Mask API key in logs
+console.log("[firebase.ts] Attempting to initialize Firebase with projectId from firebaseConfig:", firebaseConfig.projectId);
+console.log("[firebase.ts] Attempting to initialize Firebase with apiKey from firebaseConfig:", firebaseConfig.apiKey ? "********" : undefined); // Mask API key in logs
+console.log("[firebase.ts] firebaseConfig object constructed:", JSON.stringify(firebaseConfig, (key, value) => key === 'apiKey' ? '********' : value));
+
 
 if (!firebaseConfig.projectId) {
   console.error("[firebase.ts] CRITICAL: firebaseConfig.projectId is undefined or empty. Firebase will not initialize correctly.");
@@ -73,3 +77,4 @@ if (app) {
 }
 
 export { db, app };
+
