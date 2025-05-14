@@ -1,0 +1,46 @@
+env:
+  # Firebase API Key (from Secret Manager)
+  - variable: NEXT_PUBLIC_FIREBASE_API_KEY
+    secret: MY_APP_FIREBASE_API_KEY # This is the name of the secret you created
+    availability:
+      - BUILD
+      - RUNTIME
+
+  # Firebase Project ID
+  - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    value: "allobudget"
+    availability:
+      - BUILD
+      - RUNTIME
+
+  # Firebase Auth Domain
+  - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+    value: "allobudget.firebaseapp.com"
+    availability:
+      - BUILD
+      - RUNTIME
+
+  # Firebase Storage Bucket
+  - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+    value: "allobudget.appspot.com" # Corrected from firebasestorage.app based on typical config
+    availability:
+      - BUILD
+      - RUNTIME
+
+  # Firebase Messaging Sender ID
+  - variable: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+    value: "609455213437"
+    availability:
+      - BUILD
+      - RUNTIME
+
+  # Firebase App ID
+  - variable: NEXT_PUBLIC_FIREBASE_APP_ID
+    value: "1:609455213437:web:d5c02301bc857082509a14"
+    availability:
+      - BUILD
+      - RUNTIME
+
+# You can add other App Hosting configurations below if needed,
+# for example, runConfig for CPU/memory, or custom build/run commands.
+# See Firebase App Hosting documentation for more options.
