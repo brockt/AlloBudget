@@ -2,6 +2,15 @@
 import { initializeApp, getApps, type FirebaseApp } from "firebase/app";
 import { getFirestore, connectFirestoreEmulator } from "firebase/firestore";
 
+// Log all environment variables for debugging
+console.log('All environment variables available to firebase.ts:');
+for (const key in process.env) {
+  // Be cautious about logging sensitive variables in production
+  if (key.startsWith("NEXT_PUBLIC_")) { // Only log Next.js public variables for safety
+    console.log(`${key}: ${process.env[key]}`);
+  }
+}
+
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -9,6 +18,7 @@ const firebaseConfig = {
   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  // measurementId is intentionally removed as per previous user request
 };
 
 let app: FirebaseApp;
@@ -34,3 +44,4 @@ const db = getFirestore(app);
 // }
 
 export { db, app };
+
