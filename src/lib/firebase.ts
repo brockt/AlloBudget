@@ -1,6 +1,7 @@
 
 import { initializeApp, getApps, type FirebaseApp } from "firebase/app";
 import { getFirestore, connectFirestoreEmulator } from "firebase/firestore";
+import { getAuth } from "firebase/auth"; // Import getAuth
 
 // Log all environment variables for debugging
 console.log('All environment variables available to firebase.ts:');
@@ -20,7 +21,6 @@ const firebaseConfig = {
   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-  // measurementId is intentionally removed as per previous user request
 };
 
 // Explicitly log the projectId and apiKey being used by the config
@@ -37,6 +37,7 @@ if (!firebaseConfig.apiKey) {
 }
 
 let app: FirebaseApp | undefined; // Allow app to be undefined initially
+let auth; // Declare auth
 
 if (!getApps().length) {
   try {
@@ -62,6 +63,7 @@ let db;
 
 if (app) {
   db = getFirestore(app);
+  auth = getAuth(app); // Initialize auth if app exists
   // If you want to use the Firestore emulator during development, uncomment the following line:
   // if (process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATOR === 'true') {
   //   try {
@@ -76,5 +78,4 @@ if (app) {
   // db will remain undefined
 }
 
-export { db, app };
-
+export { db, app, auth }; // Export auth

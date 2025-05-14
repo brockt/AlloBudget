@@ -3,11 +3,47 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Allow read and write access to all collections for authenticated users.
-    // For production, you should restrict access more granularly.
-    // Example: match /users/{userId} { allow read, write: if request.auth != null && request.auth.uid == userId; }
+
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Helper function to check if the authenticated user matches the userId in the path
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Users collection (if you store user profiles - optional for now)
+    // match /users/{userId} {
+    //   allow read, write: if isOwner(userId);
+    // }
+
+    // User-specific data collections
+    match /users/{userId}/accounts/{accountId} {
+      allow read, write, delete: if isOwner(userId);
+    }
+
+    match /users/{userId}/envelopes/{envelopeId} {
+      allow read, write, delete: if isOwner(userId);
+    }
+
+    match /users/{userId}/transactions/{transactionId} {
+      allow read, write, delete: if isOwner(userId);
+    }
+
+    match /users/{userId}/payees/{payeeId} {
+      allow read, write, delete: if isOwner(userId);
+    }
+    
+    // User-specific app metadata (like categories order)
+    match /users/{userId}/app_metadata/{docId} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // Deny all other access by default for security
     match /{document=**} {
-      allow read, write: if request.auth != null;
+      allow read, write: if false;
     }
   }
 }
