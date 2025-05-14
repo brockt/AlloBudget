@@ -41,19 +41,27 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [lastModified, setLastModified] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (db && db.app && db.app.options) {
+      console.log("AppContext: Firebase App Initialized. Attempting to connect to Project ID:", db.app.options.projectId);
+    } else {
+      console.error("AppContext: Firebase db instance or db.app.options is not available. Firebase might not be initialized correctly.");
+    }
+  }, []);
+
   const updateLastModified = async () => {
+    console.log("AppContext: Attempting to update lastModified timestamp...");
     try {
       const metadataDocRef = doc(db, APP_METADATA_COLLECTION, APP_METADATA_DOC_ID);
-      // Ensure the document exists before trying to update it, or use setDoc with merge:true
       const docSnap = await getDoc(metadataDocRef);
       if (docSnap.exists()) {
         await updateDoc(metadataDocRef, { lastModified: serverTimestamp() });
       } else {
-        // If the doc doesn't exist, create it with the timestamp
         await setDoc(metadataDocRef, { lastModified: serverTimestamp() }, { merge: true });
       }
+      console.log("AppContext: Successfully updated lastModified timestamp.");
     } catch (error) {
-      console.error("Error updating lastModified timestamp in Firestore:", error);
+      console.error("AppContext: Error updating lastModified timestamp in Firestore:", error);
     }
   };
 
@@ -77,7 +85,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         const fetchedAccounts = accountsSnapshot.docs.map(d => ({ id: d.id, ...d.data() } as Account))
          .sort((a,b) => a.name.localeCompare(b.name));
         setAccounts(fetchedAccounts);
-        console.log("AppContext: Fetched accounts", fetchedAccounts.length);
+        console.log(`AppContext: Fetched ${fetchedAccounts.length} accounts.`);
 
         // Fetch Envelopes
         const envelopesSnapshot = await getDocs(collection(db, ENVELOPES_COLLECTION));
@@ -88,7 +96,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             dueDate: d.data().dueDate === null ? undefined : d.data().dueDate,
         } as Envelope));
         setEnvelopes(fetchedEnvelopes);
-        console.log("AppContext: Fetched envelopes", fetchedEnvelopes.length);
+        console.log(`AppContext: Fetched ${fetchedEnvelopes.length} envelopes.`);
 
 
         // Fetch Transactions (ordered by date descending)
@@ -102,7 +110,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             isTransfer: d.data().isTransfer === null ? undefined : d.data().isTransfer,
         } as Transaction));
         setTransactions(fetchedTransactions);
-        console.log("AppContext: Fetched transactions", fetchedTransactions.length);
+        console.log(`AppContext: Fetched ${fetchedTransactions.length} transactions.`);
 
         // Fetch Payees (ordered by name ascending)
         const payeesQuery = query(collection(db, PAYEES_COLLECTION), orderBy("name", "asc"));
@@ -113,14 +121,15 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             category: d.data().category === null ? undefined : d.data().category,
         } as Payee));
         setPayees(fetchedPayees);
-        console.log("AppContext: Fetched payees", fetchedPayees.length);
+        console.log(`AppContext: Fetched ${fetchedPayees.length} payees.`);
 
         // Fetch App Metadata (Categories, OrderedCategories, LastModified)
         const metadataDocRef = doc(db, APP_METADATA_COLLECTION, APP_METADATA_DOC_ID);
+        console.log("AppContext: Attempting to fetch app metadata...");
         const metadataDocSnap = await getDoc(metadataDocRef);
-        console.log("AppContext: Fetched app metadata exists:", metadataDocSnap.exists());
-
+        
         if (metadataDocSnap.exists()) {
+          console.log("AppContext: App metadata document found.");
           const metadata = metadataDocSnap.data();
           setCategories(Array.isArray(metadata.categories) ? metadata.categories : deriveCategoriesFromEnvelopes(fetchedEnvelopes));
           setOrderedCategories(Array.isArray(metadata.orderedCategories) ? metadata.orderedCategories : (Array.isArray(metadata.categories) ? metadata.categories : deriveCategoriesFromEnvelopes(fetchedEnvelopes)));
@@ -128,15 +137,16 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           const lm = metadata.lastModified;
           if (lm && lm instanceof Timestamp) {
             setLastModified(formatISO(lm.toDate()));
-          } else if (typeof lm === 'string') { // Fallback for older string format if any
+            console.log("AppContext: LastModified (Timestamp):", formatISO(lm.toDate()));
+          } else if (typeof lm === 'string') { 
             setLastModified(lm);
+            console.log("AppContext: LastModified (string):", lm);
           } else {
              setLastModified(null);
+             console.log("AppContext: LastModified not found or invalid format.");
           }
-          console.log("AppContext: App metadata loaded.", {categories: metadata.categories, orderedCategories: metadata.orderedCategories, lastModified: lm});
         } else {
-          // Initialize metadata if it doesn't exist
-          console.log("AppContext: App metadata not found, initializing...");
+          console.log("AppContext: App metadata document not found. Initializing...");
           const initialCategories = deriveCategoriesFromEnvelopes(fetchedEnvelopes);
           setCategories(initialCategories);
           setOrderedCategories(initialCategories);
@@ -148,9 +158,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           });
           console.log("AppContext: Initialized app metadata in Firestore.");
         }
-
+        console.log("AppContext: Data fetching successful.");
       } catch (error) {
-        console.error("AppContext: Critical error during fetchData from Firestore:", error);
+        console.error("AppContext: CRITICAL ERROR during fetchData from Firestore:", error);
         if (error instanceof Error) {
           console.error("AppContext: Error name:", error.name);
           console.error("AppContext: Error message:", error.message);
@@ -177,6 +187,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
 
   const addAccount = async (accountData: AccountFormData) => {
+    console.log("AppContext: Attempting to add account:", accountData.name);
     const newAccount: Omit<Account, 'id'> = {
       ...accountData,
       createdAt: formatISO(new Date()),
@@ -184,18 +195,21 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     try {
       const docRef = doc(collection(db, ACCOUNTS_COLLECTION));
       await setDoc(docRef, newAccount);
+      console.log("AppContext: Successfully added account to Firestore:", docRef.id);
       setAccounts(prev => [...prev, { id: docRef.id, ...newAccount }].sort((a,b)=>a.name.localeCompare(b.name)));
       await updateLastModified();
     } catch (error) {
-      console.error("Error adding account to Firestore:", error);
+      console.error("AppContext: Error adding account to Firestore:", error, "Data:", newAccount);
     }
   };
 
   const updateAccount = async (accountData: AccountWithId) => {
+    console.log("AppContext: Attempting to update account:", accountData.id);
     const { id, ...dataToUpdate } = accountData;
     try {
       const accountDocRef = doc(db, ACCOUNTS_COLLECTION, id);
       await updateDoc(accountDocRef, dataToUpdate);
+      console.log("AppContext: Successfully updated account in Firestore:", id);
       setAccounts(prevAccounts =>
         prevAccounts.map(acc =>
           acc.id === id ? { ...acc, ...dataToUpdate } : acc
@@ -203,11 +217,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       );
       await updateLastModified();
     } catch (error) {
-      console.error("Error updating account in Firestore:", error);
+      console.error("AppContext: Error updating account in Firestore:", error, "Data:", dataToUpdate);
     }
   };
 
   const addEnvelope = async (envelopeData: EnvelopeFormData) => {
+    console.log("AppContext: Attempting to add envelope:", envelopeData.name);
     const newEnvelopeData: Omit<Envelope, 'id'> = {
       name: envelopeData.name,
       budgetAmount: envelopeData.budgetAmount,
@@ -220,6 +235,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       const docRef = doc(collection(db, ENVELOPES_COLLECTION));
       await setDoc(docRef, newEnvelopeData);
       const newEnvelopeWithId = { id: docRef.id, ...newEnvelopeData };
+      console.log("AppContext: Successfully added envelope to Firestore:", docRef.id);
       setEnvelopes(prev => [...prev, newEnvelopeWithId]); 
 
       let updatedCategories = categories;
@@ -239,11 +255,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       });
       await updateLastModified();
     } catch (error) {
-      console.error("Error adding envelope to Firestore:", error);
+      console.error("AppContext: Error adding envelope to Firestore:", error, "Data:", newEnvelopeData);
     }
   };
 
   const updateEnvelope = async (envelopeData: Partial<Envelope> & { id: string }) => {
+    console.log("AppContext: Attempting to update envelope:", envelopeData.id);
     const { id, ...dataToUpdate } = envelopeData;
      const cleanDataToUpdate = {
         ...dataToUpdate,
@@ -254,6 +271,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     try {
       const envelopeDocRef = doc(db, ENVELOPES_COLLECTION, id);
       await updateDoc(envelopeDocRef, cleanDataToUpdate);
+      console.log("AppContext: Successfully updated envelope in Firestore:", id);
       
       let oldCategory: string | undefined;
       let newCategory: string | undefined = cleanDataToUpdate.category;
@@ -285,50 +303,59 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                 }
             });
             const metadataDocRef = doc(db, APP_METADATA_COLLECTION, APP_METADATA_DOC_ID);
+            console.log("AppContext: Attempting to update categories/orderedCategories in metadata for envelope update.");
             updateDoc(metadataDocRef, { categories: currentDerivedCategories, orderedCategories: newOrdered })
-                .catch(err => console.error("Error updating categories in Firestore after envelope update:", err));
+                .then(() => console.log("AppContext: Successfully updated categories/orderedCategories in metadata."))
+                .catch(err => console.error("AppContext: Error updating categories/orderedCategories in Firestore after envelope update:", err));
             return newOrdered;
         });
         return updatedEnvelopes;
       });
       await updateLastModified();
     } catch (error) {
-      console.error("Error updating envelope in Firestore:", error);
+      console.error("AppContext: Error updating envelope in Firestore:", error, "Data:", cleanDataToUpdate);
     }
   };
 
   const updateEnvelopeOrder = async (reorderedEnvelopes: Envelope[]) => {
+    // This primarily updates local state. True persistence of order for all users is complex.
+    console.log("AppContext: Updating local envelope order.");
     setEnvelopes(reorderedEnvelopes); 
-    console.warn("updateEnvelopeOrder currently only updates local state. Full persistence of drag-and-drop order to Firestore is more complex.");
-    await updateLastModified(); 
+    // Consider if a 'lastModified' for envelope display order is needed,
+    // or if global order is persisted more robustly (e.g., an 'orderIndex' field on envelopes).
+    // For now, this relies on client-side sorting or fetching in a specific order if supported.
+    // await updateLastModified(); // Potentially call if this change should signify a data mod.
   };
 
   const updateCategoryOrder = async (newOrder: string[]) => {
+    console.log("AppContext: Attempting to update category order to:", newOrder);
     const currentCategorySet = new Set(categories);
     const newOrderSet = new Set(newOrder);
 
     if (currentCategorySet.size !== newOrderSet.size || ![...currentCategorySet].every(cat => newOrderSet.has(cat))) {
-        console.error("Category order update failed: Mismatched categories.");
+        console.error("AppContext: Category order update failed: Mismatched categories. Current:", categories, "New:", newOrder);
         return;
     }
     try {
       const metadataDocRef = doc(db, APP_METADATA_COLLECTION, APP_METADATA_DOC_ID);
       await updateDoc(metadataDocRef, { orderedCategories: newOrder });
+      console.log("AppContext: Successfully updated category order in Firestore.");
       setOrderedCategories(newOrder);
       await updateLastModified();
     } catch (error) {
-      console.error("Error updating category order in Firestore:", error);
+      console.error("AppContext: Error updating category order in Firestore:", error);
     }
   };
 
   const addTransaction = useCallback(async (transactionData: TransactionFormData) => {
+    console.log("AppContext: Attempting to add transaction for amount:", transactionData.amount);
     if (!transactionData.payeeId) {
-      console.error("Cannot add transaction without a payee ID.");
+      console.error("AppContext: Cannot add transaction without a payee ID.");
       return;
     }
     const parsedDate = transactionData.date ? parseISO(transactionData.date) : null;
     if (!parsedDate || !isValid(parsedDate)) {
-        console.error("Invalid date provided for transaction:", transactionData.date);
+        console.error("AppContext: Invalid date provided for transaction:", transactionData.date);
         return;
     }
 
@@ -346,27 +373,29 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     try {
       const docRef = doc(collection(db, TRANSACTIONS_COLLECTION));
       await setDoc(docRef, newTransactionData);
+      console.log("AppContext: Successfully added transaction to Firestore:", docRef.id);
       setTransactions(prev => [...prev, {id: docRef.id, ...newTransactionData}].sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime()));
       await updateLastModified();
     } catch (error) {
-      console.error("Error adding transaction to Firestore:", error);
+      console.error("AppContext: Error adding transaction to Firestore:", error, "Data:", newTransactionData);
     }
   }, []);
 
 
   const updateTransaction = useCallback(async (transactionData: TransactionWithId) => {
+    console.log("AppContext: Attempting to update transaction:", transactionData.id);
     const { id, ...dataToUpdate } = transactionData;
     if (!id) {
-        console.error("Cannot update transaction without an ID.");
+        console.error("AppContext: Cannot update transaction without an ID.");
         return;
     }
     if (!dataToUpdate.payeeId) {
-        console.error("Cannot update transaction without a payee ID.");
+        console.error("AppContext: Cannot update transaction without a payee ID.");
         return;
     }
     const parsedDate = dataToUpdate.date ? parseISO(dataToUpdate.date) : null;
     if (!parsedDate || !isValid(parsedDate)) {
-        console.error("Invalid date provided for transaction update:", dataToUpdate.date);
+        console.error("AppContext: Invalid date provided for transaction update:", dataToUpdate.date);
         return;
     }
 
@@ -381,10 +410,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     
     Object.keys(cleanedData).forEach(key => cleanedData[key as keyof typeof cleanedData] === undefined && delete cleanedData[key as keyof typeof cleanedData]);
 
-
     try {
       const transactionDocRef = doc(db, TRANSACTIONS_COLLECTION, id);
       await updateDoc(transactionDocRef, cleanedData);
+      console.log("AppContext: Successfully updated transaction in Firestore:", id);
       setTransactions(prev =>
         prev.map(tx =>
           tx.id === id ? { ...tx, ...cleanedData } : tx
@@ -392,11 +421,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       );
       await updateLastModified();
     } catch (error) {
-      console.error("Error updating transaction in Firestore:", error);
+      console.error("AppContext: Error updating transaction in Firestore:", error, "Data:", cleanedData);
     }
   }, []);
 
   const addPayee = async (payeeData: PayeeFormData) => {
+    console.log("AppContext: Attempting to add payee:", payeeData.name);
     const newPayeeData: Omit<Payee, 'id'> = {
       name: payeeData.name,
       category: payeeData.category?.trim() ? payeeData.category.trim() : undefined,
@@ -405,14 +435,16 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     try {
       const docRef = doc(collection(db, PAYEES_COLLECTION));
       await setDoc(docRef, newPayeeData);
+      console.log("AppContext: Successfully added payee to Firestore:", docRef.id);
       setPayees(prev => [...prev, { id: docRef.id, ...newPayeeData }].sort((a,b)=>a.name.localeCompare(b.name)));
       await updateLastModified();
     } catch (error) {
-      console.error("Error adding payee to Firestore:", error);
+      console.error("AppContext: Error adding payee to Firestore:", error, "Data:", newPayeeData);
     }
   };
 
   const updatePayee = useCallback(async (payeeData: PayeeWithId) => {
+    console.log("AppContext: Attempting to update payee:", payeeData.id);
     const { id, ...dataToUpdate } = payeeData;
      const cleanedData = {
         name: dataToUpdate.name,
@@ -421,6 +453,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     try {
       const payeeDocRef = doc(db, PAYEES_COLLECTION, id);
       await updateDoc(payeeDocRef, cleanedData);
+      console.log("AppContext: Successfully updated payee in Firestore:", id);
       setPayees(prevPayees =>
         prevPayees.map(payee =>
           payee.id === id ? { ...payee, ...cleanedData } : payee
@@ -428,13 +461,17 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       );
       await updateLastModified();
     } catch (error) {
-      console.error("Error updating payee in Firestore:", error);
+      console.error("AppContext: Error updating payee in Firestore:", error, "Data:", cleanedData);
     }
   }, []);
 
   const addCategory = async (categoryName: string) => {
+    console.log("AppContext: Attempting to add category:", categoryName);
     const trimmedName = categoryName.trim();
-    if (trimmedName.length === 0) return;
+    if (trimmedName.length === 0) {
+      console.warn("AppContext: Attempted to add empty category name.");
+      return;
+    }
 
     if (!categories.some(cat => cat.toLowerCase() === trimmedName.toLowerCase())) {
         const newCategories = [...categories, trimmedName].sort((a,b)=>a.localeCompare(b));
@@ -446,40 +483,49 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                 categories: newCategories,
                 orderedCategories: newOrderedCategories,
             });
+            console.log("AppContext: Successfully added category to Firestore and metadata.");
             setCategories(newCategories);
             setOrderedCategories(newOrderedCategories);
             await updateLastModified();
         } catch (error) {
-            console.error("Error adding category to Firestore:", error);
+            console.error("AppContext: Error adding category to Firestore metadata:", error);
         }
     } else {
-        console.warn(`Category "${trimmedName}" already exists.`);
+        console.warn(`AppContext: Category "${trimmedName}" already exists.`);
     }
   };
 
   const deleteTransaction = async (transactionId: string) => {
+    console.log("AppContext: Attempting to delete transaction:", transactionId);
     try {
       await deleteDoc(doc(db, TRANSACTIONS_COLLECTION, transactionId));
+      console.log("AppContext: Successfully deleted transaction from Firestore:", transactionId);
       setTransactions(prev => prev.filter(t => t.id !== transactionId));
       await updateLastModified();
     } catch (error) {
-      console.error("Error deleting transaction from Firestore:", error);
+      console.error("AppContext: Error deleting transaction from Firestore:", error);
     }
   };
 
   const deleteEnvelope = useCallback(async (envelopeId: string) => {
+    console.log("AppContext: Attempting to delete envelope:", envelopeId);
     const envelopeToDelete = envelopes.find(env => env.id === envelopeId);
-    if (!envelopeToDelete) return;
+    if (!envelopeToDelete) {
+      console.warn("AppContext: Envelope to delete not found:", envelopeId);
+      return;
+    }
 
     try {
       const batch = writeBatch(db);
       const envelopeDocRef = doc(db, ENVELOPES_COLLECTION, envelopeId);
       batch.delete(envelopeDocRef);
+      console.log("AppContext: Envelope added to batch for deletion:", envelopeId);
 
       const relatedTransactions = transactions.filter(tx => tx.envelopeId === envelopeId);
       relatedTransactions.forEach(tx => {
         const txDocRef = doc(db, TRANSACTIONS_COLLECTION, tx.id);
         batch.update(txDocRef, { envelopeId: null }); 
+        console.log("AppContext: Transaction updated in batch (envelopeId set to null):", tx.id);
       });
       
       const updatedEnvelopes = envelopes.filter(env => env.id !== envelopeId);
@@ -499,8 +545,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         categories: remainingCategories,
         orderedCategories: newOrderedCategories,
       });
+      console.log("AppContext: Metadata update added to batch (categories, orderedCategories).");
 
       await batch.commit();
+      console.log("AppContext: Batch commit successful for envelope deletion.");
 
       setEnvelopes(updatedEnvelopes);
       setTransactions(prev => prev.map(tx => tx.envelopeId === envelopeId ? { ...tx, envelopeId: undefined } : tx ));
@@ -508,25 +556,26 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       setOrderedCategories(newOrderedCategories);
       await updateLastModified();
     } catch (error) {
-      console.error("Error deleting envelope and updating transactions in Firestore:", error);
+      console.error("AppContext: Error deleting envelope and updating transactions in Firestore:", error);
     }
   }, [envelopes, transactions, categories, orderedCategories]);
 
 
   const transferBetweenEnvelopes = useCallback(async (data: TransferEnvelopeFundsFormData) => {
+    console.log("AppContext: Attempting to transfer funds between envelopes:", data.fromEnvelopeId, "->", data.toEnvelopeId);
     const { fromEnvelopeId, toEnvelopeId, amount, accountId, date, description } = data;
     const fromEnvelope = envelopes.find(e => e.id === fromEnvelopeId);
     const toEnvelope = envelopes.find(e => e.id === toEnvelopeId);
 
     if (!fromEnvelope || !toEnvelope) {
-      console.error("Invalid source or destination envelope for transfer.");
+      console.error("AppContext: Invalid source or destination envelope for transfer.");
       return;
     }
 
     let internalTransferPayee = payees.find(p => p.name === "Internal Budget Transfer");
     if (!internalTransferPayee) {
-        // const newPayeeId = crypto.randomUUID(); // crypto.randomUUID is not available in all environments
-        const payeeDocRef = doc(collection(db, PAYEES_COLLECTION)); // Let Firestore generate ID
+        console.log("AppContext: 'Internal Budget Transfer' payee not found, creating...");
+        const payeeDocRef = doc(collection(db, PAYEES_COLLECTION)); 
         const newPayeeData: Omit<Payee, 'id'> = {
             name: "Internal Budget Transfer",
             createdAt: formatISO(new Date()),
@@ -534,6 +583,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         await setDoc(payeeDocRef, newPayeeData);
         internalTransferPayee = {id: payeeDocRef.id, ...newPayeeData};
         setPayees(prev => [...prev, internalTransferPayee!].sort((a, b) => a.name.localeCompare(b.name)));
+        console.log("AppContext: 'Internal Budget Transfer' payee created:", internalTransferPayee.id);
     }
 
     const expenseTxData: TransactionFormData = {
@@ -545,24 +595,29 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       description: description || `Transfer from ${fromEnvelope.name}`, date, isTransfer: false, 
     };
     
+    console.log("AppContext: Adding expense transaction for envelope transfer...");
     await addTransaction(expenseTxData);
+    console.log("AppContext: Adding income transaction for envelope transfer...");
     await addTransaction(incomeTxData);
+    console.log("AppContext: Envelope transfer transactions successfully added.");
   }, [addTransaction, envelopes, payees]);
 
 
   const transferBetweenAccounts = useCallback(async (data: TransferAccountFundsFormData) => {
+    console.log("AppContext: Attempting to transfer funds between accounts:", data.fromAccountId, "->", data.toAccountId);
     const { fromAccountId, toAccountId, amount, date, description } = data;
     const fromAccount = accounts.find(acc => acc.id === fromAccountId);
     const toAccount = accounts.find(acc => acc.id === toAccountId);
 
     if (!fromAccount || !toAccount) {
-        console.error("Invalid source or destination account for transfer.");
+        console.error("AppContext: Invalid source or destination account for transfer.");
         return;
     }
 
     let internalTransferPayee = payees.find(p => p.name === "Internal Account Transfer");
      if (!internalTransferPayee) {
-        const payeeDocRef = doc(collection(db, PAYEES_COLLECTION)); // Let Firestore generate ID
+        console.log("AppContext: 'Internal Account Transfer' payee not found, creating...");
+        const payeeDocRef = doc(collection(db, PAYEES_COLLECTION)); 
         const newPayeeData: Omit<Payee, 'id'> = {
             name: "Internal Account Transfer",
             createdAt: formatISO(new Date()),
@@ -570,6 +625,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         await setDoc(payeeDocRef, newPayeeData);
         internalTransferPayee = {id: payeeDocRef.id, ...newPayeeData};
         setPayees(prev => [...prev, internalTransferPayee!].sort((a, b) => a.name.localeCompare(b.name)));
+        console.log("AppContext: 'Internal Account Transfer' payee created:", internalTransferPayee.id);
     }
 
     const expenseTxData: TransactionFormData = {
@@ -580,8 +636,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         accountId: toAccountId, envelopeId: null, payeeId: internalTransferPayee.id, amount, type: 'income',
         description: description || `Transfer from ${fromAccount.name}`, date, isTransfer: true,
     };
+
+    console.log("AppContext: Adding expense transaction for account transfer...");
     await addTransaction(expenseTxData);
+    console.log("AppContext: Adding income transaction for account transfer...");
     await addTransaction(incomeTxData);
+    console.log("AppContext: Account transfer transactions successfully added.");
   }, [addTransaction, accounts, payees]);
 
 
@@ -625,9 +685,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     if (!isValid(creationDate)) return 0;
 
     const currentDate = new Date();
-    if (creationDate > currentDate) return 0; // Envelope not active yet
+    if (creationDate > currentDate) return 0; 
     
-    // Calculate total months active, ensuring it's at least 1 if created this month
     const monthsActive = differenceInCalendarMonths(currentDate, startOfDay(creationDate)) + 1;
     if (monthsActive <= 0 || isNaN(monthsActive)) return 0;
 
@@ -638,15 +697,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const relevantTransactions = transactions.filter(tx => {
         if (tx.envelopeId !== envelopeId) return false;
         const txDate = parseISO(tx.date);
-        // Only consider transactions on or after the envelope creation date
         return isValid(txDate) && txDate >= startOfDay(creationDate);
     });
 
     const transfersIn = relevantTransactions
-      .filter(tx => tx.type === 'income') // These are typically transfers *into* the envelope
+      .filter(tx => tx.type === 'income') 
       .reduce((sum, tx) => (sum + (typeof tx.amount === 'number' && !isNaN(tx.amount) ? tx.amount : 0)), 0);
     const spendingAndTransfersOut = relevantTransactions
-      .filter(tx => tx.type === 'expense') // Actual expenses or transfers *out* of the envelope
+      .filter(tx => tx.type === 'expense') 
       .reduce((sum, tx) => (sum + (typeof tx.amount === 'number' && !isNaN(tx.amount) ? tx.amount : 0)), 0);
 
     const balance = initialBudgetFunding + transfersIn - spendingAndTransfersOut;
