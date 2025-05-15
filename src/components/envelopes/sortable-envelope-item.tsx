@@ -7,7 +7,7 @@ import { CSS } from '@dnd-kit/utilities';
 import type { Envelope } from '@/types';
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input"; // Import Input
+import { Input } from "@/components/ui/input"; 
 import { Pencil, GripVertical, CalendarClock, Trash2, Save, XCircle } from 'lucide-react';
 import { useAppContext } from "@/context/AppContext";
 import { format, parseISO } from "date-fns";
@@ -24,7 +24,7 @@ interface SortableEnvelopeItemProps {
   id: string;
   envelope: Envelope;
   onEditClick: (event: React.MouseEvent) => void;
-  currentViewMonth: Date; // Added prop
+  currentViewMonth: Date; 
 }
 
 function getDaySuffix(day: number): string {
@@ -35,21 +35,32 @@ function getDaySuffix(day: number): string {
 }
 
 export function SortableEnvelopeItem({ id, envelope, onEditClick, currentViewMonth }: SortableEnvelopeItemProps) {
-  const { getEnvelopeSpending, getEnvelopeBalanceAsOfEOM, deleteEnvelope, setMonthlyAllocation, getMonthlyAllocation } = useAppContext();
+  const { 
+    getEnvelopeSpending, 
+    getEnvelopeBalanceAsOfEOM, 
+    deleteEnvelope, 
+    setMonthlyAllocation, 
+    getMonthlyAllocation,
+    getEffectiveMonthlyBudgetWithRollover // Get the new function
+  } = useAppContext();
   const { toast } = useToast();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: id });
 
   const [isEditingMonthlyBudget, setIsEditingMonthlyBudget] = useState(false);
   const [monthlyBudgetValue, setMonthlyBudgetValue] = useState<string>("");
 
-  const allocatedThisMonth = getMonthlyAllocation(envelope.id, currentViewMonth);
+  // Use getMonthlyAllocation for the specific amount set for *this* month (for the input field)
+  const specificAllocationForThisMonth = getMonthlyAllocation(envelope.id, currentViewMonth);
+  // Use getEffectiveMonthlyBudgetWithRollover for display and progress bar (includes rollover)
+  const effectiveBudgetForThisMonth = getEffectiveMonthlyBudgetWithRollover(envelope.id, currentViewMonth);
+  
   const spentThisMonth = getEnvelopeSpending(envelope.id, currentViewMonth);
   const availableBalance = getEnvelopeBalanceAsOfEOM(envelope.id, currentViewMonth);
   
   useEffect(() => {
-    // When currentViewMonth or allocatedThisMonth changes, update the input field's initial value
-    setMonthlyBudgetValue(allocatedThisMonth.toFixed(2));
-  }, [allocatedThisMonth, currentViewMonth]);
+    // Input field should be initialized with the specific allocation for the current month, not the rolled-over amount.
+    setMonthlyBudgetValue(specificAllocationForThisMonth.toFixed(2));
+  }, [specificAllocationForThisMonth, currentViewMonth]);
 
 
   const style = {
@@ -57,8 +68,8 @@ export function SortableEnvelopeItem({ id, envelope, onEditClick, currentViewMon
     opacity: isDragging ? 0.5 : 1, zIndex: isDragging ? 10 : 'auto',
   };
 
-  const effectiveBudgetAllocation = isEditingMonthlyBudget ? parseFloat(monthlyBudgetValue) || 0 : allocatedThisMonth;
-  const progress = effectiveBudgetAllocation > 0 ? (spentThisMonth / effectiveBudgetAllocation) * 100 : 0;
+  // Progress bar should be based on the effective budget for the month (which includes rollover)
+  const progress = effectiveBudgetForThisMonth > 0 ? (spentThisMonth / effectiveBudgetForThisMonth) * 100 : 0;
   const dueDateString = envelope.dueDate ? `${envelope.dueDate}${getDaySuffix(envelope.dueDate)}` : '';
   const hasEstimatedAmount = typeof envelope.estimatedAmount === 'number' && !isNaN(envelope.estimatedAmount);
 
@@ -79,10 +90,11 @@ export function SortableEnvelopeItem({ id, envelope, onEditClick, currentViewMon
 
   const handleMonthlyBudgetEditToggle = (e: React.MouseEvent) => {
     e.stopPropagation(); e.preventDefault();
-    if (isEditingMonthlyBudget) { // If was editing, try to save
+    if (isEditingMonthlyBudget) { 
       handleSaveMonthlyBudget();
     } else {
-      setMonthlyBudgetValue(allocatedThisMonth.toFixed(2)); // Initialize with current allocation
+      // Initialize input with the specific allocation for *this* month
+      setMonthlyBudgetValue(specificAllocationForThisMonth.toFixed(2)); 
     }
     setIsEditingMonthlyBudget(!isEditingMonthlyBudget);
   };
@@ -90,7 +102,7 @@ export function SortableEnvelopeItem({ id, envelope, onEditClick, currentViewMon
   const handleCancelMonthlyBudgetEdit = (e: React.MouseEvent) => {
     e.stopPropagation(); e.preventDefault();
     setIsEditingMonthlyBudget(false);
-    setMonthlyBudgetValue(allocatedThisMonth.toFixed(2)); // Reset to original on cancel
+    setMonthlyBudgetValue(specificAllocationForThisMonth.toFixed(2)); 
   };
 
   const handleSaveMonthlyBudget = async () => {
@@ -100,9 +112,10 @@ export function SortableEnvelopeItem({ id, envelope, onEditClick, currentViewMon
       return;
     }
     try {
+      // setMonthlyAllocation sets the specific budget for *this* month, without rollover logic here.
       await setMonthlyAllocation(envelope.id, format(currentViewMonth, "yyyy-MM"), amount);
       toast({ title: "Monthly Budget Updated", description: `Budget for ${envelope.name} for ${format(currentViewMonth, "MMMM yyyy")} set to $${amount.toFixed(2)}.` });
-      setIsEditingMonthlyBudget(false); // Exit edit mode on successful save
+      setIsEditingMonthlyBudget(false); 
     } catch (error) {
       toast({ title: "Error", description: "Failed to update monthly budget.", variant: "destructive"});
       console.error("Failed to save monthly budget:", error);
@@ -149,16 +162,18 @@ export function SortableEnvelopeItem({ id, envelope, onEditClick, currentViewMon
                     </div>
                 </div>
               </Link>
+              {/* Progress bar based on effective budget (allocation + rollover) */}
               <Progress value={Math.min(progress, 100)} className="h-2 mt-1" />
               <div className="flex justify-between items-center text-xs text-muted-foreground mt-1">
                 <span>Spent: ${spentThisMonth.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 <div className="flex items-center gap-1">
-                  <span>Budgeted ({format(currentViewMonth, "MMM")}):</span>
+                  {/* Display effective budget (allocation + rollover) */}
+                  <span>Budgeted ({format(currentViewMonth, "MMM")}): ${effectiveBudgetForThisMonth.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   {isEditingMonthlyBudget ? (
                     <>
                       <Input
                         type="number"
-                        value={monthlyBudgetValue}
+                        value={monthlyBudgetValue} // Input binds to specific allocation for the month
                         onChange={(e) => setMonthlyBudgetValue(e.target.value)}
                         onClick={(e) => e.stopPropagation()} 
                         onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSaveMonthlyBudget();}}}
@@ -174,7 +189,7 @@ export function SortableEnvelopeItem({ id, envelope, onEditClick, currentViewMon
                     </>
                   ) : (
                     <>
-                      <span>${allocatedThisMonth.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      {/* Pencil icon to edit the specific allocation for *this* month */}
                       <Button variant="ghost" size="icon" className="h-5 w-5 text-muted-foreground hover:text-primary" onClick={handleMonthlyBudgetEditToggle} aria-label="Edit monthly budget">
                         <Pencil className="h-3 w-3" />
                       </Button>

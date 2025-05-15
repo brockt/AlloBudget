@@ -117,16 +117,15 @@ export interface AppContextType {
   orderedCategories: string[];
   lastModified: string | null;
   
-  // New state for monthly budgets and view month
   monthlyEnvelopeBudgets: MonthlyEnvelopeBudget[];
-  currentViewMonth: Date; // Represents the first day of the month being viewed
+  currentViewMonth: Date;
   setCurrentViewMonth: (updater: (date: Date) => Date) => void;
   setMonthlyAllocation: (envelopeId: string, month: string, amount: number) => Promise<void>;
 
   addAccount: (accountData: AccountFormData) => void;
   updateAccount: (accountData: AccountWithId) => void;
   addEnvelope: (envelopeData: EnvelopeFormData) => void;
-  addTransaction: (transactionData: TransactionFormData) => void;
+  addTransaction: (transactionData: TransactionFormData) => Promise<void>;
   updateTransaction: (transactionData: TransactionWithId) => void;
   addPayee: (payeeData: PayeeFormData) => void;
   updatePayee: (payeeData: PayeeWithId) => void;
@@ -135,7 +134,7 @@ export interface AppContextType {
   updateEnvelope: (envelopeData: Partial<Envelope> & { id: string }) => void;
   updateEnvelopeOrder: (reorderedEnvelopes: Envelope[]) => void;
   deleteTransaction: (transactionId: string) => void;
-  deleteEnvelope: (envelopeId: string) => void;
+  deleteEnvelope: (envelopeId: string) => Promise<void>;
   transferBetweenEnvelopes: (data: TransferEnvelopeFundsFormData) => void;
   transferBetweenAccounts: (data: TransferAccountFundsFormData) => void;
   
@@ -143,15 +142,15 @@ export interface AppContextType {
   getAccountById: (accountId: string) => Account | undefined;
   getEnvelopeById: (envelopeId: string) => Envelope | undefined;
   
-  // Modified and new calculation functions
   getEnvelopeSpending: (envelopeId: string, forMonth: Date) => number;
-  getEnvelopeBalanceAsOfEOM: (envelopeId: string, asOfEOM: Date) => number; // New
-  getMonthlyAllocation: (envelopeId: string, forMonth: Date) => number; // New
+  getEnvelopeBalanceAsOfEOM: (envelopeId: string, asOfEOM: Date) => number;
+  getMonthlyAllocation: (envelopeId: string, forMonth: Date) => number;
+  getEffectiveMonthlyBudgetWithRollover: (envelopeId: string, forMonth: Date) => number; // New function
 
-  getMonthlyIncomeTotal: (forMonth: Date) => number; // Parameterized
-  getMonthlySpendingTotal: (forMonth: Date) => number; // Parameterized
-  getTotalMonthlyBudgeted: (forMonth: Date) => number; // Parameterized
-  getYtdIncomeTotal: () => number; // Stays same
+  getMonthlyIncomeTotal: (forMonth: Date) => number;
+  getMonthlySpendingTotal: (forMonth: Date) => number;
+  getTotalMonthlyBudgeted: (forMonth: Date) => number; // This will be sum of getMonthlyAllocation
+  getYtdIncomeTotal: () => number;
   
   isLoading: boolean;
 }

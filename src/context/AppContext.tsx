@@ -22,7 +22,7 @@ import {
   getDoc,
   deleteField,
   where,
-  WriteBatch, // Import WriteBatch type
+  WriteBatch, 
   FieldValue,
 } from 'firebase/firestore';
 
@@ -32,9 +32,9 @@ const ACCOUNTS_COLLECTION = 'accounts';
 const ENVELOPES_COLLECTION = 'envelopes';
 const TRANSACTIONS_COLLECTION = 'transactions';
 const PAYEES_COLLECTION = 'payees';
-const APP_METADATA_COLLECTION = 'app_metadata'; // User-specific metadata parent collection
+const APP_METADATA_COLLECTION = 'app_metadata'; 
 const MONTHLY_BUDGETS_COLLECTION = 'monthlyBudgets';
-const APP_METADATA_DOC_ID = 'main'; // Document ID within users/{userId}/app_metadata/
+const APP_METADATA_DOC_ID = 'main'; 
 
 export const AppProvider = ({ children }: { children: ReactNode }) => {
   const { currentUser } = useAuth();
@@ -63,7 +63,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const getMetadataDocRef = useCallback(() => {
     if (!currentUser) return null;
     return doc(db, `users/${currentUser.uid}/${APP_METADATA_COLLECTION}`, APP_METADATA_DOC_ID);
-  }, [currentUser, APP_METADATA_COLLECTION, APP_METADATA_DOC_ID]);
+  }, [currentUser]);
 
   const updateLastModified = useCallback(async (batch?: WriteBatch) => {
     if (!db || !currentUser) return;
@@ -77,7 +77,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [currentUser, getMetadataDocRef]);
 
-  const persistCategoryChanges = useCallback(async (
+ const persistCategoryChanges = useCallback(async (
     newCategories: string[],
     newOrderedCategories: string[],
     batchToUse?: WriteBatch
@@ -94,21 +94,17 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     };
 
     try {
-      if (batchToUse) {
-        batchToUse.set(metadataDocRef, dataToPersist, { merge: true }); 
-        // Assuming lastModified for the overall operation is handled by updateLastModified(batchToUse)
-      } else {
-        const newBatch = writeBatch(db);
-        newBatch.set(metadataDocRef, dataToPersist, { merge: true });
-        // Also update the lastModified timestamp for the metadata doc itself
-        newBatch.update(metadataDocRef, { lastModified: serverTimestamp() });
-        await newBatch.commit();
+      const batch = batchToUse || writeBatch(db);
+      batch.set(metadataDocRef, dataToPersist, { merge: true });
+      await updateLastModified(batch); // Ensure lastModified is updated with this batch
+      if (!batchToUse) { // If we created a new batch, commit it
+        await batch.commit();
       }
     } catch (error) {
       console.error("AppContext: Error persisting category changes to Firestore:", error);
       throw error;
     }
-  }, [currentUser, getMetadataDocRef]);
+  }, [currentUser, getMetadataDocRef, updateLastModified]);
 
 
   useEffect(() => {
@@ -185,12 +181,15 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         const actualDerivedCategories = [...new Set(processedEnvelopes.map(env => env.category || "Uncategorized"))].sort((a, b) => {
             if (a === "Uncategorized") return 1; if (b === "Uncategorized") return -1; return a.localeCompare(b);
         });
+        
         let finalOrderedCategories: string[] = [];
+        let storedCategories: string[] = [];
 
         if (metadataDocRef) {
             const metadataDocSnap = await getDoc(metadataDocRef);
             if (metadataDocSnap.exists()) {
                 const metadata = metadataDocSnap.data();
+                storedCategories = Array.isArray(metadata.categories) ? metadata.categories : [];
                 const storedOrdered = Array.isArray(metadata.orderedCategories) ? metadata.orderedCategories : [];
                 
                 finalOrderedCategories = storedOrdered.filter(cat => actualDerivedCategories.includes(cat));
@@ -202,13 +201,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                  const lm = metadata.lastModified;
                  if (lm && lm instanceof Timestamp) lmDate = formatISO(lm.toDate());
                  else if (typeof lm === 'string') lmDate = lm;
-            } else {
-                finalOrderedCategories = [...actualDerivedCategories]; // If no metadata, use derived order
             }
-        } else {
-            finalOrderedCategories = [...actualDerivedCategories]; // Should not happen if currentUser is valid
         }
-         if (finalOrderedCategories.length === 0 && actualDerivedCategories.length > 0) {
+        
+        if (finalOrderedCategories.length === 0 && actualDerivedCategories.length > 0) {
             finalOrderedCategories = [...actualDerivedCategories];
         }
         if (finalOrderedCategories.includes("Uncategorized") && finalOrderedCategories.length > 1) {
@@ -220,8 +216,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         setOrderedCategories(finalOrderedCategories);
         setLastModified(lmDate);
         
-        // Always persist the reconciled/derived categories back to ensure metadata is up-to-date
-        // This also handles creation of the metadata doc if it doesn't exist.
         await persistCategoryChanges(actualDerivedCategories, finalOrderedCategories);
 
       } catch (error) {
@@ -348,33 +342,29 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       
       let newLocalCategories = [...categories];
       let newLocalOrderedCategories = [...orderedCategories];
-      let metadataNeedsUpdate = false;
-
+      
       if (!newLocalCategories.includes(category)) {
           newLocalCategories = [...newLocalCategories, category].sort((a,b)=>{
             if (a === "Uncategorized") return 1; if (b === "Uncategorized") return -1; return a.localeCompare(b);
           });
-          metadataNeedsUpdate = true;
-      }
-      if (!newLocalOrderedCategories.includes(category)) {
-          if (newLocalOrderedCategories.includes("Uncategorized") && newLocalOrderedCategories.length > 0) {
-            const uncatIndex = newLocalOrderedCategories.indexOf("Uncategorized");
-            newLocalOrderedCategories.splice(uncatIndex, 0, category);
-          } else {
-            newLocalOrderedCategories.push(category);
-          }
-          metadataNeedsUpdate = true;
+           if (!newLocalOrderedCategories.includes(category)) {
+                if (newLocalOrderedCategories.includes("Uncategorized") && newLocalOrderedCategories.length > 0) {
+                    const uncatIndex = newLocalOrderedCategories.indexOf("Uncategorized");
+                    newLocalOrderedCategories.splice(uncatIndex, 0, category);
+                } else {
+                    newLocalOrderedCategories.push(category);
+                }
+            }
       }
       
       const batch = writeBatch(db);
       batch.set(docRef, newEnvelopeServerData);
-      if (metadataNeedsUpdate) {
-          setCategories(newLocalCategories); 
-          setOrderedCategories(newLocalOrderedCategories);
-          await persistCategoryChanges(newLocalCategories, newLocalOrderedCategories, batch);
-      }
-      await updateLastModified(batch);
+      await persistCategoryChanges(newLocalCategories, newLocalOrderedCategories, batch); // Pass batch
+      // updateLastModified is handled by persistCategoryChanges
       await batch.commit();
+
+      setCategories(newLocalCategories); 
+      setOrderedCategories(newLocalOrderedCategories);
       setEnvelopes(prev => [...prev, newEnvelopeWithId].sort((a, b) => (a.orderIndex ?? Infinity) - (b.orderIndex ?? Infinity)));
       return Promise.resolve();
     } catch (error) { 
@@ -431,20 +421,20 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       const newCategoryFromForm = newLocalEnvelopeData.category;
       let finalLocalCategories = [...categories];
       let finalLocalOrderedCategories = [...orderedCategories];
-      let metadataNeedsUpdate = false;
-
+      
       if (newCategoryFromForm && originalCategory !== newCategoryFromForm) { 
           if (!finalLocalCategories.includes(newCategoryFromForm)) { 
               finalLocalCategories = [...finalLocalCategories, newCategoryFromForm].sort((a,b)=>{
                   if (a === "Uncategorized") return 1; if (b === "Uncategorized") return -1; return a.localeCompare(b);
               });
-              if (finalLocalOrderedCategories.includes("Uncategorized") && finalLocalOrderedCategories.length > 0) {
-                const uncatIndex = finalLocalOrderedCategories.indexOf("Uncategorized");
-                finalLocalOrderedCategories.splice(uncatIndex, 0, newCategoryFromForm);
-              } else {
-                finalLocalOrderedCategories.push(newCategoryFromForm);
+              if (!finalLocalOrderedCategories.includes(newCategoryFromForm)) {
+                if (finalLocalOrderedCategories.includes("Uncategorized") && finalLocalOrderedCategories.length > 0) {
+                    const uncatIndex = finalLocalOrderedCategories.indexOf("Uncategorized");
+                    finalLocalOrderedCategories.splice(uncatIndex, 0, newCategoryFromForm);
+                } else {
+                    finalLocalOrderedCategories.push(newCategoryFromForm);
+                }
               }
-              metadataNeedsUpdate = true;
           }
       }
       
@@ -452,17 +442,15 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           if (!updatedEnvelopesList.some(env => env.category === originalCategory)) { 
               finalLocalCategories = finalLocalCategories.filter(cat => cat !== originalCategory);
               finalLocalOrderedCategories = finalLocalOrderedCategories.filter(cat => cat !== originalCategory);
-              metadataNeedsUpdate = true;
           }
       }
         
-      if(metadataNeedsUpdate) {
-          setCategories(finalLocalCategories); 
-          setOrderedCategories(finalLocalOrderedCategories);
-          await persistCategoryChanges(finalLocalCategories, finalLocalOrderedCategories, batch);
-      }
-      await updateLastModified(batch);
+      await persistCategoryChanges(finalLocalCategories, finalLocalOrderedCategories, batch);
+      // updateLastModified is handled by persistCategoryChanges
       await batch.commit();
+
+      setCategories(finalLocalCategories); 
+      setOrderedCategories(finalLocalOrderedCategories);
       setEnvelopes(updatedEnvelopesList); 
       return Promise.resolve();
     } catch (error) { 
@@ -530,9 +518,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       console.error("Invalid date for transaction.");
       return Promise.reject(new Error("Invalid date"));
     }
-
-    // Construct the object for Firestore, ensuring optional fields are handled correctly
-    const dataToSave: Partial<Omit<Transaction, 'id'>> & Pick<Transaction, 'userId' | 'accountId' | 'payeeId' | 'amount' | 'type' | 'date' | 'createdAt'> = {
+    
+    const dataToSave: Omit<Transaction, 'id' | 'userId' | 'createdAt'> & { userId: string; createdAt: string; [key: string]: any } = {
         userId: currentUser.uid,
         accountId: transactionData.accountId,
         payeeId: transactionData.payeeId,
@@ -540,28 +527,34 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         type: transactionData.type,
         date: formatISO(parsedDate),
         createdAt: formatISO(new Date()),
-        isTransfer: transactionData.isTransfer || false, // ensure boolean
+        isTransfer: transactionData.isTransfer || false, 
     };
 
     if (transactionData.description && transactionData.description.trim() !== "") {
         dataToSave.description = transactionData.description;
+    } else {
+        dataToSave.description = deleteField(); // Explicitly remove if empty or undefined
     }
 
-    // transactionData.envelopeId is string | null from Zod validation.
-    // If it's null, we store null. If it's a string, we store the string.
-    // If it was undefined (which Zod should prevent for this field as per schema), it wouldn't be included.
     if (transactionData.envelopeId !== undefined) {
-        dataToSave.envelopeId = transactionData.envelopeId;
+        dataToSave.envelopeId = transactionData.envelopeId; // Can be string or null
+    } else {
+        dataToSave.envelopeId = deleteField(); // Explicitly remove if undefined
     }
 
 
     try {
       const docRef = doc(collection(db, transactionsPath));
       const batch = writeBatch(db);
-      batch.set(docRef, dataToSave as Omit<Transaction, 'id'>); // Cast is safe here as all required fields are present
+      batch.set(docRef, dataToSave as Omit<Transaction, 'id'>); 
       await updateLastModified(batch);
       await batch.commit();
-      setTransactions(prev => [...prev, {id: docRef.id, ...dataToSave} as Transaction].sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime()));
+
+      const newTxForState = { ...dataToSave, id: docRef.id };
+      if (dataToSave.description === deleteField()) newTxForState.description = undefined;
+      if (dataToSave.envelopeId === deleteField()) newTxForState.envelopeId = undefined;
+
+      setTransactions(prev => [...prev, newTxForState as Transaction].sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime()));
       return Promise.resolve();
     } catch (error) {
       console.error("Error adding transaction:", error);
@@ -588,25 +581,26 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const cleanedData: Partial<Omit<Transaction, 'id' | 'userId' | 'createdAt'>> & { updatedAt?: FieldValue } = {
         ...dataToUpdate,
         amount: dataToUpdate.amount !== undefined ? Number(dataToUpdate.amount) : undefined,
-        // envelopeId can be string | null | undefined. If undefined, it means "no change" or "remove if it was there".
-        // Firestore update handles undefined by not changing the field.
-        // If we want to explicitly set it to null or remove it, we need specific logic.
-        // The current schema ensures it's string | null from form. If form sends null, we want to store null.
-        envelopeId: dataToUpdate.envelopeId, // This will be string or null from form/zod
-        description: dataToUpdate.description, // This will be string or undefined from form/zod
+        envelopeId: dataToUpdate.envelopeId, 
+        description: dataToUpdate.description, 
         date: formatISO(parsedDate),
         isTransfer: !!dataToUpdate.isTransfer,
         updatedAt: serverTimestamp() 
     };
-    
-    // Remove any keys that are strictly undefined before sending to Firestore.
-    // envelopeId being null is fine. description being undefined means it's omitted.
+        
     const dataToSendToFirestore: any = {};
     for (const key in cleanedData) {
-        if ((cleanedData as any)[key] !== undefined) {
+        if ((cleanedData as any)[key] === undefined) {
+            (dataToSendToFirestore as any)[key] = deleteField();
+        } else {
             (dataToSendToFirestore as any)[key] = (cleanedData as any)[key];
         }
     }
+    // Ensure envelopeId: null is preserved if that's the intent (e.g. for income tx)
+    if (cleanedData.envelopeId === null) {
+        dataToSendToFirestore.envelopeId = null;
+    }
+
 
     try {
       const batch = writeBatch(db);
@@ -615,9 +609,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       await batch.commit();
       
       const localUpdateData = { ...dataToSendToFirestore };
-      if (localUpdateData.updatedAt) { // Convert serverTimestamp for local state
+      if (localUpdateData.updatedAt) { 
         (localUpdateData as any).updatedAt = formatISO(new Date());
       }
+      // Reflect deleteField() as undefined in local state
+      if (localUpdateData.description === deleteField()) localUpdateData.description = undefined;
+      if (localUpdateData.envelopeId === deleteField()) localUpdateData.envelopeId = undefined;
       
       setTransactions(prev => prev.map(tx => tx.id === id ? { ...tx, ...localUpdateData } as Transaction : tx)
         .sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime()));
@@ -690,15 +687,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         newLocalOrderedCategories.push(trimmedName);
     }
     
-    setCategories(newLocalCategories); 
-    setOrderedCategories(newLocalOrderedCategories);
     try {
         await persistCategoryChanges(newLocalCategories, newLocalOrderedCategories);
+        setCategories(newLocalCategories); 
+        setOrderedCategories(newLocalOrderedCategories);
         return Promise.resolve();
     } catch (error) {
         console.error("AppContext (addCategory): Failed to persist category changes:", error);
-        setCategories(categories); 
-        setOrderedCategories(orderedCategories);
         return Promise.reject(error);
     }
   };
@@ -765,7 +760,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       }
       
       await persistCategoryChanges(actualCategoriesAfterDelete, finalOrderedCategoriesAfterDelete, batch);
-      await updateLastModified(batch);
+      // updateLastModified is handled by persistCategoryChanges
       await batch.commit(); 
 
       setEnvelopes(updatedEnvelopesListForState);
@@ -773,6 +768,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       setMonthlyEnvelopeBudgets(updatedMonthlyBudgetsListForState);
       setCategories(actualCategoriesAfterDelete);
       setOrderedCategories(finalOrderedCategoriesAfterDelete);
+      return Promise.resolve();
     } catch (error) { 
         console.error(`AppContext (deleteEnvelope): Error deleting envelope ${envelopeId}:`, error); 
         throw error; 
@@ -913,6 +909,17 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     return isNaN(currentBalance) ? 0 : currentBalance;
   }, [envelopes, getMonthlyAllocation, getEnvelopeSpending]);
 
+  const getEffectiveMonthlyBudgetWithRollover = useCallback((envelopeId: string, forMonth: Date): number => {
+    const previousMonth = subMonths(startOfMonth(forMonth), 1);
+    const balanceAtEndOfPreviousMonth = getEnvelopeBalanceAsOfEOM(envelopeId, previousMonth);
+    const currentMonthAllocation = getMonthlyAllocation(envelopeId, forMonth);
+    
+    // Rollover should only be positive carry-over.
+    const rolloverAmount = Math.max(0, balanceAtEndOfPreviousMonth);
+    
+    return currentMonthAllocation + rolloverAmount;
+  }, [getEnvelopeBalanceAsOfEOM, getMonthlyAllocation]);
+
 
   const getPayeeTransactions = useCallback((payeeId: string): Transaction[] => {
     return transactions
@@ -946,16 +953,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }, 0);
   }, [transactions]);
 
+  // This function sums up specific monthly allocations or default envelope budgets
   const getTotalMonthlyBudgeted = useCallback((forMonth: Date): number => {
-    const monthStr = format(forMonth, "yyyy-MM");
     return envelopes.reduce((total, env) => {
-        const monthlyBudget = monthlyEnvelopeBudgets.find(
-            b => b.envelopeId === env.id && b.month === monthStr
-        );
-        const amountToAdd = monthlyBudget ? monthlyBudget.allocatedAmount : env.budgetAmount;
+        const amountToAdd = getMonthlyAllocation(env.id, forMonth);
         return total + (typeof amountToAdd === 'number' && !isNaN(amountToAdd) ? amountToAdd : 0);
     }, 0);
-  }, [envelopes, monthlyEnvelopeBudgets]);
+  }, [envelopes, getMonthlyAllocation]);
 
   const getYtdIncomeTotal = useCallback((): number => {
     const now = new Date(); const yearStart = startOfYear(now); const todayEnd = endOfDay(now);
@@ -976,7 +980,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       addCategory, updateCategoryOrder, updateEnvelope, updateEnvelopeOrder, deleteTransaction, deleteEnvelope,
       transferBetweenEnvelopes, transferBetweenAccounts,
       getAccountBalance, getAccountById, getEnvelopeById, 
-      getEnvelopeSpending, getEnvelopeBalanceAsOfEOM, getMonthlyAllocation,
+      getEnvelopeSpending, getEnvelopeBalanceAsOfEOM, getMonthlyAllocation, getEffectiveMonthlyBudgetWithRollover,
       getMonthlyIncomeTotal, getMonthlySpendingTotal, getTotalMonthlyBudgeted, getYtdIncomeTotal,
       getPayeeTransactions, 
       isLoading
@@ -993,5 +997,3 @@ export const useAppContext = () => {
   }
   return context;
 };
-
-    

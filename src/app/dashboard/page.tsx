@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/PageHeader";
 import Link from "next/link";
-import { DollarSign, PlusCircle, Wallet, TrendingUp, TrendingDown, PackagePlus, CalendarCheck, Edit3, ChevronLeft, ChevronRight } from "lucide-react";
+import { DollarSign, PlusCircle, Wallet, TrendingUp, TrendingDown, PackagePlus, CalendarCheck, Edit3, ChevronLeft, ChevronRight, Package } from "lucide-react"; // Added Package
 import { Skeleton } from "@/components/ui/skeleton";
 import EnvelopeSummaryList from "@/components/envelopes/envelope-summary-list";
 import { format, parseISO, isValid as isValidDate, addMonths, subMonths } from 'date-fns';
@@ -22,14 +22,16 @@ export default function DashboardPage() {
     getAccountBalance,
     isLoading,
     getMonthlyIncomeTotal,
-    getMonthlySpendingTotal, // Total spending for the month from all sources
-    getTotalMonthlyBudgeted, // This is totalPlannedBudgetedForViewMonth
+    getMonthlySpendingTotal, 
+    // getTotalMonthlyBudgeted, // Will be replaced by summing effective budgets
     getYtdIncomeTotal,
     lastModified,
     currentViewMonth,
     setCurrentViewMonth,
     getEnvelopeSpending,
-    getMonthlyAllocation, // Needed for the new unspent calculation
+    // getMonthlyAllocation, // Not directly needed here, getEffectiveMonthlyBudgetWithRollover handles it
+    getEffectiveMonthlyBudgetWithRollover, // New function
+    getEnvelopeBalanceAsOfEOM, // Needed for new unspent calculation
   } = useAppContext();
 
   if (isLoading) {
@@ -54,20 +56,22 @@ export default function DashboardPage() {
 
   const totalBalance = accounts.reduce((sum, acc) => sum + getAccountBalance(acc.id), 0);
   const monthlyIncome = getMonthlyIncomeTotal(currentViewMonth);
-  const monthlySpendingAllSources = getMonthlySpendingTotal(currentViewMonth); // Total spending for the month
-  const totalPlannedBudgetedForViewMonth = getTotalMonthlyBudgeted(currentViewMonth);
-  const ytdIncome = getYtdIncomeTotal();
-
-  // Calculate "unspentBudgetedAmount" more precisely
-  const unspentBudgetedAmount = envelopes.reduce((sum, envelope) => {
-    const monthlyAllocation = getMonthlyAllocation(envelope.id, currentViewMonth);
-    const monthlySpending = getEnvelopeSpending(envelope.id, currentViewMonth);
-    const unspentInThisEnvelope = Math.max(0, monthlyAllocation - monthlySpending);
-    return sum + unspentInThisEnvelope;
+  const monthlySpendingAllSources = getMonthlySpendingTotal(currentViewMonth); 
+  
+  // Calculate total effective budget for the month, including rollovers
+  const totalEffectiveBudgetedForViewMonth = envelopes.reduce((sum, envelope) => {
+    return sum + getEffectiveMonthlyBudgetWithRollover(envelope.id, currentViewMonth);
   }, 0);
 
-  // Calculate "Available to Spend"
-  const availableToSpend = totalBalance - unspentBudgetedAmount;
+  const ytdIncome = getYtdIncomeTotal();
+
+  // "Unspent budgeted amount" is the sum of current balances in all envelopes
+  const unspentBudgetedAmountInEnvelopes = envelopes.reduce((sum, envelope) => {
+    return sum + getEnvelopeBalanceAsOfEOM(envelope.id, currentViewMonth);
+  }, 0);
+
+  // "Available to Spend" = Total cash in accounts - Total funds currently held in envelopes
+  const availableToSpend = totalBalance - unspentBudgetedAmountInEnvelopes;
 
   const formattedLastModified = lastModified && isValidDate(parseISO(lastModified))
     ? format(parseISO(lastModified), "MMM d, yyyy 'at' h:mm a")
@@ -124,12 +128,14 @@ export default function DashboardPage() {
         </Card>
         <Card className="shadow-md hover:shadow-lg transition-shadow duration-300">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Budgeted ({format(currentViewMonth, "MMM")})</CardTitle>
-            <PackagePlus className="h-4 w-4 text-muted-foreground" />
+            {/* Updated Title */}
+            <CardTitle className="text-sm font-medium">Funds in Envelopes ({format(currentViewMonth, "MMM")})</CardTitle>
+            <Package className="h-4 w-4 text-muted-foreground" /> {/* Using Package for envelopes */}
           </CardHeader>
           <CardContent>
-            <div className="text-lg font-bold">{formatCurrency(totalPlannedBudgetedForViewMonth)}</div>
-            <p className="text-xs text-muted-foreground">Across {envelopes.length} envelopes for {format(currentViewMonth, "MMMM")}</p>
+            <div className="text-lg font-bold">{formatCurrency(totalEffectiveBudgetedForViewMonth)}</div>
+            {/* Updated description */}
+            <p className="text-xs text-muted-foreground">Allocations + rollover for {format(currentViewMonth, "MMMM")}</p>
           </CardContent>
         </Card>
         <Card className="shadow-md hover:shadow-lg transition-shadow duration-300">
@@ -165,7 +171,7 @@ export default function DashboardPage() {
               {formatCurrency(availableToSpend)}
             </div>
             <p className="text-xs text-muted-foreground">
-              Total balance minus unspent allocated funds in envelopes for {format(currentViewMonth, "MMMM yyyy")}.
+              Total balance minus total funds currently held in envelopes.
             </p>
           </CardContent>
         </Card>
