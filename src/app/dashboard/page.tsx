@@ -18,7 +18,7 @@ const formatCurrency = (amount: number): string => {
 export default function DashboardPage() {
   const {
     accounts,
-    envelopes, // Used for the length in Budgeted card, and by getTotalMonthlyBudgeted
+    envelopes,
     getAccountBalance,
     isLoading,
     getMonthlyIncomeTotal,
@@ -28,7 +28,8 @@ export default function DashboardPage() {
     lastModified,
     currentViewMonth,
     setCurrentViewMonth,
-    // getEnvelopeBalanceAsOfEOM, // This was used for the old "Available in Envelopes"
+    getMonthlyAllocation,   // Needed for new calculation
+    getEnvelopeSpending,    // Needed for new calculation
   } = useAppContext();
 
   if (isLoading) {
@@ -52,14 +53,27 @@ export default function DashboardPage() {
   }
 
   const totalBalance = accounts.reduce((sum, acc) => sum + getAccountBalance(acc.id), 0);
-  // totalMonthlyBudgetedForViewMonth is the sum of all planned allocations for the current month
-  const totalMonthlyBudgetedForViewMonth = getTotalMonthlyBudgeted(currentViewMonth);
   
-  // New definition for Available to Spend: Total Balance - Total Planned Budget for the month
-  const availableToSpend = totalBalance - totalMonthlyBudgetedForViewMonth;
+  // Calculate total effectively committed funds for the current view month
+  let totalEffectivelyCommitted = 0;
+  envelopes.forEach(env => {
+    const monthlyAllocation = getMonthlyAllocation(env.id, currentViewMonth);
+    if (monthlyAllocation > 0) {
+      totalEffectivelyCommitted += monthlyAllocation;
+    } else {
+      // Envelope has no budget, so consider its spending for the month as "committed"
+      const spendingThisMonth = getEnvelopeSpending(env.id, currentViewMonth);
+      totalEffectivelyCommitted += spendingThisMonth;
+    }
+  });
+
+  const availableToSpend = totalBalance - totalEffectivelyCommitted;
+  
+  // This remains the sum of all *planned* allocations for the "Budgeted" card
+  const totalPlannedBudgetedForViewMonth = getTotalMonthlyBudgeted(currentViewMonth);
 
   const monthlyIncome = getMonthlyIncomeTotal(currentViewMonth);
-  const monthlySpending = getMonthlySpendingTotal(currentViewMonth);
+  const monthlySpending = getMonthlySpendingTotal(currentViewMonth); // This is total actual spending
   const ytdIncome = getYtdIncomeTotal();
 
   const formattedLastModified = lastModified && isValidDate(parseISO(lastModified)) 
@@ -121,7 +135,8 @@ export default function DashboardPage() {
             <PackagePlus className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-lg font-bold">{formatCurrency(totalMonthlyBudgetedForViewMonth)}</div>
+            {/* This card still shows total PLANNED budget */}
+            <div className="text-lg font-bold">{formatCurrency(totalPlannedBudgetedForViewMonth)}</div>
             <p className="text-xs text-muted-foreground">Across {envelopes.length} envelopes for {format(currentViewMonth, "MMMM")}</p>
           </CardContent>
         </Card>
@@ -150,17 +165,16 @@ export default function DashboardPage() {
         </Card>
         <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            {/* Updated CardTitle for Available to Spend */}
             <CardTitle className="text-sm font-medium">Available to Spend</CardTitle>
             <Wallet className="h-5 w-5 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            {/* Use the new availableToSpend calculation */}
             <div className={`text-2xl font-bold ${availableToSpend < 0 ? 'text-destructive' : ''}`}>
               {formatCurrency(availableToSpend)}
             </div>
-            {/* Updated description for clarity */}
-            <p className="text-xs text-muted-foreground">Total balance minus planned monthly budget ({format(currentViewMonth, "MMMM yyyy")}).</p>
+            <p className="text-xs text-muted-foreground">
+              Funds remaining after planned budgets & unbudgeted spending for {format(currentViewMonth, "MMMM yyyy")}.
+            </p>
           </CardContent>
         </Card>
       </div>
