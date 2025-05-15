@@ -40,23 +40,28 @@ export function EditEnvelopeForm({ envelope, onSuccess }: EditEnvelopeFormProps)
 
   const form = useForm<z.infer<typeof envelopeSchema>>({
     resolver: zodResolver(envelopeSchema),
-    // Default values will be set by useEffect below
-    defaultValues: { // Provide defaults to ensure controlled state initially
+    defaultValues: {
         name: "",
-        budgetAmount: 0,
+        budgetAmount: 0, // Default to 0
         estimatedAmount: undefined,
         category: "",
         dueDate: undefined,
     }
   });
 
-  // Pre-fill the form with the envelope data when the component mounts or envelope changes
   useEffect(() => {
+    // Log the envelope prop when the component mounts or the envelope prop changes
+    console.log("[EditEnvelopeForm] Envelope prop received:", JSON.stringify(envelope));
     if (envelope) {
+      let initialBudgetAmount = 0;
+      if (typeof envelope.budgetAmount === 'number' && !isNaN(envelope.budgetAmount)) {
+        initialBudgetAmount = envelope.budgetAmount;
+      }
+      console.log("[EditEnvelopeForm] Initializing form with budgetAmount:", initialBudgetAmount);
       form.reset({
         name: envelope.name,
-        budgetAmount: typeof envelope.budgetAmount === 'number' && !isNaN(envelope.budgetAmount) ? envelope.budgetAmount : 0,
-        estimatedAmount: envelope.estimatedAmount, 
+        budgetAmount: initialBudgetAmount,
+        estimatedAmount: envelope.estimatedAmount,
         category: envelope.category,
         dueDate: envelope.dueDate,
       });
@@ -65,11 +70,12 @@ export function EditEnvelopeForm({ envelope, onSuccess }: EditEnvelopeFormProps)
 
 
   function onSubmit(values: z.infer<typeof envelopeSchema>) {
+    console.log("[EditEnvelopeForm] Submitting values:", JSON.stringify(values));
     const updatedEnvelopeData: Partial<Envelope> & { id: string } = {
-      id: envelope.id, // Include the ID for the update function
+      id: envelope.id,
       name: values.name,
       budgetAmount: values.budgetAmount,
-      estimatedAmount: values.estimatedAmount, 
+      estimatedAmount: values.estimatedAmount,
       category: values.category,
       dueDate: values.dueDate,
     };
@@ -100,15 +106,29 @@ export function EditEnvelopeForm({ envelope, onSuccess }: EditEnvelopeFormProps)
         <FormField
           control={form.control}
           name="budgetAmount"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Monthly Budget Amount</FormLabel>
-              <FormControl>
-                <Input type="number" placeholder="0.00" {...field} step="0.01" onChange={e => field.onChange(parseFloat(e.target.value) || 0)} value={field.value ?? 0} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
+          render={({ field }) => {
+            // Log the field value for budgetAmount whenever it renders
+            console.log("[EditEnvelopeForm] budgetAmount field.value:", field.value);
+            return (
+              <FormItem>
+                <FormLabel>Monthly Budget Amount</FormLabel>
+                <FormControl>
+                  <Input
+                    type="number"
+                    placeholder="0.00"
+                    {...field}
+                    step="0.01"
+                    onChange={e => {
+                      const val = parseFloat(e.target.value);
+                      field.onChange(isNaN(val) ? 0 : val); // Ensure it's always a number, default to 0
+                    }}
+                    value={field.value ?? 0} // Ensure input value is always a number
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            );
+          }}
         />
          <FormField
           control={form.control}
@@ -122,12 +142,10 @@ export function EditEnvelopeForm({ envelope, onSuccess }: EditEnvelopeFormProps)
                   placeholder="e.g., 150.00"
                   {...field}
                   step="0.01"
-                  // Always provide a string value to the input
                   value={field.value ?? ""}
                   onChange={e => {
                     const value = e.target.value;
                     const parsedValue = parseFloat(value);
-                     // Set to undefined if empty or parsing fails (NaN)
                     field.onChange(value === "" || isNaN(parsedValue) ? undefined : parsedValue);
                   }}
                 />
@@ -142,7 +160,6 @@ export function EditEnvelopeForm({ envelope, onSuccess }: EditEnvelopeFormProps)
           render={({ field }) => (
             <FormItem>
               <FormLabel>Category</FormLabel>
-              {/* Ensure value is always a string */}
               <Select onValueChange={field.onChange} value={field.value || ""} required>
                 <FormControl>
                   <SelectTrigger>
@@ -180,11 +197,9 @@ export function EditEnvelopeForm({ envelope, onSuccess }: EditEnvelopeFormProps)
                   {...field}
                   min="1"
                   max="31"
-                  // Always provide a string value to the input
                   value={field.value ?? ""}
                   onChange={e => {
                     const value = e.target.value;
-                     // Set to undefined if empty or parsing fails (NaN)
                     field.onChange(value === "" ? undefined : parseInt(value, 10) || undefined);
                   }}
                 />
