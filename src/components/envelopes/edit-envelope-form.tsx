@@ -55,8 +55,8 @@ export function EditEnvelopeForm({ envelope, onSuccess }: EditEnvelopeFormProps)
     if (envelope) {
       form.reset({
         name: envelope.name,
-        budgetAmount: envelope.budgetAmount,
-        estimatedAmount: envelope.estimatedAmount, // Reset estimatedAmount
+        budgetAmount: typeof envelope.budgetAmount === 'number' && !isNaN(envelope.budgetAmount) ? envelope.budgetAmount : 0,
+        estimatedAmount: envelope.estimatedAmount, 
         category: envelope.category,
         dueDate: envelope.dueDate,
       });
@@ -69,7 +69,7 @@ export function EditEnvelopeForm({ envelope, onSuccess }: EditEnvelopeFormProps)
       id: envelope.id, // Include the ID for the update function
       name: values.name,
       budgetAmount: values.budgetAmount,
-      estimatedAmount: values.estimatedAmount, // Include estimatedAmount
+      estimatedAmount: values.estimatedAmount, 
       category: values.category,
       dueDate: values.dueDate,
     };
