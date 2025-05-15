@@ -22,12 +22,13 @@ export default function DashboardPage() {
     getAccountBalance,
     isLoading,
     getMonthlyIncomeTotal,
-    getMonthlySpendingTotal,
-    getTotalMonthlyBudgeted,
+    getMonthlySpendingTotal, // Total spending for the month from all sources
+    getTotalMonthlyBudgeted, // This is totalPlannedBudgetedForViewMonth
     getYtdIncomeTotal,
     lastModified,
     currentViewMonth,
     setCurrentViewMonth,
+    getEnvelopeSpending, // We need this per envelope
   } = useAppContext();
 
   if (isLoading) {
@@ -52,18 +53,24 @@ export default function DashboardPage() {
 
   const totalBalance = accounts.reduce((sum, acc) => sum + getAccountBalance(acc.id), 0);
   const monthlyIncome = getMonthlyIncomeTotal(currentViewMonth);
-  const monthlySpending = getMonthlySpendingTotal(currentViewMonth);
+  const monthlySpendingAllSources = getMonthlySpendingTotal(currentViewMonth); // Total spending for the month
   const totalPlannedBudgetedForViewMonth = getTotalMonthlyBudgeted(currentViewMonth);
   const ytdIncome = getYtdIncomeTotal();
 
-  // Calculate balance as it was at the start of the currentViewMonth
-  const balanceAtStartOfMonth = totalBalance - monthlyIncome + monthlySpending;
-  
-  // "Available to Spend" is the buffer from the start of the month, after planned budgets.
-  const availableToSpend = balanceAtStartOfMonth - totalPlannedBudgetedForViewMonth;
+  // Calculate total actual spending from all envelopes for the currentViewMonth
+  const totalActualSpendingFromEnvelopesForMonth = envelopes.reduce((sum, envelope) => {
+    return sum + getEnvelopeSpending(envelope.id, currentViewMonth);
+  }, 0);
 
-  const formattedLastModified = lastModified && isValidDate(parseISO(lastModified)) 
-    ? format(parseISO(lastModified), "MMM d, yyyy 'at' h:mm a") 
+  // Calculate unspent budgeted amount
+  // This is the portion of the planned budget that is still remaining in envelopes
+  const unspentBudgetedAmount = totalPlannedBudgetedForViewMonth - totalActualSpendingFromEnvelopesForMonth;
+
+  // Calculate "Available to Spend"
+  const availableToSpend = totalBalance - unspentBudgetedAmount;
+
+  const formattedLastModified = lastModified && isValidDate(parseISO(lastModified))
+    ? format(parseISO(lastModified), "MMM d, yyyy 'at' h:mm a")
     : "Data not yet modified or unavailable.";
 
   return (
@@ -111,7 +118,8 @@ export default function DashboardPage() {
             <TrendingDown className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-lg font-bold text-red-600 dark:text-red-500">{formatCurrency(monthlySpending)}</div>
+            {/* This shows total spending from ALL sources, not just envelopes */}
+            <div className="text-lg font-bold text-red-600 dark:text-red-500">{formatCurrency(monthlySpendingAllSources)}</div>
             <p className="text-xs text-muted-foreground">For {format(currentViewMonth, "MMMM")}</p>
           </CardContent>
         </Card>
@@ -158,7 +166,7 @@ export default function DashboardPage() {
               {formatCurrency(availableToSpend)}
             </div>
             <p className="text-xs text-muted-foreground">
-              Buffer from start of {format(currentViewMonth, "MMMM yyyy")} after planned budgets.
+              Total balance minus unspent budgeted funds for {format(currentViewMonth, "MMMM yyyy")}.
             </p>
           </CardContent>
         </Card>
