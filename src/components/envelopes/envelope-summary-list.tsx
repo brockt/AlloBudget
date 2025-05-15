@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -149,7 +150,7 @@ export default function EnvelopeSummaryList() {
       onDragEnd={handleDragEnd} // Use the updated handler
     >
       {/* Ensure ScrollArea has explicit overflow and max-height */}
-      <ScrollArea className={cn("max-h-[500px] overflow-y-auto")}>
+      <ScrollArea className={cn("max-h-[calc(100vh-280px)] sm:max-h-[calc(100vh-250px)] overflow-y-auto")}> {/* Adjusted max-height */}
         {/* SortableContext for Categories */}
         <SortableContext
           // Provide the *full* ordered list of categories to the context
@@ -201,6 +202,7 @@ export default function EnvelopeSummaryList() {
           <div className="py-4">
             {editingEnvelope && (
               <EditEnvelopeForm
+                key={editingEnvelope.id} // Add key here
                 envelope={editingEnvelope}
                 onSuccess={() => setIsEditDialogOpen(false)}
               />
