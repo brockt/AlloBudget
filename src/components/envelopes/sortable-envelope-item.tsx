@@ -62,9 +62,15 @@ export function SortableEnvelopeItem({ id, envelope, onEditClick, currentViewMon
   const dueDateString = envelope.dueDate ? `${envelope.dueDate}${getDaySuffix(envelope.dueDate)}` : '';
   const hasEstimatedAmount = typeof envelope.estimatedAmount === 'number' && !isNaN(envelope.estimatedAmount);
 
-  const confirmDelete = (event: React.MouseEvent) => {
-    deleteEnvelope(envelope.id);
-    toast({ title: "Envelope Deleted", description: `Envelope "${envelope.name}" has been deleted.`, variant: "destructive" });
+  const confirmDelete = async (event: React.MouseEvent) => {
+    event.stopPropagation();
+    try {
+      await deleteEnvelope(envelope.id);
+      toast({ title: "Envelope Deleted", description: `Envelope "${envelope.name}" has been deleted.`, variant: "destructive" });
+    } catch (error) {
+      console.error("Failed to delete envelope:", error);
+      toast({ title: "Error Deleting Envelope", description: (error as Error)?.message || "Could not delete the envelope. Please try again.", variant: "destructive" });
+    }
   };
 
   const handleEditClick = (event: React.MouseEvent) => {
@@ -111,7 +117,7 @@ export function SortableEnvelopeItem({ id, envelope, onEditClick, currentViewMon
           <Button variant="ghost" size="icon" className={cn("cursor-grab h-8 w-8 text-muted-foreground hover:bg-muted/70 active:cursor-grabbing touch-none")} {...listeners} aria-label={`Drag ${envelope.name}`}>
             <GripVertical className="h-4 w-4" />
           </Button>
-          <div className="flex-1 block p-2.5 rounded-md border bg-card hover:bg-muted/50 transition-colors"> {/* Removed Link for now, actions are buttons */}
+          <div className="flex-1 block p-2.5 rounded-md border bg-card hover:bg-muted/50 transition-colors">
             <div className="relative">
               <div className="absolute top-0 right-0 flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity focus-within:opacity-100 z-10">
                 <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-foreground" onClick={handleEditClick} aria-label={`Edit ${envelope.name} Default Target`}>
@@ -130,7 +136,7 @@ export function SortableEnvelopeItem({ id, envelope, onEditClick, currentViewMon
                 </AlertDialog>
               </div>
               <Link href={`/dashboard/envelopes/${envelope.id}/transactions?month=${format(currentViewMonth, "yyyy-MM")}`} passHref>
-                <div className="cursor-pointer"> {/* This div is now the clickable area for navigation */}
+                <div className="cursor-pointer"> 
                     <div className="flex justify-between items-start mb-1 pr-16">
                     <div className="flex-1 min-w-0">
                         <span className="font-medium truncate block text-sm" title={envelope.name}>{envelope.name}</span>
@@ -154,7 +160,7 @@ export function SortableEnvelopeItem({ id, envelope, onEditClick, currentViewMon
                         type="number"
                         value={monthlyBudgetValue}
                         onChange={(e) => setMonthlyBudgetValue(e.target.value)}
-                        onClick={(e) => e.stopPropagation()} // Prevent Link navigation
+                        onClick={(e) => e.stopPropagation()} 
                         onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSaveMonthlyBudget();}}}
                         className="h-6 px-1 py-0.5 text-xs w-20 border-primary"
                         step="0.01"
