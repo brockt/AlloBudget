@@ -95,6 +95,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
 
+      console.log(`AppContext: Starting data fetch for user ${currentUser.uid}...`);
       setIsLoading(true);
       if (!db) {
         console.error("AppContext: Firestore db instance is not available.");
@@ -109,6 +110,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         const monthlyBudgetsPath = getCollectionPath(MONTHLY_BUDGETS_COLLECTION);
 
         if (!accountsPath || !envelopesPath || !transactionsPath || !payeesPath || !monthlyBudgetsPath) {
+            console.error("AppContext: One or more collection paths are null, aborting fetch.");
             setIsLoading(false);
             return;
         }
@@ -126,6 +128,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             dueDate: d.data().dueDate === null || d.data().dueDate === undefined ? undefined : d.data().dueDate,
         } as Envelope))
         .sort((a, b) => a.orderIndex - b.orderIndex);
+        console.log("AppContext: Fetched Envelopes from Firestore:", JSON.stringify(fetchedEnvelopes, null, 2)); // DEBUG LOG
         setEnvelopes(fetchedEnvelopes);
 
         const transactionsQuery = query(collection(db, transactionsPath), orderBy("date", "desc"));
@@ -169,6 +172,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           setLastModified(null); 
           await setDoc(metadataDocRef, { categories: initialCategories, orderedCategories: initialCategories, lastModified: serverTimestamp() });
         }
+        console.log(`AppContext: Data fetching successful for user ${currentUser.uid}.`);
       } catch (error) {
         console.error(`AppContext: CRITICAL ERROR during fetchData for user ${currentUser.uid}:`, error);
       } finally {
@@ -176,7 +180,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       }
     };
     fetchData();
-  }, [currentUser, getCollectionPath, getMetadataDocRef]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser, getCollectionPath, getMetadataDocRef]); // Added getCollectionPath and getMetadataDocRef to deps
 
   const setCurrentViewMonth = useCallback((updater: (date: Date) => Date) => {
     setCurrentViewMonthState(prevDate => startOfMonth(updater(prevDate)));
@@ -303,25 +308,33 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     if (dataFromForm.budgetAmount !== undefined) firestoreUpdateData.budgetAmount = Number(dataFromForm.budgetAmount);
     if (dataFromForm.category !== undefined) firestoreUpdateData.category = dataFromForm.category;
     if (dataFromForm.orderIndex !== undefined) firestoreUpdateData.orderIndex = Number(dataFromForm.orderIndex);
+    
+    // Handle optional fields: use deleteField() if explicitly set to undefined/null by form, otherwise update if value provided
     if (dataFromForm.hasOwnProperty('estimatedAmount')) {
-        firestoreUpdateData.estimatedAmount = (dataFromForm.estimatedAmount === undefined || dataFromForm.estimatedAmount === null) ? deleteField() : Number(dataFromForm.estimatedAmount);
+        firestoreUpdateData.estimatedAmount = (dataFromForm.estimatedAmount === undefined || dataFromForm.estimatedAmount === null || isNaN(Number(dataFromForm.estimatedAmount))) 
+                                              ? deleteField() 
+                                              : Number(dataFromForm.estimatedAmount);
     }
     if (dataFromForm.hasOwnProperty('dueDate')) {
-        firestoreUpdateData.dueDate = (dataFromForm.dueDate === undefined || dataFromForm.dueDate === null) ? deleteField() : Number(dataFromForm.dueDate);
+        firestoreUpdateData.dueDate = (dataFromForm.dueDate === undefined || dataFromForm.dueDate === null || isNaN(Number(dataFromForm.dueDate))) 
+                                      ? deleteField() 
+                                      : Number(dataFromForm.dueDate);
     }
     
     try {
         await updateDoc(doc(db, envelopeDocPath), firestoreUpdateData);
+
         const newLocalEnvelopeData: Partial<Envelope> = {};
         if (firestoreUpdateData.name !== undefined) newLocalEnvelopeData.name = firestoreUpdateData.name;
         if (firestoreUpdateData.budgetAmount !== undefined) newLocalEnvelopeData.budgetAmount = firestoreUpdateData.budgetAmount;
         if (firestoreUpdateData.category !== undefined) newLocalEnvelopeData.category = firestoreUpdateData.category;
         if (firestoreUpdateData.orderIndex !== undefined) newLocalEnvelopeData.orderIndex = firestoreUpdateData.orderIndex;
+        
         if (dataFromForm.hasOwnProperty('estimatedAmount')) {
-            newLocalEnvelopeData.estimatedAmount = (dataFromForm.estimatedAmount === undefined || dataFromForm.estimatedAmount === null) ? undefined : Number(dataFromForm.estimatedAmount);
+            newLocalEnvelopeData.estimatedAmount = (dataFromForm.estimatedAmount === undefined || dataFromForm.estimatedAmount === null || isNaN(Number(dataFromForm.estimatedAmount))) ? undefined : Number(dataFromForm.estimatedAmount);
         }
         if (dataFromForm.hasOwnProperty('dueDate')) {
-            newLocalEnvelopeData.dueDate = (dataFromForm.dueDate === undefined || dataFromForm.dueDate === null) ? undefined : Number(dataFromForm.dueDate);
+            newLocalEnvelopeData.dueDate = (dataFromForm.dueDate === undefined || dataFromForm.dueDate === null || isNaN(Number(dataFromForm.dueDate))) ? undefined : Number(dataFromForm.dueDate);
         }
 
         let oldCategory: string | undefined;
@@ -336,11 +349,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                 let newOrdered = [...prevOrdered];
                 const newCatFromUpdate = newLocalEnvelopeData.category;
                 if (newCatFromUpdate && !newOrdered.includes(newCatFromUpdate)) newOrdered.push(newCatFromUpdate);
-                if (oldCategory && oldCategory !== newCatFromUpdate && !currentDerivedCategories.includes(oldCategory)) {
+                if (oldCategory && oldCategory !== newCatFromUpdate && !updatedEnvelopesList.some(e => e.category === oldCategory)) {
                     newOrdered = newOrdered.filter(cat => cat !== oldCategory);
                 }
                 newOrdered = newOrdered.filter(cat => currentDerivedCategories.includes(cat));
                 currentDerivedCategories.forEach(cat => { if (!newOrdered.includes(cat)) newOrdered.push(cat); });
+                
+                // Ensure updateDoc is awaited and handle potential errors
                 updateDoc(metadataDocRef, { categories: currentDerivedCategories, orderedCategories: newOrdered })
                     .catch(err => console.error("AppContext: Error updating metadata in updateEnvelope:", err));
                 return newOrdered;
@@ -379,14 +394,16 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const currentCategorySet = new Set(categories);
     const newOrderSet = new Set(newOrder);
     if (currentCategorySet.size !== newOrderSet.size || ![...currentCategorySet].every(cat => newOrderSet.has(cat))) {
-      console.error("AppContext: Category order update failed: Mismatched categories.");
+      console.error("AppContext: Category order update failed: Mismatched categories. Current:", categories, "New:", newOrder);
       return;
     }
     try {
       await updateDoc(metadataDocRef, { orderedCategories: newOrder });
       setOrderedCategories(newOrder);
       await updateLastModified();
-    } catch (error) { console.error("AppContext: Error updating category order:", error); }
+    } catch (error) {
+      console.error("AppContext: Error updating category order in Firestore. Details:", error);
+    }
   };
 
   const addTransaction = useCallback(async (transactionData: TransactionFormData) => {
@@ -739,3 +756,6 @@ export const useAppContext = () => {
   }
   return context;
 };
+
+
+    
