@@ -45,7 +45,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [lastModified, setLastModified] = useState<string | null>(null);
 
-  // New state for monthly budgeting
   const [currentViewMonth, setCurrentViewMonthState] = useState<Date>(startOfMonth(new Date()));
   const [monthlyEnvelopeBudgets, setMonthlyEnvelopeBudgets] = useState<MonthlyEnvelopeBudget[]>([]);
 
@@ -75,15 +74,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [currentUser, getMetadataDocRef]);
 
-  const deriveCategoriesFromEnvelopes = (envelopeList: Envelope[]): string[] => {
-    const uniqueCategories = [...new Set(envelopeList.map(env => env.category || "Uncategorized"))];
-    return uniqueCategories.sort((a, b) => {
-        if (a === "Uncategorized") return 1;
-        if (b === "Uncategorized") return -1;
-        return a.localeCompare(b);
-    });
-  };
-
   useEffect(() => {
     const fetchData = async () => {
       if (!currentUser) {
@@ -94,7 +84,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
 
-      // console.log(`AppContext: Starting data fetch for user ${currentUser.uid}...`);
       setIsLoading(true);
       if (!db) {
         console.error("AppContext: Firestore db instance is not available.");
@@ -140,8 +129,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         }).sort((a, b) => (a.orderIndex ?? Infinity) - (b.orderIndex ?? Infinity));
         
         setEnvelopes(processedEnvelopes);
-        // console.log("[AppContext] Fetched Envelopes (raw):", JSON.stringify(processedEnvelopes.map(e => ({id: e.id, name: e.name, category: e.category, orderIndex: e.orderIndex})), null, 2));
-
 
         const transactionsQuery = query(collection(db, transactionsPath), orderBy("date", "desc"));
         const transactionsSnapshot = await getDocs(transactionsQuery);
@@ -166,9 +153,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         setMonthlyEnvelopeBudgets(fetchedMonthlyBudgets);
         
         // --- Category and OrderedCategories Reconciliation ---
-        const currentDerivedCategories = deriveCategoriesFromEnvelopes(processedEnvelopes);
-        setCategories(currentDerivedCategories); // Set categories based on actual envelopes
-        // console.log("AppContext (fetchData): currentDerivedCategories from envelopes:", currentDerivedCategories);
+        const derivedCategoriesFromEnvelopes = [...new Set(processedEnvelopes.map(env => env.category || "Uncategorized"))].sort((a, b) => {
+            if (a === "Uncategorized") return 1; if (b === "Uncategorized") return -1; return a.localeCompare(b);
+        });
+        setCategories(derivedCategoriesFromEnvelopes); // Set categories based on actual envelopes
 
         let finalOrderedCategories: string[] = [];
         const metadataDocRef = getMetadataDocRef();
@@ -178,12 +166,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             if (metadataDocSnap.exists()) {
                 const metadata = metadataDocSnap.data();
                 const storedOrderedCategories = Array.isArray(metadata.orderedCategories) ? metadata.orderedCategories : [];
-                // console.log("AppContext (fetchData): storedOrderedCategories from metadata:", storedOrderedCategories);
-
+                
                 // Filter stored to only include currently existing derived categories
-                finalOrderedCategories = storedOrderedCategories.filter(cat => currentDerivedCategories.includes(cat));
+                finalOrderedCategories = storedOrderedCategories.filter(cat => derivedCategoriesFromEnvelopes.includes(cat));
+                
                 // Add any new derived categories not present in the filtered stored list
-                currentDerivedCategories.forEach(derivedCat => {
+                derivedCategoriesFromEnvelopes.forEach(derivedCat => {
                     if (!finalOrderedCategories.includes(derivedCat)) {
                         finalOrderedCategories.push(derivedCat); 
                     }
@@ -194,18 +182,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                 else if (typeof lm === 'string') setLastModified(lm);
                 else setLastModified(null);
             } else {
-                // Metadata doc doesn't exist, initialize orderedCategories from derived (e.g., sorted alphabetically)
-                // console.log("AppContext (fetchData): No metadata document found. Initializing orderedCategories from derived.");
-                finalOrderedCategories = [...currentDerivedCategories].sort((a,b) => {
-                    if (a === "Uncategorized") return 1; if (b === "Uncategorized") return -1; return a.localeCompare(b);
-                });
+                // Metadata doc doesn't exist, initialize orderedCategories from derived
+                finalOrderedCategories = [...derivedCategoriesFromEnvelopes]; // Already sorted
                 setLastModified(null); 
             }
             
             // Always update/create metadata with the reconciled lists
-            // console.log("AppContext (fetchData): Updating Firestore metadata with categories:", currentDerivedCategories, "and orderedCategories:", finalOrderedCategories);
             await setDoc(metadataDocRef, { 
-                categories: currentDerivedCategories, 
+                categories: derivedCategoriesFromEnvelopes, 
                 orderedCategories: finalOrderedCategories, 
                 lastModified: serverTimestamp() 
             }, { merge: true });
@@ -213,18 +197,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
         } else {
             console.warn("AppContext (fetchData): metadataDocRef is null. Cannot manage category order or lastModified. Using derived categories for ordered list.");
-            finalOrderedCategories = [...currentDerivedCategories].sort((a,b) => {
-                if (a === "Uncategorized") return 1; if (b === "Uncategorized") return -1; return a.localeCompare(b);
-            });
+            finalOrderedCategories = [...derivedCategoriesFromEnvelopes];
             setOrderedCategories(finalOrderedCategories);
             setLastModified(null);
         }
-        
-        // console.log("AppContext (fetchData): Final categories state:", currentDerivedCategories);
-        // console.log("AppContext (fetchData): Final orderedCategories state:", finalOrderedCategories);
         // --- End Category Reconciliation ---
         
-        // console.log(`AppContext: Data fetching successful for user ${currentUser.uid}.`);
       } catch (error) {
         console.error(`AppContext: CRITICAL ERROR during fetchData for user ${currentUser.uid}:`, error);
       } finally {
@@ -345,7 +323,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       let metadataNeedsUpdate = false;
 
       if (!newLocalCategories.includes(category)) {
-          newLocalCategories = [...newLocalCategories, category].sort((a,b)=>a.localeCompare(b));
+          newLocalCategories = [...newLocalCategories, category].sort((a,b)=>{
+            if (a === "Uncategorized") return 1; if (b === "Uncategorized") return -1; return a.localeCompare(b);
+          });
           metadataNeedsUpdate = true;
       }
       if (!newLocalOrderedCategories.includes(category)) {
@@ -356,7 +336,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       if (metadataNeedsUpdate) {
           setCategories(newLocalCategories);
           setOrderedCategories(newLocalOrderedCategories);
-          // console.log("AppContext (addEnvelope): Updating metadata for new category.");
           await updateDoc(metadataDocRef, { 
               categories: newLocalCategories, 
               orderedCategories: newLocalOrderedCategories,
@@ -385,7 +364,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     if (dataFromForm.category !== undefined) firestoreUpdateData.category = dataFromForm.category;
     if (dataFromForm.orderIndex !== undefined) firestoreUpdateData.orderIndex = Number(dataFromForm.orderIndex);
     
-    // Handle optional fields explicitly for Firestore update (use deleteField for removal)
     if (dataFromForm.hasOwnProperty('estimatedAmount')) {
         firestoreUpdateData.estimatedAmount = (dataFromForm.estimatedAmount === undefined || dataFromForm.estimatedAmount === null || isNaN(Number(dataFromForm.estimatedAmount))) 
                                               ? deleteField() : Number(dataFromForm.estimatedAmount);
@@ -398,14 +376,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     try {
         await updateDoc(doc(db, envelopeDocPath), firestoreUpdateData);
 
-        // Construct local update object based on what was sent to Firestore
         const newLocalEnvelopeData: Partial<Envelope> = {};
         if (firestoreUpdateData.name !== undefined) newLocalEnvelopeData.name = firestoreUpdateData.name;
         if (firestoreUpdateData.budgetAmount !== undefined) newLocalEnvelopeData.budgetAmount = firestoreUpdateData.budgetAmount;
         if (firestoreUpdateData.category !== undefined) newLocalEnvelopeData.category = firestoreUpdateData.category;
         if (firestoreUpdateData.orderIndex !== undefined) newLocalEnvelopeData.orderIndex = firestoreUpdateData.orderIndex;
         
-        // For local state, 'deleteField()' results in 'undefined'
         if (dataFromForm.hasOwnProperty('estimatedAmount')) {
             newLocalEnvelopeData.estimatedAmount = firestoreUpdateData.estimatedAmount === deleteField() ? undefined : firestoreUpdateData.estimatedAmount;
         }
@@ -420,21 +396,19 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         
         setEnvelopes(updatedEnvelopesList);
         
-        // Category management after envelope update
         let newLocalCategories = [...categories];
         let newLocalOrderedCategories = [...orderedCategories];
         let metadataNeedsUpdate = false;
         const newCategoryFromForm = newLocalEnvelopeData.category;
 
-        // If category changed
         if (newCategoryFromForm && originalCategory !== newCategoryFromForm) {
-            // Add new category if it doesn't exist
             if (!newLocalCategories.includes(newCategoryFromForm)) {
-                newLocalCategories = [...newLocalCategories, newCategoryFromForm].sort((a,b) => a.localeCompare(b));
-                newLocalOrderedCategories.push(newCategoryFromForm); // Add to end
+                newLocalCategories = [...newLocalCategories, newCategoryFromForm].sort((a,b)=>{
+                    if (a === "Uncategorized") return 1; if (b === "Uncategorized") return -1; return a.localeCompare(b);
+                });
+                newLocalOrderedCategories.push(newCategoryFromForm);
                 metadataNeedsUpdate = true;
             }
-            // Check if old category needs to be removed
             if (originalCategory) {
                 const oldCategoryStillInUse = updatedEnvelopesList.some(env => env.category === originalCategory);
                 if (!oldCategoryStillInUse) {
@@ -448,7 +422,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         if(metadataNeedsUpdate) {
             setCategories(newLocalCategories);
             setOrderedCategories(newLocalOrderedCategories);
-            // console.log("AppContext (updateEnvelope): Updating metadata for category changes.");
             await updateDoc(metadataDocRef, { 
                 categories: newLocalCategories, 
                 orderedCategories: newLocalOrderedCategories,
@@ -490,8 +463,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const metadataDocRef = getMetadataDocRef();
     if (!metadataDocRef) return;
     
-    const currentDerivedCategories = deriveCategoriesFromEnvelopes(envelopes);
+    // Ensure newOrder only contains categories that actually exist based on current envelopes
+    const currentDerivedCategories = [...new Set(envelopes.map(env => env.category || "Uncategorized"))];
     const validatedNewOrder = newOrder.filter(cat => currentDerivedCategories.includes(cat));
+    // Add any missing categories from currentDerived (that were not in newOrder) to the end
     currentDerivedCategories.forEach(cat => {
       if (!validatedNewOrder.includes(cat)) {
         validatedNewOrder.push(cat);
@@ -499,12 +474,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     });
 
     if (JSON.stringify(validatedNewOrder) === JSON.stringify(orderedCategories)) {
+        // console.log("AppContext (updateCategoryOrder): No change in order, skipping update.");
         return;
     }
 
     try {
       await updateDoc(metadataDocRef, { orderedCategories: validatedNewOrder, lastModified: serverTimestamp() });
       setOrderedCategories(validatedNewOrder);
+      // No need to update 'categories' here as it's derived from envelopes
     } catch (error) {
       console.error("AppContext: Error updating category order in Firestore. Details:", error);
     }
@@ -597,8 +574,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     let newLocalOrderedCategories = [...orderedCategories];
     
     if (!newLocalCategories.some(cat => cat.toLowerCase() === trimmedName.toLowerCase())) {
-        newLocalCategories = [...newLocalCategories, trimmedName].sort((a,b)=>a.localeCompare(b));
-        newLocalOrderedCategories.push(trimmedName); // Add to end, user can reorder later
+        newLocalCategories = [...newLocalCategories, trimmedName].sort((a,b)=>{
+             if (a === "Uncategorized") return 1; if (b === "Uncategorized") return -1; return a.localeCompare(b);
+        });
+        newLocalOrderedCategories.push(trimmedName);
         
         try {
             await updateDoc(metadataDocRef, { 
@@ -609,8 +588,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             setCategories(newLocalCategories);
             setOrderedCategories(newLocalOrderedCategories);
         } catch (error) { console.error("Error adding category:", error); }
-    } else {
-        // Category effectively already exists
     }
   };
 
@@ -636,11 +613,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       throw new Error("One or more critical paths are null for deleteEnvelope.");
     }
 
-    const envelopeToDelete = envelopes.find(env => env.id === envelopeId);
-    if (!envelopeToDelete) throw new Error("Envelope to delete not found in local state.");
-
-    const categoryOfDeletedEnvelope = envelopeToDelete.category;
-
     try {
       const batch = writeBatch(db);
       batch.delete(doc(db, envelopeDocPath));
@@ -662,37 +634,27 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       setTransactions(prev => prev.map(tx => tx.envelopeId === envelopeId ? { ...tx, envelopeId: undefined } : tx ));
       setMonthlyEnvelopeBudgets(prev => prev.filter(mb => mb.envelopeId !== envelopeId));
       
-      // Check if the category of the deleted envelope is still in use
-      const isCategoryStillInUse = updatedEnvelopesAfterDeletion.some(env => env.category === categoryOfDeletedEnvelope);
+      // Recalculate categories and orderedCategories based on remaining envelopes
+      const currentDerivedCategories = [...new Set(updatedEnvelopesAfterDeletion.map(env => env.category || "Uncategorized"))].sort((a, b) => {
+          if (a === "Uncategorized") return 1; if (b === "Uncategorized") return -1; return a.localeCompare(b);
+      });
+      const newOrderedCategories = orderedCategories.filter(cat => currentDerivedCategories.includes(cat));
       
-      let newLocalCategories = [...categories];
-      let newLocalOrderedCategories = [...orderedCategories];
-      let metadataUpdateNeeded = false;
+      // Ensure any category from derived that's not in newOrdered (shouldn't happen if logic is right) is added
+      currentDerivedCategories.forEach(derivedCat => {
+        if (!newOrderedCategories.includes(derivedCat)) {
+            newOrderedCategories.push(derivedCat);
+        }
+      });
 
-      if (!isCategoryStillInUse && categoryOfDeletedEnvelope) {
-          newLocalCategories = newLocalCategories.filter(cat => cat !== categoryOfDeletedEnvelope);
-          newLocalOrderedCategories = newLocalOrderedCategories.filter(cat => cat !== categoryOfDeletedEnvelope);
-          metadataUpdateNeeded = true;
-      } else if (!categoryOfDeletedEnvelope) { // Handle Uncategorized if it becomes empty
-          const uncategorizedEnvelopesExist = updatedEnvelopesAfterDeletion.some(env => env.category === "Uncategorized");
-          if (!uncategorizedEnvelopesExist && newLocalCategories.includes("Uncategorized")) {
-              newLocalCategories = newLocalCategories.filter(cat => cat !== "Uncategorized");
-              newLocalOrderedCategories = newLocalOrderedCategories.filter(cat => cat !== "Uncategorized");
-              metadataUpdateNeeded = true;
-          }
-      }
-      
-      if (metadataUpdateNeeded) {
-        setCategories(newLocalCategories);
-        setOrderedCategories(newLocalOrderedCategories);
-        await updateDoc(metadataDocRef, { 
-            categories: newLocalCategories, 
-            orderedCategories: newLocalOrderedCategories,
-            lastModified: serverTimestamp()
-        });
-      } else {
-        await updateLastModified();
-      }
+      setCategories(currentDerivedCategories);
+      setOrderedCategories(newOrderedCategories);
+
+      await updateDoc(metadataDocRef, { 
+          categories: currentDerivedCategories, 
+          orderedCategories: newOrderedCategories,
+          lastModified: serverTimestamp()
+      });
 
     } catch (error) { 
         console.error("Error deleting envelope:", error); 
@@ -884,7 +846,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       getAccountBalance, getAccountById, getEnvelopeById, 
       getEnvelopeSpending, getEnvelopeBalanceAsOfEOM, getMonthlyAllocation,
       getMonthlyIncomeTotal, getMonthlySpendingTotal, getTotalMonthlyBudgeted, getYtdIncomeTotal,
-      getPayeeTransactions, // Make sure this is exported if used externally, though it's not in AppContextType
+      getPayeeTransactions, 
       isLoading
     }}>
       {children}
