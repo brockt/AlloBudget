@@ -1,10 +1,11 @@
+
 "use client";
 
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type * as z from "zod";
 import { format, parseISO } from "date-fns";
-import { useEffect, useState } from 'react'; // Import useState
+import { useEffect, useState } from 'react'; 
 
 import { Button } from "@/components/ui/button";
 import {
@@ -48,35 +49,33 @@ export function AddTransactionForm({ onSuccess, navigateToTransactions = false }
 
   const [initialAccountId, setInitialAccountId] = useState<string | undefined>(undefined);
   const [formReady, setFormReady] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false); // For button state
 
-  // Effect to derive initialAccountId from query params or fallback once client-side and context is ready
   useEffect(() => {
-    if (!isAppContextLoading) { // Wait for AppContext to load
+    if (!isAppContextLoading) { 
       const accountIdFromQuery = searchParams.get('accountId');
       if (accountIdFromQuery && accounts.some(acc => acc.id === accountIdFromQuery)) {
         setInitialAccountId(accountIdFromQuery);
       } else if (accounts.length > 0) {
         setInitialAccountId(accounts[0].id);
       } else {
-        setInitialAccountId(""); // No accounts, set to empty string
+        setInitialAccountId(""); 
       }
-      setFormReady(true); // Mark form as ready to initialize
+      setFormReady(true); 
     }
   }, [isAppContextLoading, searchParams, accounts]);
 
 
   const form = useForm<z.infer<typeof transactionSchema>>({
     resolver: zodResolver(transactionSchema),
-    // Default values will be set by useEffect below once initialAccountId is determined
   });
 
-  // Effect to initialize/reset form defaultValues once initialAccountId is ready
   useEffect(() => {
     if (formReady) {
       form.reset({
         accountId: initialAccountId || (accounts.length > 0 ? accounts[0].id : ""),
         envelopeId: null,
-        payeeId: "",
+        payeeId: payees.length > 0 ? payees[0].id : "", // Default to first payee if available
         amount: 0,
         type: "expense",
         description: "",
@@ -84,12 +83,13 @@ export function AddTransactionForm({ onSuccess, navigateToTransactions = false }
         isTransfer: false,
       });
     }
-  }, [formReady, initialAccountId, form, accounts]);
+  }, [formReady, initialAccountId, form, accounts, payees]);
 
 
   const transactionType = form.watch("type");
 
-  function onSubmit(values: z.infer<typeof transactionSchema>) {
+  async function onSubmit(values: z.infer<typeof transactionSchema>) {
+    setIsSubmitting(true);
     const transactionDataWithParsedDate: TransactionFormData = {
         ...values,
         description: values.description || undefined,
@@ -98,55 +98,58 @@ export function AddTransactionForm({ onSuccess, navigateToTransactions = false }
         date: values.date,
         isTransfer: values.isTransfer || false,
     };
-    addTransaction(transactionDataWithParsedDate);
-    toast({
-      title: "Transaction Added",
-      description: `Transaction for $${values.amount} has been successfully added.`,
-    });
 
-    // Reset logic:
-    let resetAccountId = form.getValues('accountId'); // Keep current account by default
-    if (navigateToTransactions) { // If navigating away
-        const queryAccountId = searchParams.get('accountId');
-        if (!queryAccountId) { // If not navigating from a specific account's page, reset to first available or empty
-             resetAccountId = accounts.length > 0 ? accounts[0].id : "";
-        } else {
-            // If navigating from a specific account's page (e.g., after adding txn from there),
-            // the navigation will happen, so the next form instance will pick up the new context.
-            // Here, we can keep it or reset, doesn't hugely matter as page will change.
-            // For consistency, if `navigateToTransactions` is true and we had a `defaultAccountIdFromQuery`,
-            // the actual navigation will determine the context for the *next* visit.
-            // So, resetting to the general default is fine.
-            resetAccountId = initialAccountId || (accounts.length > 0 ? accounts[0].id : "");
+    try {
+        await addTransaction(transactionDataWithParsedDate);
+        toast({
+          title: "Transaction Added",
+          description: `Transaction for $${values.amount.toFixed(2)} has been successfully added.`,
+        });
+
+        let resetAccountId = form.getValues('accountId');
+        if (navigateToTransactions) {
+            const queryAccountId = searchParams.get('accountId');
+            if (!queryAccountId) {
+                 resetAccountId = accounts.length > 0 ? accounts[0].id : "";
+            } else {
+                resetAccountId = initialAccountId || (accounts.length > 0 ? accounts[0].id : "");
+            }
         }
-    }
 
+        form.reset({
+            accountId: resetAccountId,
+            amount: 0,
+            description: "",
+            type: form.getValues('type'),
+            envelopeId: form.getValues('type') === 'income' ? null : (envelopes.length > 0 && form.getValues('type') === 'expense' ? form.getValues('envelopeId') : null),
+            payeeId: payees.length > 0 ? payees[0].id : "", // Reset to first payee
+            date: format(new Date(), "yyyy-MM-dd"),
+            isTransfer: false,
+        });
 
-    form.reset({
-        accountId: resetAccountId,
-        amount: 0,
-        description: "",
-        type: form.getValues('type'),
-        envelopeId: form.getValues('type') === 'income' ? null : (envelopes.length > 0 && form.getValues('type') === 'expense' ? form.getValues('envelopeId') : null),
-        payeeId: "",
-        date: format(new Date(), "yyyy-MM-dd"),
-        isTransfer: false,
-    });
+        if (onSuccess) onSuccess();
 
-    if (onSuccess) onSuccess();
-
-    if (navigateToTransactions) {
-        const accountIdFromQuery = searchParams.get('accountId'); // Re-check for navigation target
-        if (accountIdFromQuery) {
-            router.push(`/dashboard/accounts/${accountIdFromQuery}/transactions`);
-        } else {
-            router.push("/dashboard/transactions");
+        if (navigateToTransactions) {
+            const accountIdFromQuery = searchParams.get('accountId'); 
+            if (accountIdFromQuery) {
+                router.push(`/dashboard/accounts/${accountIdFromQuery}/transactions`);
+            } else {
+                router.push("/dashboard/transactions");
+            }
         }
+    } catch (error) {
+        console.error("Failed to add transaction:", error);
+        toast({
+            title: "Error Adding Transaction",
+            description: (error as Error)?.message || "Could not add transaction. Please try again.",
+            variant: "destructive",
+        });
+    } finally {
+        setIsSubmitting(false);
     }
   }
 
   if (!formReady) {
-    // You can return a skeleton or null here while waiting for form readiness
     return (
       <div className="space-y-4">
         <div className="h-10 w-full bg-muted rounded-md animate-pulse"></div>
@@ -175,7 +178,7 @@ export function AddTransactionForm({ onSuccess, navigateToTransactions = false }
                       form.setValue('envelopeId', null);
                     }
                   }}
-                  value={field.value} // Changed from defaultValue
+                  value={field.value} 
                   className="flex flex-col space-y-1 sm:flex-row sm:space-y-0 sm:space-x-4"
                 >
                   <FormItem className="flex items-center space-x-3 space-y-0">
@@ -361,12 +364,13 @@ export function AddTransactionForm({ onSuccess, navigateToTransactions = false }
           type="submit"
           className="w-full sm:w-auto"
           disabled={
+            isSubmitting || // Disable while submitting
             payees.length === 0 ||
             accounts.length === 0 ||
             (form.getValues('type') === 'expense' && envelopes.length === 0)
           }
         >
-          <PlusCircle className="mr-2 h-4 w-4" /> Add Transaction
+          <PlusCircle className="mr-2 h-4 w-4" /> {isSubmitting ? "Adding..." : "Add Transaction"}
         </Button>
       </form>
     </Form>
