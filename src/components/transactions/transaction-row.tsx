@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import type { Transaction } from "@/types";
@@ -7,7 +6,7 @@ import { TableCell, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { format, parseISO, isValid } from "date-fns"; // Import parseISO and isValid
 import { useAppContext } from "@/context/AppContext";
-import { ArrowUpCircle, ArrowDownCircle, Trash2, User, Pencil } from "lucide-react"; // Added User icon, Pencil icon
+import { ArrowUpCircle, ArrowDownCircle, Trash2, User, Pencil, Landmark } from "lucide-react"; // Added Landmark
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -38,12 +37,21 @@ export function TransactionRow({ transaction, onEdit }: TransactionRowProps) {
   const payee = transaction.payeeId ? payees.find(p => p.id === transaction.payeeId) : null; // Find payee
 
   const handleDelete = () => {
-    deleteTransaction(transaction.id);
-    toast({
-      title: "Transaction Deleted",
-      description: "The transaction has been successfully deleted.",
-      variant: "destructive"
-    });
+    deleteTransaction(transaction.id)
+      .then(() => {
+        toast({
+          title: "Transaction Deleted",
+          description: "The transaction has been successfully deleted.",
+          variant: "destructive"
+        });
+      })
+      .catch((error) => {
+        toast({
+          title: "Error Deleting Transaction",
+          description: (error as Error)?.message || "Could not delete transaction. Please try again.",
+          variant: "destructive"
+        });
+      });
   };
 
   const handleEditClick = (event: React.MouseEvent) => {
@@ -59,14 +67,23 @@ export function TransactionRow({ transaction, onEdit }: TransactionRowProps) {
   return (
     <TableRow className="hover:bg-muted/50 transition-colors">
       <TableCell>
-        <div className="font-medium">{transaction.description || <span className="italic text-muted-foreground">No description</span>}</div>
-        <div className="text-xs text-muted-foreground">{account?.name || "N/A"}</div>
-        {/* Display Payee if exists */}
-        {payee && (
-          <div className="text-xs text-muted-foreground flex items-center mt-1">
-            <User className="mr-1 h-3 w-3" /> {payee.name}
-          </div>
-        )}
+        <div className="font-medium flex items-center">
+          {payee ? (
+            <>
+              <User className="mr-1.5 h-4 w-4 text-muted-foreground" />
+              {payee.name}
+            </>
+          ) : (
+            <span className="italic text-muted-foreground">No Payee</span>
+          )}
+        </div>
+        <div className="text-xs text-muted-foreground ml-5"> {/* Indent description slightly */}
+          {transaction.description || <span className="italic text-muted-foreground">No description</span>}
+        </div>
+        <div className="text-xs text-muted-foreground flex items-center mt-0.5 ml-5"> {/* Indent account slightly */}
+          <Landmark className="mr-1.5 h-3 w-3" />
+          {account?.name || "N/A"}
+        </div>
       </TableCell>
       <TableCell className="text-center hidden sm:table-cell">
         {formattedDate}
@@ -109,8 +126,9 @@ export function TransactionRow({ transaction, onEdit }: TransactionRowProps) {
                 <AlertDialogHeader>
                   <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    This action cannot be undone. This will permanently delete the transaction{' '}
-                    {transaction.description ? `"${transaction.description}"` : "(with no description)"}.
+                    This action cannot be undone. This will permanently delete the transaction
+                    for {payee ? `"${payee.name}"` : "this payee"}
+                    {transaction.description ? ` regarding "${transaction.description}"` : ""}.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
