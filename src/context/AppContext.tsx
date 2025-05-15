@@ -22,6 +22,7 @@ import {
   getDoc,
   deleteField,
   where,
+  WriteBatch, // Import WriteBatch type
 } from 'firebase/firestore';
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -40,8 +41,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [envelopes, setEnvelopes] = useState<Envelope[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [payees, setPayees] = useState<Payee[]>([]);
-  const [categories, setCategories] = useState<string[]>([]); // Stores unique categories derived from envelopes
-  const [orderedCategories, setOrderedCategories] = useState<string[]>([]); // User-defined order, reconciled
+  const [categories, setCategories] = useState<string[]>([]);
+  const [orderedCategories, setOrderedCategories] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [lastModified, setLastModified] = useState<string | null>(null);
 
@@ -63,7 +64,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     return doc(db, `users/${currentUser.uid}/${APP_METADATA_COLLECTION}`, APP_METADATA_DOC_ID);
   }, [currentUser]);
 
-  const updateLastModified = useCallback(async (batch?: any) => { // Allow passing a batch
+  const updateLastModified = useCallback(async (batch?: WriteBatch) => {
     if (!db || !currentUser) return;
     try {
       const metadataDocRef = getMetadataDocRef();
@@ -79,8 +80,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [currentUser, getMetadataDocRef]);
 
-  // Helper to persist category and orderedCategories changes
-  const persistCategoryChanges = useCallback(async (newCategories: string[], newOrderedCategories: string[], batch?: any) => {
+  const persistCategoryChanges = useCallback(async (
+    newCategories: string[],
+    newOrderedCategories: string[],
+    batch?: WriteBatch
+  ) => {
     if (!currentUser) return;
     const metadataDocRef = getMetadataDocRef();
     if (!metadataDocRef) {
@@ -96,17 +100,21 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       if (batch) {
         batch.set(metadataDocRef, dataToPersist, { merge: true });
       } else {
-        await setDoc(metadataDocRef, dataToPersist, { merge: true });
+        const localBatch = writeBatch(db);
+        localBatch.set(metadataDocRef, dataToPersist, { merge: true });
+        await localBatch.commit();
       }
+      console.log("AppContext: Persisted category changes:", dataToPersist);
     } catch (error) {
       console.error("AppContext: Error persisting category changes:", error);
+      throw error; // Re-throw to allow calling function to handle
     }
   }, [currentUser, getMetadataDocRef]);
 
 
   useEffect(() => {
     const fetchData = async () => {
-      if (!currentUser) {
+      if (!currentUser || !db) {
         setAccounts([]); setEnvelopes([]); setTransactions([]); setPayees([]);
         setCategories([]); setOrderedCategories([]); setLastModified(null);
         setMonthlyEnvelopeBudgets([]); setCurrentViewMonthState(startOfMonth(new Date()));
@@ -115,11 +123,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       }
 
       setIsLoading(true);
-      if (!db) {
-        console.error("AppContext: Firestore db instance is not available.");
-        setIsLoading(false);
-        return;
-      }
       try {
         const accountsPath = getCollectionPath(ACCOUNTS_COLLECTION);
         const envelopesPath = getCollectionPath(ENVELOPES_COLLECTION);
@@ -128,13 +131,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         const monthlyBudgetsPath = getCollectionPath(MONTHLY_BUDGETS_COLLECTION);
 
         if (!accountsPath || !envelopesPath || !transactionsPath || !payeesPath || !monthlyBudgetsPath) {
-            console.error("AppContext: One or more collection paths are null, aborting fetch.");
-            setIsLoading(false);
-            return;
+            setIsLoading(false); return;
         }
         
-        console.log(`AppContext: Starting data fetch for user ${currentUser.uid}...`);
-
         const accountsSnapshot = await getDocs(collection(db, accountsPath));
         const fetchedAccounts = accountsSnapshot.docs.map(d => ({ id: d.id, ...d.data() } as Account))
          .sort((a,b) => a.name.localeCompare(b.name));
@@ -143,28 +142,21 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         const envelopesSnapshot = await getDocs(collection(db, envelopesPath));
         const processedEnvelopes = envelopesSnapshot.docs.map((d) => {
           const data = d.data();
-          const name = (typeof data.name === 'string' && data.name.trim() !== '') ? data.name.trim() : "Unnamed Envelope";
-          const budgetAmount = (typeof data.budgetAmount === 'number' && !isNaN(data.budgetAmount)) ? data.budgetAmount : 0;
-          const category = (typeof data.category === 'string' && data.category.trim() !== '') ? data.category.trim() : "Uncategorized";
-          const estimatedAmount = (data.estimatedAmount === null || data.estimatedAmount === undefined || isNaN(Number(data.estimatedAmount))) ? undefined : Number(data.estimatedAmount);
-          const dueDate = (data.dueDate === null || data.dueDate === undefined || isNaN(Number(data.dueDate))) ? undefined : Number(data.dueDate);
-          const orderIndex = (typeof data.orderIndex === 'number' && !isNaN(data.orderIndex)) ? data.orderIndex : Infinity;
-          let createdAt = formatISO(new Date()); 
-          if (typeof data.createdAt === 'string' && isValid(parseISO(data.createdAt))) {
-            createdAt = data.createdAt;
-          } else if (data.createdAt && data.createdAt.toDate && typeof data.createdAt.toDate === 'function' && isValid(data.createdAt.toDate())) {
-            createdAt = formatISO(data.createdAt.toDate());
-          } else {
-            createdAt = formatISO(startOfDay(new Date())); // Fallback
-          }
-          const userId = (typeof data.userId === 'string' && data.userId.trim() !== '') ? data.userId : currentUser.uid;
-
-          return { id: d.id, userId, name, budgetAmount, category, estimatedAmount, dueDate, orderIndex, createdAt } as Envelope;
+          return { 
+            id: d.id,
+            userId: data.userId || currentUser.uid,
+            name: (typeof data.name === 'string' && data.name.trim() !== '') ? data.name.trim() : "Unnamed Envelope",
+            budgetAmount: (typeof data.budgetAmount === 'number' && !isNaN(data.budgetAmount)) ? data.budgetAmount : 0,
+            category: (typeof data.category === 'string' && data.category.trim() !== '') ? data.category.trim() : "Uncategorized",
+            estimatedAmount: (data.estimatedAmount === null || data.estimatedAmount === undefined || isNaN(Number(data.estimatedAmount))) ? undefined : Number(data.estimatedAmount),
+            dueDate: (data.dueDate === null || data.dueDate === undefined || isNaN(Number(data.dueDate))) ? undefined : Number(data.dueDate),
+            orderIndex: (typeof data.orderIndex === 'number' && !isNaN(data.orderIndex)) ? data.orderIndex : Infinity,
+            createdAt: (data.createdAt && typeof data.createdAt === 'string' && isValid(parseISO(data.createdAt))) ? data.createdAt : 
+                       (data.createdAt && data.createdAt.toDate && typeof data.createdAt.toDate === 'function' && isValid(data.createdAt.toDate())) ? formatISO(data.createdAt.toDate()) :
+                       formatISO(startOfDay(new Date())),
+          } as Envelope;
         }).sort((a, b) => (a.orderIndex ?? Infinity) - (b.orderIndex ?? Infinity));
-        
         setEnvelopes(processedEnvelopes);
-        console.log("AppContext: Fetched Envelopes from Firestore:", JSON.parse(JSON.stringify(processedEnvelopes)));
-
 
         const transactionsQuery = query(collection(db, transactionsPath), orderBy("date", "desc"));
         const transactionsSnapshot = await getDocs(transactionsQuery);
@@ -192,46 +184,56 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         const currentDerivedCategories = [...new Set(processedEnvelopes.map(env => env.category || "Uncategorized"))].sort((a, b) => {
             if (a === "Uncategorized") return 1; if (b === "Uncategorized") return -1; return a.localeCompare(b);
         });
-        
+
         let finalOrderedCategories: string[] = [];
+        let storedCategoriesForMetadata: string[] = [...currentDerivedCategories]; // Start with derived for metadata
         const metadataDocRef = getMetadataDocRef();
 
         if (metadataDocRef) {
             const metadataDocSnap = await getDoc(metadataDocRef);
             if (metadataDocSnap.exists()) {
                 const metadata = metadataDocSnap.data();
-                const storedOrderedCategories = Array.isArray(metadata.orderedCategories) ? metadata.orderedCategories : [];
+                const storedOrdered = Array.isArray(metadata.orderedCategories) ? metadata.orderedCategories : [];
                 
-                finalOrderedCategories = storedOrderedCategories.filter(cat => currentDerivedCategories.includes(cat));
+                // Filter storedOrdered to keep only categories that actually exist in currentDerivedCategories
+                finalOrderedCategories = storedOrdered.filter(cat => currentDerivedCategories.includes(cat));
+                // Add any derived categories that weren't in the stored order (maintains all existing categories)
                 currentDerivedCategories.forEach(derivedCat => {
                     if (!finalOrderedCategories.includes(derivedCat)) {
-                        finalOrderedCategories.push(derivedCat); 
+                        finalOrderedCategories.push(derivedCat);
                     }
                 });
+                
+                // For metadata.categories, it should reflect the *actual* derived categories.
+                // storedCategoriesForMetadata = Array.isArray(metadata.categories) ? metadata.categories : [...currentDerivedCategories];
+                // Reconcile storedCategoriesForMetadata as well, though currentDerivedCategories is the source of truth.
+                // No, metadata.categories should *be* currentDerivedCategories.
                 
                 const lm = metadata.lastModified;
                 if (lm && lm instanceof Timestamp) setLastModified(formatISO(lm.toDate()));
                 else if (typeof lm === 'string') setLastModified(lm);
                 else setLastModified(null);
             } else {
-                finalOrderedCategories = [...currentDerivedCategories]; // Use derived if metadata doesn't exist
+                // Metadata document doesn't exist, initialize with derived categories
+                finalOrderedCategories = [...currentDerivedCategories]; // Default order
                 setLastModified(null); 
             }
             
-            setCategories(currentDerivedCategories); // Set local state
-            setOrderedCategories(finalOrderedCategories); // Set local state
+            setCategories(currentDerivedCategories); // Set local state from derived
+            setOrderedCategories(finalOrderedCategories); // Set local state from reconciled/initialized order
 
-            // Always update metadata to ensure it's in sync with derived reality
-            await persistCategoryChanges(currentDerivedCategories, finalOrderedCategories);
-
+            // Always update metadata to ensure it's in sync
+            try {
+                await persistCategoryChanges(currentDerivedCategories, finalOrderedCategories);
+            } catch (e) {
+                console.error("AppContext (fetchData): Failed to persist initial category changes during fetch.", e);
+            }
         } else {
-            console.warn("AppContext (fetchData): metadataDocRef is null. Cannot manage category order or lastModified.");
+            console.warn("AppContext (fetchData): metadataDocRef is null. Using derived categories locally.");
             setCategories(currentDerivedCategories);
             setOrderedCategories([...currentDerivedCategories]);
             setLastModified(null);
         }
-        // --- End Category Reconciliation ---
-        console.log(`AppContext: Data fetching successful for user ${currentUser.uid}. Categories: ${JSON.stringify(categories)}, Ordered: ${JSON.stringify(orderedCategories)}`);
         
       } catch (error) {
         console.error(`AppContext: CRITICAL ERROR during fetchData for user ${currentUser.uid}:`, error);
@@ -240,7 +242,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       }
     };
     fetchData();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser, getCollectionPath, getMetadataDocRef, persistCategoryChanges]);
 
   const setCurrentViewMonth = useCallback((updater: (date: Date) => Date) => {
@@ -387,67 +388,70 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     if (dataFromForm.category !== undefined) firestoreUpdateData.category = dataFromForm.category;
     if (dataFromForm.orderIndex !== undefined) firestoreUpdateData.orderIndex = Number(dataFromForm.orderIndex);
     
+    // Handle optional fields correctly for Firestore (use deleteField() for undefined)
     if (dataFromForm.hasOwnProperty('estimatedAmount')) {
-        firestoreUpdateData.estimatedAmount = (dataFromForm.estimatedAmount === undefined || dataFromForm.estimatedAmount === null || isNaN(Number(dataFromForm.estimatedAmount))) 
-                                              ? deleteField() : Number(dataFromForm.estimatedAmount);
+      firestoreUpdateData.estimatedAmount = (dataFromForm.estimatedAmount === undefined || dataFromForm.estimatedAmount === null || isNaN(Number(dataFromForm.estimatedAmount))) 
+                                            ? deleteField() 
+                                            : Number(dataFromForm.estimatedAmount);
     }
     if (dataFromForm.hasOwnProperty('dueDate')) {
-        firestoreUpdateData.dueDate = (dataFromForm.dueDate === undefined || dataFromForm.dueDate === null || isNaN(Number(dataFromForm.dueDate))) 
-                                      ? deleteField() : Number(dataFromForm.dueDate);
+      firestoreUpdateData.dueDate = (dataFromForm.dueDate === undefined || dataFromForm.dueDate === null || isNaN(Number(dataFromForm.dueDate))) 
+                                    ? deleteField() 
+                                    : Number(dataFromForm.dueDate);
     }
     
     try {
-        await updateDoc(doc(db, envelopeDocPath), firestoreUpdateData);
+      await updateDoc(doc(db, envelopeDocPath), firestoreUpdateData);
 
-        const newLocalEnvelopeData: Partial<Envelope> = {};
-        Object.keys(dataFromForm).forEach(key => {
-            const formKey = key as keyof typeof dataFromForm;
-            if (formKey === 'id') return;
-            if (formKey === 'estimatedAmount' || formKey === 'dueDate') {
-                (newLocalEnvelopeData as any)[formKey] = firestoreUpdateData[formKey] === deleteField() ? undefined : firestoreUpdateData[formKey];
-            } else if (formKey === 'budgetAmount' || formKey === 'orderIndex') {
-                 (newLocalEnvelopeData as any)[formKey] = Number((dataFromForm as any)[formKey]);
-            } else {
-                (newLocalEnvelopeData as any)[formKey] = (dataFromForm as any)[formKey];
-            }
-        });
-        
-        const updatedEnvelopesList = envelopes.map(env => 
-            env.id === id ? { ...env, ...newLocalEnvelopeData } : env
-        ).sort((a, b) => (a.orderIndex ?? Infinity) - (b.orderIndex ?? Infinity));
-        
-        setEnvelopes(updatedEnvelopesList);
-        
-        // Category Management after update
-        const newCategoryFromForm = newLocalEnvelopeData.category;
-        let finalLocalCategories = [...categories];
-        let finalLocalOrderedCategories = [...orderedCategories];
-        let metadataNeedsUpdate = false;
-
-        if (newCategoryFromForm && originalCategory !== newCategoryFromForm) {
-            // New category was introduced or changed
-            if (!finalLocalCategories.includes(newCategoryFromForm)) {
-                finalLocalCategories = [...finalLocalCategories, newCategoryFromForm].sort((a,b)=>{
-                    if (a === "Uncategorized") return 1; if (b === "Uncategorized") return -1; return a.localeCompare(b);
-                });
-                finalLocalOrderedCategories.push(newCategoryFromForm); // Add to end
-                metadataNeedsUpdate = true;
-            }
-            // Check if original category is now unused
-            if (originalCategory && !updatedEnvelopesList.some(env => env.category === originalCategory)) {
-                finalLocalCategories = finalLocalCategories.filter(cat => cat !== originalCategory);
-                finalLocalOrderedCategories = finalLocalOrderedCategories.filter(cat => cat !== originalCategory);
-                metadataNeedsUpdate = true;
-            }
-        }
-        
-        if(metadataNeedsUpdate) {
-            setCategories(finalLocalCategories);
-            setOrderedCategories(finalLocalOrderedCategories);
-            await persistCategoryChanges(finalLocalCategories, finalLocalOrderedCategories);
+      const newLocalEnvelopeData: Partial<Envelope> = {};
+      Object.keys(dataFromForm).forEach(key => {
+        const formKey = key as keyof typeof dataFromForm;
+        if (formKey === 'id') return;
+        if (formKey === 'estimatedAmount' || formKey === 'dueDate') {
+          (newLocalEnvelopeData as any)[formKey] = firestoreUpdateData[formKey] === deleteField() ? undefined : firestoreUpdateData[formKey];
+        } else if (formKey === 'budgetAmount' || formKey === 'orderIndex') {
+            (newLocalEnvelopeData as any)[formKey] = Number((dataFromForm as any)[formKey]);
         } else {
-            await updateLastModified();
+            (newLocalEnvelopeData as any)[formKey] = (dataFromForm as any)[formKey];
         }
+      });
+        
+      const updatedEnvelopesList = envelopes.map(env => 
+          env.id === id ? { ...env, ...newLocalEnvelopeData } : env
+      ).sort((a, b) => (a.orderIndex ?? Infinity) - (b.orderIndex ?? Infinity));
+        
+      setEnvelopes(updatedEnvelopesList);
+        
+      const newCategoryFromForm = newLocalEnvelopeData.category;
+      let finalLocalCategories = [...categories];
+      let finalLocalOrderedCategories = [...orderedCategories];
+      let metadataNeedsUpdate = false;
+
+      if (newCategoryFromForm && originalCategory !== newCategoryFromForm) {
+          if (!finalLocalCategories.includes(newCategoryFromForm)) {
+              finalLocalCategories = [...finalLocalCategories, newCategoryFromForm].sort((a,b)=>{
+                  if (a === "Uncategorized") return 1; if (b === "Uncategorized") return -1; return a.localeCompare(b);
+              });
+              finalLocalOrderedCategories.push(newCategoryFromForm);
+              metadataNeedsUpdate = true;
+          }
+      }
+      
+      if (originalCategory && (!newCategoryFromForm || originalCategory !== newCategoryFromForm)) {
+          if (!updatedEnvelopesList.some(env => env.category === originalCategory)) {
+              finalLocalCategories = finalLocalCategories.filter(cat => cat !== originalCategory);
+              finalLocalOrderedCategories = finalLocalOrderedCategories.filter(cat => cat !== originalCategory);
+              metadataNeedsUpdate = true;
+          }
+      }
+        
+      if(metadataNeedsUpdate) {
+          setCategories(finalLocalCategories);
+          setOrderedCategories(finalLocalOrderedCategories);
+          await persistCategoryChanges(finalLocalCategories, finalLocalOrderedCategories);
+      } else {
+          await updateLastModified();
+      }
 
     } catch (error) { 
       console.error("Error updating envelope:", error); 
@@ -467,9 +471,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       batch.update(doc(db, envelopesPath, envelope.id), { orderIndex: index });
     });
     try {
+      await updateLastModified(batch); // Add lastModified to this batch
       await batch.commit();
       setEnvelopes(updatedEnvelopesForState.sort((a, b) => (a.orderIndex ?? Infinity) - (b.orderIndex ?? Infinity)));
-      await updateLastModified();
+      // No need to call updateLastModified() separately here
     } catch (error) {
       console.error("Error updating envelope order:", error);
       const originalOrder = envelopes.sort((a,b) => (a.orderIndex ?? Infinity) - (b.orderIndex ?? Infinity));
@@ -484,15 +489,16 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const validatedNewOrder = newOrder.filter(cat => currentDerivedCategories.includes(cat));
     currentDerivedCategories.forEach(cat => {
       if (!validatedNewOrder.includes(cat)) {
-        validatedNewOrder.push(cat);
+        validatedNewOrder.push(cat); // Add missing derived categories to the end
       }
     });
 
     if (JSON.stringify(validatedNewOrder) === JSON.stringify(orderedCategories)) {
-        return;
+        return; // No actual change in order of existing categories
     }
-    setOrderedCategories(validatedNewOrder); // Update local state immediately for responsiveness
-    await persistCategoryChanges(categories, validatedNewOrder); // Persist changes (categories state should be up-to-date)
+    setOrderedCategories(validatedNewOrder);
+    // Persist changes using currentDerivedCategories for the 'categories' field in metadata
+    await persistCategoryChanges(categories, validatedNewOrder);
   };
 
   const addTransaction = useCallback(async (transactionData: TransactionFormData) => {
@@ -530,7 +536,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         description: dataToUpdate.description === null || dataToUpdate.description === "" ? undefined : dataToUpdate.description,
         date: formatISO(parsedDate), isTransfer: !!dataToUpdate.isTransfer,
     };
-    // Remove any top-level undefined fields before sending to Firestore
     Object.keys(cleanedData).forEach(key => (cleanedData as any)[key] === undefined && delete (cleanedData as any)[key]);
 
     try {
@@ -562,16 +567,15 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const { id, ...dataToUpdate } = payeeData;
     const payeeDocPath = getDocPath(PAYEES_COLLECTION, id);
     if (!payeeDocPath) return;
-    const cleanedData: {name: string; category?: string} = { name: dataToUpdate.name };
+    const cleanedData: {name: string; category?: string | FieldValue} = { name: dataToUpdate.name };
     if (dataToUpdate.category?.trim()) {
         cleanedData.category = dataToUpdate.category.trim();
     } else {
-        // To remove the field in Firestore if category is empty or undefined
-        (cleanedData as any).category = deleteField();
+        cleanedData.category = deleteField();
     }
     try {
       await updateDoc(doc(db, payeeDocPath), cleanedData );
-      setPayees(prev => prev.map(p => p.id === id ? { ...p, name: cleanedData.name, category: dataToUpdate.category?.trim() || undefined } as Payee : p)
+      setPayees(prev => prev.map(p => p.id === id ? { ...p, name: cleanedData.name as string, category: typeof cleanedData.category === 'string' ? cleanedData.category : undefined } as Payee : p)
         .sort((a,b)=>a.name.localeCompare(b.name)));
       await updateLastModified();
     } catch (error) { console.error("Error updating payee:", error); }
@@ -583,14 +587,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     if (trimmedName.length === 0) return;
 
     if (categories.some(cat => cat.toLowerCase() === trimmedName.toLowerCase())) {
-      // Category already exists
       return;
     }
     
     const newLocalCategories = [...categories, trimmedName].sort((a,b)=>{
          if (a === "Uncategorized") return 1; if (b === "Uncategorized") return -1; return a.localeCompare(b);
     });
-    const newLocalOrderedCategories = [...orderedCategories, trimmedName]; // Add to end of ordered list
+    const newLocalOrderedCategories = [...orderedCategories, trimmedName];
     
     setCategories(newLocalCategories);
     setOrderedCategories(newLocalOrderedCategories);
@@ -620,12 +623,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     
     const originalEnvelope = envelopes.find(e => e.id === envelopeId);
     if (!originalEnvelope) {
-        console.warn(`AppContext (deleteEnvelope): Envelope with ID ${envelopeId} not found in local state.`);
+        console.warn(`AppContext (deleteEnvelope): Envelope with ID ${envelopeId} not found.`);
         throw new Error(`Envelope with ID ${envelopeId} not found.`);
     }
 
+    const batch = writeBatch(db);
     try {
-      const batch = writeBatch(db);
       batch.delete(doc(db, envelopeDocPath));
 
       const relatedTransactions = transactions.filter(tx => tx.envelopeId === envelopeId);
@@ -638,52 +641,53 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       const monthlyBudgetDocs = await getDocs(monthlyBudgetQuery);
       monthlyBudgetDocs.forEach(docSnap => batch.delete(docSnap.ref));
       
-      // Update lastModified as part of the batch for atomicity
-      await updateLastModified(batch);
-      await batch.commit(); 
-
-      // Update local state AFTER successful commit
+      // Local state updates to be done *after* batch commit
       const updatedEnvelopesList = envelopes.filter(env => env.id !== envelopeId);
-      setEnvelopes(updatedEnvelopesList);
-      setTransactions(prev => prev.map(tx => tx.envelopeId === envelopeId ? { ...tx, envelopeId: undefined } : tx ));
-      setMonthlyEnvelopeBudgets(prev => prev.filter(mb => mb.envelopeId !== envelopeId));
+      const updatedTransactionsList = transactions.map(tx => tx.envelopeId === envelopeId ? { ...tx, envelopeId: undefined } : tx );
+      const updatedMonthlyBudgetsList = monthlyEnvelopeBudgets.filter(mb => mb.envelopeId !== envelopeId);
       
-      // --- Category Cleanup after Deletion ---
       const categoryOfDeletedEnvelope = originalEnvelope.category;
       const isCategoryStillInUse = updatedEnvelopesList.some(env => env.category === categoryOfDeletedEnvelope);
-
+      
       let newLocalCategories = [...categories];
       let newLocalOrderedCategories = [...orderedCategories];
       let metadataNeedsUpdate = false;
 
-      if (!isCategoryStillInUse) {
+      if (!isCategoryStillInUse && categoryOfDeletedEnvelope) { // Ensure categoryOfDeletedEnvelope is defined
           newLocalCategories = categories.filter(cat => cat !== categoryOfDeletedEnvelope);
           newLocalOrderedCategories = orderedCategories.filter(cat => cat !== categoryOfDeletedEnvelope);
           metadataNeedsUpdate = true;
       }
       
-      // If "Uncategorized" was the only one left and it's now empty, it should still exist if no other categories are there.
-      // Or, if all envelopes are gone, categories should be empty.
       if (updatedEnvelopesList.length === 0) {
         newLocalCategories = [];
         newLocalOrderedCategories = [];
         metadataNeedsUpdate = true;
-      } else if (newLocalCategories.length === 0 && updatedEnvelopesList.some(e => e.category === "Uncategorized")) {
-        // This case is less likely if Uncategorized is always derived if an envelope has it.
-        // The primary derivation in fetchData handles this.
       }
 
+      if (metadataNeedsUpdate) {
+        // Persist category changes within the same batch for atomicity
+        await persistCategoryChanges(newLocalCategories, newLocalOrderedCategories, batch);
+      } else {
+        // If categories didn't change, still update lastModified for the envelope deletion
+        await updateLastModified(batch);
+      }
+      
+      await batch.commit(); 
 
+      // Update local state AFTER successful commit
+      setEnvelopes(updatedEnvelopesList);
+      setTransactions(updatedTransactionsList);
+      setMonthlyEnvelopeBudgets(updatedMonthlyBudgetsList);
       if (metadataNeedsUpdate) {
         setCategories(newLocalCategories);
         setOrderedCategories(newLocalOrderedCategories);
-        await persistCategoryChanges(newLocalCategories, newLocalOrderedCategories);
       }
-      // No explicit else to call updateLastModified() here because persistCategoryChanges already does.
+      // updateLastModified() was part of the batch, no need to call separately
 
     } catch (error) { 
         console.error("Error deleting envelope:", error); 
-        throw error; // Re-throw to be caught by UI
+        throw error; 
     }
   }, [currentUser, envelopes, transactions, categories, orderedCategories, monthlyEnvelopeBudgets, getDocPath, getCollectionPath, updateLastModified, persistCategoryChanges]);
 
@@ -887,3 +891,5 @@ export const useAppContext = () => {
   return context;
 };
 
+// Helper type for Firestore FieldValue, if needed elsewhere
+import type { FieldValue } from 'firebase/firestore';
