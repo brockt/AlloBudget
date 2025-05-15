@@ -6,10 +6,12 @@ import SpendingByEnvelopeChart from "@/components/charts/spending-by-envelope-ch
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useAppContext } from "@/context/AppContext";
 import { Skeleton } from "@/components/ui/skeleton";
-import { BarChart } from "lucide-react";
+import { BarChart, ChevronLeft, ChevronRight } from "lucide-react"; // Added Chevrons
+import { Button } from "@/components/ui/button"; // Added Button
+import { format, addMonths, subMonths } from "date-fns"; // Added date-fns functions
 
 export default function ReportsPage() {
-  const { isLoading, envelopes, transactions } = useAppContext();
+  const { isLoading, envelopes, transactions, currentViewMonth, setCurrentViewMonth } = useAppContext();
 
   if (isLoading) {
     return (
@@ -32,14 +34,27 @@ export default function ReportsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Reports"
-        description="Analyze your spending patterns and financial health."
+        description={`Spending analysis for ${format(currentViewMonth, "MMMM yyyy")}`}
+        actions={ // Month navigation for reports
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="icon" onClick={() => setCurrentViewMonth(date => subMonths(date, 1))} aria-label="Previous month">
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <span className="text-sm font-medium w-28 text-center">
+              {format(currentViewMonth, "MMMM yyyy")}
+            </span>
+            <Button variant="outline" size="icon" onClick={() => setCurrentViewMonth(date => addMonths(date, 1))} aria-label="Next month">
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        }
       />
 
       <Card className="shadow-lg">
         <CardHeader>
-          <CardTitle>Spending by Envelope (Current Month)</CardTitle>
+          <CardTitle>Spending by Envelope ({format(currentViewMonth, "MMMM")})</CardTitle>
           <CardDescription>
-            See how your expenses are distributed across your budget categories.
+            Expense distribution across budget categories for {format(currentViewMonth, "MMMM yyyy")}.
           </CardDescription>
         </CardHeader>
         <CardContent className="h-[400px] p-2 sm:p-4 md:p-6">
@@ -54,25 +69,6 @@ export default function ReportsPage() {
           )}
         </CardContent>
       </Card>
-
-      {/* Future charts could go here:
-      <Card>
-        <CardHeader>
-          <CardTitle>Income vs Expense Trend</CardTitle>
-        </CardHeader>
-        <CardContent className="h-[350px] p-6">
-          Line chart placeholder
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader>
-          <CardTitle>Account Balance Over Time</CardTitle>
-        </CardHeader>
-        <CardContent className="h-[350px] p-6">
-          Area chart placeholder
-        </CardContent>
-      </Card>
-      */}
     </div>
   );
 }

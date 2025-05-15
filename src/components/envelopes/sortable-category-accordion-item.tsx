@@ -17,13 +17,15 @@ interface SortableCategoryAccordionItemProps {
   envelopesInCategory: Envelope[];
   setEditingEnvelope: (envelope: Envelope | null) => void;
   setIsEditDialogOpen: (isOpen: boolean) => void;
+  currentViewMonth: Date; // Added prop
 }
 
 export function SortableCategoryAccordionItem({
   category,
   envelopesInCategory,
   setEditingEnvelope,
-  setIsEditDialogOpen
+  setIsEditDialogOpen,
+  currentViewMonth, // Use prop
 }: SortableCategoryAccordionItemProps) {
   const {
     attributes,
@@ -52,30 +54,24 @@ export function SortableCategoryAccordionItem({
 
   return (
     <div ref={setNodeRef} style={style} className={cn("bg-card border rounded-md", isDragging ? "shadow-lg" : "shadow-sm")}>
-      <AccordionItem value={category} className="border-b-0"> {/* Remove default border */}
-        <div className="flex items-center border-b"> {/* Add border back for the trigger area */}
-           {/* Drag Handle */}
+      <AccordionItem value={category} className="border-b-0">
+        <div className="flex items-center border-b">
            <Button
             variant="ghost"
             size="icon"
             className="cursor-grab h-10 w-10 text-muted-foreground hover:bg-muted/70 active:cursor-grabbing rounded-none"
-            {...attributes} // Spread attributes for sortable
-            {...listeners} // Spread listeners for dragging
+            {...attributes}
+            {...listeners}
             aria-label={`Drag category ${category}`}
           >
             <GripVertical className="h-5 w-5" />
           </Button>
-
           <AccordionTrigger className="text-lg font-semibold px-3 py-4 flex-1 hover:no-underline">
             {category} ({envelopesInCategory.length})
           </AccordionTrigger>
         </div>
-        <AccordionContent className="pt-0 pb-3 px-3"> {/* Adjust padding */}
-          {/* SortableContext for Envelopes within this Category */}
-          <SortableContext
-            items={envelopeIds}
-            strategy={verticalListSortingStrategy}
-          >
+        <AccordionContent className="pt-0 pb-3 px-3">
+          <SortableContext items={envelopeIds} strategy={verticalListSortingStrategy}>
             <ul className="space-y-3 pt-3">
               {envelopesInCategory.map(envelope => (
                 <SortableEnvelopeItem
@@ -83,6 +79,7 @@ export function SortableCategoryAccordionItem({
                   id={envelope.id}
                   envelope={envelope}
                   onEditClick={(e) => handleEditClick(e, envelope)}
+                  currentViewMonth={currentViewMonth} // Pass currentViewMonth
                 />
               ))}
             </ul>

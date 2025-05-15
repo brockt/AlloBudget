@@ -4,37 +4,27 @@
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts";
 import {
   ChartContainer,
-  ChartTooltip, // Import ChartTooltip
+  ChartTooltip,
   ChartTooltipContent,
-  ChartLegend,
-  ChartLegendContent,
 } from "@/components/ui/chart";
 import { useAppContext } from "@/context/AppContext";
-import { startOfMonth, endOfMonth } from "date-fns";
 import type { ChartConfig } from "@/components/ui/chart"
+import { format } from "date-fns"; // Import format
 
 export default function SpendingByEnvelopeChart() {
-  const { envelopes, getEnvelopeSpending } = useAppContext();
+  const { envelopes, getEnvelopeSpending, getMonthlyAllocation, currentViewMonth } = useAppContext(); // Added getMonthlyAllocation and currentViewMonth
 
-  const currentMonthPeriod = { start: startOfMonth(new Date()), end: endOfMonth(new Date()) };
-
+  // Data for the currentViewMonth
   const chartData = envelopes.map(envelope => ({
     name: envelope.name,
-    spent: getEnvelopeSpending(envelope.id, currentMonthPeriod),
-    budgeted: envelope.budgetAmount,
+    spent: getEnvelopeSpending(envelope.id, currentViewMonth), // Use currentViewMonth
+    budgeted: getMonthlyAllocation(envelope.id, currentViewMonth), // Get allocation for currentViewMonth
   }));
 
   const chartConfig = {
-    spent: {
-      label: "Spent",
-      color: "hsl(var(--primary))", // Use primary color (Teal)
-    },
-    budgeted: {
-      label: "Budgeted",
-      color: "hsl(var(--muted))", // Use a muted color
-    },
+    spent: { label: "Spent", color: "hsl(var(--primary))" },
+    budgeted: { label: "Budgeted", color: "hsl(var(--muted))" },
   } satisfies ChartConfig;
-
 
   if (envelopes.length === 0) {
     return <div className="flex items-center justify-center h-full text-muted-foreground">No envelope data to display.</div>;
@@ -43,7 +33,7 @@ export default function SpendingByEnvelopeChart() {
   const filteredChartData = chartData.filter(d => d.spent > 0 || d.budgeted > 0);
 
   if (filteredChartData.length === 0) {
-     return <div className="flex items-center justify-center h-full text-muted-foreground">No spending or budget data for envelopes this month.</div>;
+     return <div className="flex items-center justify-center h-full text-muted-foreground">No spending or budget data for {format(currentViewMonth, "MMMM yyyy")}.</div>;
   }
 
   return (
@@ -56,11 +46,8 @@ export default function SpendingByEnvelopeChart() {
             tickLine={false}
             tickMargin={10}
             axisLine={false}
-            // interval={0} // Show all labels if space allows
-            // angle={-30} // Angle labels if they overlap
-            // textAnchor="end"
-            height={50} // Adjust height for angled labels if used
-             tickFormatter={(value) => value.length > 10 ? `${value.substring(0,10)}...` : value} // Truncate long labels
+            height={50}
+            tickFormatter={(value) => value.length > 10 ? `${value.substring(0,10)}...` : value}
           />
           <YAxis
             tickFormatter={(value) => `$${value}`}
@@ -73,7 +60,7 @@ export default function SpendingByEnvelopeChart() {
             content={<ChartTooltipContent indicator="dot" />}
           />
           <Bar dataKey="spent" fill="var(--color-spent)" radius={4} />
-          {/* Optional: Show budgeted amount as a reference line or another bar */}
+          {/* Optional: Show budgeted amount as a reference bar if needed */}
           {/* <Bar dataKey="budgeted" fill="var(--color-budgeted)" radius={4} /> */}
         </BarChart>
       </ResponsiveContainer>

@@ -1,9 +1,9 @@
+
 export interface Account {
   id: string;
   userId: string;
   name: string;
   initialBalance: number;
-  // Optional: type like 'checking', 'savings', 'credit card'
   type?: string;
   createdAt: string;
 }
@@ -12,11 +12,11 @@ export interface Envelope {
   id: string;
   userId: string;
   name: string;
-  budgetAmount: number; // Typically monthly budget
-  estimatedAmount?: number | undefined; // Optional: Estimated amount (explicitly allow undefined)
-  category: string; // Category is mandatory
-  dueDate?: number; // Optional: Day of the month (1-31)
-  orderIndex: number; // Added to manage display and persistence of envelope order
+  budgetAmount: number; // Default monthly target funding
+  estimatedAmount?: number | undefined;
+  category: string;
+  dueDate?: number;
+  orderIndex: number;
   createdAt: string;
 }
 
@@ -26,14 +26,14 @@ export interface Transaction {
   id:string;
   userId: string;
   accountId: string;
-  envelopeId?: string; // Optional, used for expenses and for transfers (both income/expense legs)
-  payeeId: string; // Mandatory: Link to a payee
+  envelopeId?: string;
+  payeeId: string;
   amount: number;
   type: TransactionType;
-  description?: string; // Description remains optional
+  description?: string;
   date: string; // ISO string date
   createdAt: string;
-  isTransfer?: boolean; // Flag to identify inter-account transfer transactions
+  isTransfer?: boolean;
 }
 
 export interface Payee {
@@ -44,37 +44,44 @@ export interface Payee {
   createdAt: string;
 }
 
-// For forms
+// New type for monthly budget allocations
+export interface MonthlyEnvelopeBudget {
+  id: string; // Firestore document ID
+  userId: string;
+  envelopeId: string;
+  month: string; // Format "YYYY-MM"
+  allocatedAmount: number;
+  createdAt: string; // ISO string
+  updatedAt: string; // ISO string
+}
+
 export interface AccountFormData {
   name: string;
   initialBalance: number;
   type?: string;
 }
 
-// For updating an account, ensure ID is present
 export type AccountWithId = Partial<AccountFormData> & { id: string };
-
 
 export interface EnvelopeFormData {
   name: string;
-  budgetAmount: number;
-  estimatedAmount?: number | undefined; // Optional: Estimated amount (explicitly allow undefined)
-  category: string; // Make category mandatory
-  dueDate?: number; // Optional: Day of the month (1-31)
+  budgetAmount: number; // Default monthly target
+  estimatedAmount?: number | undefined;
+  category: string;
+  dueDate?: number;
 }
 
 export interface TransactionFormData {
   accountId: string;
-  envelopeId?: string | null; // Allow null. Will be set for expenses and for both legs of an envelope transfer.
-  payeeId: string; // Made mandatory, cannot be null
+  envelopeId?: string | null;
+  payeeId: string;
   amount: number;
   type: TransactionType;
-  description?: string; // Description remains optional
-  date: string; // Should be string for form input, then parsed
-  isTransfer?: boolean; // Flag for inter-account transfers
+  description?: string;
+  date: string;
+  isTransfer?: boolean;
 }
 
-// For updating a transaction, ensure ID is present
 export type TransactionWithId = Partial<TransactionFormData> & { id: string };
 
 export interface PayeeFormData {
@@ -82,26 +89,22 @@ export interface PayeeFormData {
   category?: string;
 }
 
-// For updating a payee, ensure ID is present
 export type PayeeWithId = PayeeFormData & { id: string };
 
-
-// For transfer envelope funds form
 export interface TransferEnvelopeFundsFormData {
   fromEnvelopeId: string;
   toEnvelopeId: string;
   amount: number;
-  accountId: string; // The account where the corresponding transactions will be recorded (relevant if using double-entry simulation)
-  date: string; // ISO string date
+  accountId: string;
+  date: string;
   description?: string;
 }
 
-// For transfer account funds form
 export interface TransferAccountFundsFormData {
     fromAccountId: string;
     toAccountId: string;
     amount: number;
-    date: string; // ISO string date
+    date: string;
     description?: string;
 }
 
@@ -110,36 +113,45 @@ export interface AppContextType {
   envelopes: Envelope[];
   transactions: Transaction[];
   payees: Payee[];
-  categories: string[]; // Original category names
-  orderedCategories: string[]; // Added: maintains the user-defined order of categories
-  lastModified: string | null; // Added to track last data modification time
+  categories: string[];
+  orderedCategories: string[];
+  lastModified: string | null;
+  
+  // New state for monthly budgets and view month
+  monthlyEnvelopeBudgets: MonthlyEnvelopeBudget[];
+  currentViewMonth: Date; // Represents the first day of the month being viewed
+  setCurrentViewMonth: (updater: (date: Date) => Date) => void;
+  setMonthlyAllocation: (envelopeId: string, month: string, amount: number) => Promise<void>;
+
   addAccount: (accountData: AccountFormData) => void;
-  updateAccount: (accountData: AccountWithId) => void; // Added updateAccount function
+  updateAccount: (accountData: AccountWithId) => void;
   addEnvelope: (envelopeData: EnvelopeFormData) => void;
   addTransaction: (transactionData: TransactionFormData) => void;
-  updateTransaction: (transactionData: TransactionWithId) => void; // Added updateTransaction function
+  updateTransaction: (transactionData: TransactionWithId) => void;
   addPayee: (payeeData: PayeeFormData) => void;
-  updatePayee: (payeeData: PayeeWithId) => void; // Added updatePayee function
-  addCategory: (categoryName: string) => void; // Added addCategory function
-  updateCategoryOrder: (newOrder: string[]) => void; // Added function to update category order
-  updateEnvelope: (envelopeData: Partial<Envelope> & { id: string }) => void; // Added updateEnvelope function
-  updateEnvelopeOrder: (reorderedEnvelopes: Envelope[]) => void; // Added updateEnvelopeOrder function
-  deleteTransaction: (transactionId: string) => void; // Example delete
-  deleteEnvelope: (envelopeId: string) => void; // Added deleteEnvelope function signature
-  transferBetweenEnvelopes: (data: TransferEnvelopeFundsFormData) => void; // New function
-  transferBetweenAccounts: (data: TransferAccountFundsFormData) => void; // Function to transfer between accounts
+  updatePayee: (payeeData: PayeeWithId) => void;
+  addCategory: (categoryName: string) => void;
+  updateCategoryOrder: (newOrder: string[]) => void;
+  updateEnvelope: (envelopeData: Partial<Envelope> & { id: string }) => void;
+  updateEnvelopeOrder: (reorderedEnvelopes: Envelope[]) => void;
+  deleteTransaction: (transactionId: string) => void;
+  deleteEnvelope: (envelopeId: string) => void;
+  transferBetweenEnvelopes: (data: TransferEnvelopeFundsFormData) => void;
+  transferBetweenAccounts: (data: TransferAccountFundsFormData) => void;
+  
   getAccountBalance: (accountId: string) => number;
-  getAccountById: (accountId: string) => Account | undefined; // Added function definition
-  getEnvelopeById: (envelopeId: string) => Envelope | undefined; // Added function definition
-  getEnvelopeSpending: (envelopeId: string, period?: { start: Date, end: Date }) => number;
-  getEnvelopeBalanceWithRollover: (envelopeId: string) => number; // Function for balance including rollover
-  getPayeeTransactions: (payeeId: string) => Transaction[]; // Added function to get payee transactions
-  // New calculation functions
-  getMonthlyIncomeTotal: () => number;
-  getMonthlySpendingTotal: () => number;
-  getTotalMonthlyBudgeted: () => number;
-  getYtdIncomeTotal: () => number;
+  getAccountById: (accountId: string) => Account | undefined;
+  getEnvelopeById: (envelopeId: string) => Envelope | undefined;
+  
+  // Modified and new calculation functions
+  getEnvelopeSpending: (envelopeId: string, forMonth: Date) => number;
+  getEnvelopeBalanceAsOfEOM: (envelopeId: string, asOfEOM: Date) => number; // New
+  getMonthlyAllocation: (envelopeId: string, forMonth: Date) => number; // New
+
+  getMonthlyIncomeTotal: (forMonth: Date) => number; // Parameterized
+  getMonthlySpendingTotal: (forMonth: Date) => number; // Parameterized
+  getTotalMonthlyBudgeted: (forMonth: Date) => number; // Parameterized
+  getYtdIncomeTotal: () => number; // Stays same
+  
   isLoading: boolean;
 }
-
-

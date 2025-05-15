@@ -1,200 +1,185 @@
 
 "use client";
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { Envelope } from '@/types';
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { Pencil, GripVertical, CalendarClock, Trash2, Info } from 'lucide-react'; // Added Info icon
+import { Input } from "@/components/ui/input"; // Import Input
+import { Pencil, GripVertical, CalendarClock, Trash2, Save, XCircle } from 'lucide-react';
 import { useAppContext } from "@/context/AppContext";
-import { startOfMonth, endOfMonth } from "date-fns";
+import { format, parseISO } from "date-fns";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip"; // Ensure TooltipProvider is imported
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 
 interface SortableEnvelopeItemProps {
   id: string;
   envelope: Envelope;
   onEditClick: (event: React.MouseEvent) => void;
+  currentViewMonth: Date; // Added prop
 }
 
-// Function to get the ordinal suffix for a day number
 function getDaySuffix(day: number): string {
   if (day > 3 && day < 21) return 'th';
   switch (day % 10) {
-    case 1: return 'st';
-    case 2: return 'nd';
-    case 3: return 'rd';
-    default: return 'th';
+    case 1: return 'st'; case 2: return 'nd'; case 3: return 'rd'; default: return 'th';
   }
 }
 
-export function SortableEnvelopeItem({ id, envelope, onEditClick }: SortableEnvelopeItemProps) {
-  const { getEnvelopeSpending, getEnvelopeBalanceWithRollover, deleteEnvelope } = useAppContext();
+export function SortableEnvelopeItem({ id, envelope, onEditClick, currentViewMonth }: SortableEnvelopeItemProps) {
+  const { getEnvelopeSpending, getEnvelopeBalanceAsOfEOM, deleteEnvelope, setMonthlyAllocation, getMonthlyAllocation } = useAppContext();
   const { toast } = useToast();
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: id });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: id });
+
+  const [isEditingMonthlyBudget, setIsEditingMonthlyBudget] = useState(false);
+  const [monthlyBudgetValue, setMonthlyBudgetValue] = useState<string>("");
+
+  const allocatedThisMonth = getMonthlyAllocation(envelope.id, currentViewMonth);
+  const spentThisMonth = getEnvelopeSpending(envelope.id, currentViewMonth);
+  const availableBalance = getEnvelopeBalanceAsOfEOM(envelope.id, currentViewMonth);
+  
+  useEffect(() => {
+    // When currentViewMonth or allocatedThisMonth changes, update the input field's initial value
+    setMonthlyBudgetValue(allocatedThisMonth.toFixed(2));
+  }, [allocatedThisMonth, currentViewMonth]);
+
 
   const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-    zIndex: isDragging ? 10 : 'auto', // Ensure dragging item is on top
+    transform: CSS.Transform.toString(transform), transition,
+    opacity: isDragging ? 0.5 : 1, zIndex: isDragging ? 10 : 'auto',
   };
 
-  const currentMonthPeriod = { start: startOfMonth(new Date()), end: endOfMonth(new Date()) };
-  const spentThisMonth = getEnvelopeSpending(envelope.id, currentMonthPeriod);
-  const progress = envelope.budgetAmount > 0 ? (spentThisMonth / envelope.budgetAmount) * 100 : 0;
-  const availableBalance = getEnvelopeBalanceWithRollover(envelope.id);
+  const effectiveBudgetAllocation = isEditingMonthlyBudget ? parseFloat(monthlyBudgetValue) || 0 : allocatedThisMonth;
+  const progress = effectiveBudgetAllocation > 0 ? (spentThisMonth / effectiveBudgetAllocation) * 100 : 0;
   const dueDateString = envelope.dueDate ? `${envelope.dueDate}${getDaySuffix(envelope.dueDate)}` : '';
   const hasEstimatedAmount = typeof envelope.estimatedAmount === 'number' && !isNaN(envelope.estimatedAmount);
 
-  // Remove stopPropagation from this handler - let AlertDialogTrigger manage the interaction
-  const handleDeleteTriggerClick = (event: React.MouseEvent) => {
-      // No need to stop propagation here; let the trigger work
-      // event.stopPropagation();
-      // event.preventDefault();
-  };
-
-
   const confirmDelete = (event: React.MouseEvent) => {
-    // Stop propagation might not be needed here either, but harmless for now.
-    // event.stopPropagation();
     deleteEnvelope(envelope.id);
-    toast({
-      title: "Envelope Deleted",
-      description: `Envelope "${envelope.name}" has been deleted.`,
-      variant: "destructive",
-    });
-    // Closing the dialog is handled by Radix UI automatically after action
+    toast({ title: "Envelope Deleted", description: `Envelope "${envelope.name}" has been deleted.`, variant: "destructive" });
   };
 
-  // Keep stopPropagation for the edit button to prevent link navigation
   const handleEditClick = (event: React.MouseEvent) => {
-    event.stopPropagation();
-    event.preventDefault();
-    onEditClick(event); // Call the passed-in handler
+    event.stopPropagation(); event.preventDefault(); onEditClick(event);
+  };
+
+  const handleMonthlyBudgetEditToggle = (e: React.MouseEvent) => {
+    e.stopPropagation(); e.preventDefault();
+    if (isEditingMonthlyBudget) { // If was editing, try to save
+      handleSaveMonthlyBudget();
+    } else {
+      setMonthlyBudgetValue(allocatedThisMonth.toFixed(2)); // Initialize with current allocation
+    }
+    setIsEditingMonthlyBudget(!isEditingMonthlyBudget);
+  };
+  
+  const handleCancelMonthlyBudgetEdit = (e: React.MouseEvent) => {
+    e.stopPropagation(); e.preventDefault();
+    setIsEditingMonthlyBudget(false);
+    setMonthlyBudgetValue(allocatedThisMonth.toFixed(2)); // Reset to original on cancel
+  };
+
+  const handleSaveMonthlyBudget = async () => {
+    const amount = parseFloat(monthlyBudgetValue);
+    if (isNaN(amount) || amount < 0) {
+      toast({ title: "Invalid Amount", description: "Please enter a valid positive number for the budget.", variant: "destructive"});
+      return;
+    }
+    try {
+      await setMonthlyAllocation(envelope.id, format(currentViewMonth, "yyyy-MM"), amount);
+      toast({ title: "Monthly Budget Updated", description: `Budget for ${envelope.name} for ${format(currentViewMonth, "MMMM yyyy")} set to $${amount.toFixed(2)}.` });
+      setIsEditingMonthlyBudget(false); // Exit edit mode on successful save
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to update monthly budget.", variant: "destructive"});
+      console.error("Failed to save monthly budget:", error);
+    }
   };
 
 
   return (
-    <li
-        ref={setNodeRef}
-        style={style}
-        className="group relative"
-        {...attributes} // Keep attributes for the sortable item itself
-    >
-        <TooltipProvider> {/* Wrap with TooltipProvider */}
-      <div className="flex items-center gap-2">
-         <Button
-            variant="ghost"
-            size="icon"
-            className={cn("cursor-grab h-8 w-8 text-muted-foreground hover:bg-muted/70 active:cursor-grabbing touch-none")}
-            {...listeners} // Listeners are for the drag handle
-            aria-label={`Drag ${envelope.name}`}
-        >
+    <li ref={setNodeRef} style={style} className="group relative" {...attributes}>
+      <TooltipProvider>
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="icon" className={cn("cursor-grab h-8 w-8 text-muted-foreground hover:bg-muted/70 active:cursor-grabbing touch-none")} {...listeners} aria-label={`Drag ${envelope.name}`}>
             <GripVertical className="h-4 w-4" />
-        </Button>
-
-        {/* Link wraps the main content area */}
-        <Link href={`/dashboard/envelopes/${envelope.id}/transactions`} passHref className="flex-1 block p-2.5 rounded-md border bg-card hover:bg-muted/50 transition-colors cursor-pointer">
-          <div className="relative">
-            {/* Action buttons container - Positioned relative to the Link's content */}
-            <div className="absolute top-0 right-0 flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity focus-within:opacity-100 z-10">
-              {/* Edit Button */}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6 text-muted-foreground hover:text-foreground"
-                onClick={handleEditClick} // Use the specific edit handler
-                aria-label={`Edit ${envelope.name}`}
-              >
-                <Pencil className="h-4 w-4" />
-              </Button>
-              {/* Delete Confirmation */}
-              <AlertDialog>
-                {/* Let the trigger handle itself, remove onClick here */}
-                <AlertDialogTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                    aria-label={`Delete ${envelope.name}`}
-                    // onClick={handleDeleteTriggerClick} // Remove onClick from here
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This action cannot be undone. This will permanently delete the envelope
-                      "{envelope.name}". Transactions associated with this envelope will become uncategorized.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel onClick={(e) => e.stopPropagation()}>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={confirmDelete} className={cn("bg-destructive text-destructive-foreground hover:bg-destructive/90")}>
-                      Delete
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </div>
-
-             {/* Main content area */}
-            <div className="flex justify-between items-start mb-1 pr-16"> {/* Add padding-right to avoid overlap with action buttons */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-baseline">
-                  <span className="font-medium truncate block text-sm" title={envelope.name}>{envelope.name}</span>
-                  {/* Display estimated amount if it exists */}
-                  {hasEstimatedAmount && (
-                    <span className="ml-1.5 text-xs text-muted-foreground">
-                       (Est: ${envelope.estimatedAmount?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
+          </Button>
+          <div className="flex-1 block p-2.5 rounded-md border bg-card hover:bg-muted/50 transition-colors"> {/* Removed Link for now, actions are buttons */}
+            <div className="relative">
+              <div className="absolute top-0 right-0 flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity focus-within:opacity-100 z-10">
+                <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-foreground" onClick={handleEditClick} aria-label={`Edit ${envelope.name} Default Target`}>
+                  <Pencil className="h-4 w-4" />
+                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" aria-label={`Delete ${envelope.name}`}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This action cannot be undone. This will permanently delete "{envelope.name}".</AlertDialogDescription></AlertDialogHeader>
+                    <AlertDialogFooter><AlertDialogCancel onClick={(e) => e.stopPropagation()}>Cancel</AlertDialogCancel><AlertDialogAction onClick={confirmDelete} className={cn("bg-destructive text-destructive-foreground hover:bg-destructive/90")}>Delete</AlertDialogAction></AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+              <Link href={`/dashboard/envelopes/${envelope.id}/transactions?month=${format(currentViewMonth, "yyyy-MM")}`} passHref>
+                <div className="cursor-pointer"> {/* This div is now the clickable area for navigation */}
+                    <div className="flex justify-between items-start mb-1 pr-16">
+                    <div className="flex-1 min-w-0">
+                        <span className="font-medium truncate block text-sm" title={envelope.name}>{envelope.name}</span>
+                        {hasEstimatedAmount && (<span className="ml-1.5 text-xs text-muted-foreground">(Est: ${envelope.estimatedAmount?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</span>)}
+                        {dueDateString && (<span className="text-xs text-muted-foreground flex items-center mt-0.5"><CalendarClock className="mr-1 h-3 w-3" /> Due: {dueDateString}</span>)}
+                    </div>
+                    <span className={`font-semibold text-sm ${availableBalance < 0 ? 'text-destructive' : 'text-green-600 dark:text-green-500'}`}>
+                        ${availableBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
+                    </div>
+                </div>
+              </Link>
+              <Progress value={Math.min(progress, 100)} className="h-2 mt-1" />
+              <div className="flex justify-between items-center text-xs text-muted-foreground mt-1">
+                <span>Spent: ${spentThisMonth.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                <div className="flex items-center gap-1">
+                  <span>Budgeted ({format(currentViewMonth, "MMM")}):</span>
+                  {isEditingMonthlyBudget ? (
+                    <>
+                      <Input
+                        type="number"
+                        value={monthlyBudgetValue}
+                        onChange={(e) => setMonthlyBudgetValue(e.target.value)}
+                        onClick={(e) => e.stopPropagation()} // Prevent Link navigation
+                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSaveMonthlyBudget();}}}
+                        className="h-6 px-1 py-0.5 text-xs w-20 border-primary"
+                        step="0.01"
+                      />
+                      <Button variant="ghost" size="icon" className="h-5 w-5 text-green-600 hover:text-green-700" onClick={handleSaveMonthlyBudget} aria-label="Save monthly budget">
+                        <Save className="h-3 w-3"/>
+                      </Button>
+                       <Button variant="ghost" size="icon" className="h-5 w-5 text-red-600 hover:text-red-700" onClick={handleCancelMonthlyBudgetEdit} aria-label="Cancel edit monthly budget">
+                        <XCircle className="h-3 w-3"/>
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <span>${allocatedThisMonth.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      <Button variant="ghost" size="icon" className="h-5 w-5 text-muted-foreground hover:text-primary" onClick={handleMonthlyBudgetEditToggle} aria-label="Edit monthly budget">
+                        <Pencil className="h-3 w-3" />
+                      </Button>
+                    </>
                   )}
                 </div>
-                {dueDateString && (
-                  <span className="text-xs text-muted-foreground flex items-center mt-0.5">
-                    <CalendarClock className="mr-1 h-3 w-3" /> Due: {dueDateString}
-                  </span>
-                )}
               </div>
-              <span className={`font-semibold text-sm ${availableBalance < 0 ? 'text-destructive' : 'text-green-600 dark:text-green-500'}`}>
-                ${availableBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </span>
-            </div>
-            <Progress value={Math.min(progress, 100)} className="h-2" />
-            <div className="flex justify-between text-xs text-muted-foreground mt-1">
-              <span>Spent (Month): ${spentThisMonth.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-              <span>Budget (Month): ${envelope.budgetAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
             </div>
           </div>
-        </Link>
-      </div>
-      </TooltipProvider> {/* Close TooltipProvider */}
+        </div>
+      </TooltipProvider>
     </li>
   );
 }
-
