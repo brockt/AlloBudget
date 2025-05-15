@@ -18,17 +18,17 @@ const formatCurrency = (amount: number): string => {
 export default function DashboardPage() {
   const {
     accounts,
-    envelopes,
+    envelopes, // Used for the length in Budgeted card, and by getTotalMonthlyBudgeted
     getAccountBalance,
     isLoading,
     getMonthlyIncomeTotal,
     getMonthlySpendingTotal,
-    getTotalMonthlyBudgeted,
+    getTotalMonthlyBudgeted, // This is total *planned* allocation for the month
     getYtdIncomeTotal,
     lastModified,
-    currentViewMonth, // Get currentViewMonth
-    setCurrentViewMonth, // Get setCurrentViewMonth
-    getEnvelopeBalanceAsOfEOM, // Get new balance function
+    currentViewMonth,
+    setCurrentViewMonth,
+    // getEnvelopeBalanceAsOfEOM, // This was used for the old "Available in Envelopes"
   } = useAppContext();
 
   if (isLoading) {
@@ -52,15 +52,15 @@ export default function DashboardPage() {
   }
 
   const totalBalance = accounts.reduce((sum, acc) => sum + getAccountBalance(acc.id), 0);
-  // Calculate total budgeted for the currentViewMonth
+  // totalMonthlyBudgetedForViewMonth is the sum of all planned allocations for the current month
   const totalMonthlyBudgetedForViewMonth = getTotalMonthlyBudgeted(currentViewMonth);
   
-  // Calculate available to spend as sum of all envelope balances for the currentViewMonth
-  const availableToSpendInEnvelopes = envelopes.reduce((sum, env) => sum + getEnvelopeBalanceAsOfEOM(env.id, currentViewMonth), 0);
+  // New definition for Available to Spend: Total Balance - Total Planned Budget for the month
+  const availableToSpend = totalBalance - totalMonthlyBudgetedForViewMonth;
 
   const monthlyIncome = getMonthlyIncomeTotal(currentViewMonth);
   const monthlySpending = getMonthlySpendingTotal(currentViewMonth);
-  const ytdIncome = getYtdIncomeTotal(); // YTD usually doesn't change with view month
+  const ytdIncome = getYtdIncomeTotal();
 
   const formattedLastModified = lastModified && isValidDate(parseISO(lastModified)) 
     ? format(parseISO(lastModified), "MMM d, yyyy 'at' h:mm a") 
@@ -150,14 +150,17 @@ export default function DashboardPage() {
         </Card>
         <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Available to Spend (in Envelopes)</CardTitle>
+            {/* Updated CardTitle for Available to Spend */}
+            <CardTitle className="text-sm font-medium">Available to Spend</CardTitle>
             <Wallet className="h-5 w-5 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold ${availableToSpendInEnvelopes < 0 ? 'text-destructive' : ''}`}>
-              {formatCurrency(availableToSpendInEnvelopes)}
+            {/* Use the new availableToSpend calculation */}
+            <div className={`text-2xl font-bold ${availableToSpend < 0 ? 'text-destructive' : ''}`}>
+              {formatCurrency(availableToSpend)}
             </div>
-            <p className="text-xs text-muted-foreground">As of end of {format(currentViewMonth, "MMMM yyyy")}</p>
+            {/* Updated description for clarity */}
+            <p className="text-xs text-muted-foreground">Total balance minus planned monthly budget ({format(currentViewMonth, "MMMM yyyy")}).</p>
           </CardContent>
         </Card>
       </div>
