@@ -150,7 +150,7 @@ export default function DashboardPage() {
         </Card>
         <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Available in Envelopes</CardTitle>
+            <CardTitle className="text-sm font-medium">Available to Spend (in Envelopes)</CardTitle>
             <Wallet className="h-5 w-5 text-muted-foreground" />
           </CardHeader>
           <CardContent>
