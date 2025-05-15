@@ -23,13 +23,11 @@ export default function DashboardPage() {
     isLoading,
     getMonthlyIncomeTotal,
     getMonthlySpendingTotal,
-    getTotalMonthlyBudgeted, // This is total *planned* allocation for the month
+    getTotalMonthlyBudgeted,
     getYtdIncomeTotal,
     lastModified,
     currentViewMonth,
     setCurrentViewMonth,
-    // getMonthlyAllocation,   // No longer needed directly for ATS calculation here
-    // getEnvelopeSpending,    // No longer needed directly for ATS calculation here
   } = useAppContext();
 
   if (isLoading) {
@@ -53,16 +51,16 @@ export default function DashboardPage() {
   }
 
   const totalBalance = accounts.reduce((sum, acc) => sum + getAccountBalance(acc.id), 0);
-  
-  // This is the sum of all *planned* allocations for the "Budgeted" card for the current view month
-  const totalPlannedBudgetedForViewMonth = getTotalMonthlyBudgeted(currentViewMonth);
-
-  // Simplified Available to Spend calculation
-  const availableToSpend = totalBalance - totalPlannedBudgetedForViewMonth;
-  
   const monthlyIncome = getMonthlyIncomeTotal(currentViewMonth);
-  const monthlySpending = getMonthlySpendingTotal(currentViewMonth); // This is total actual spending
+  const monthlySpending = getMonthlySpendingTotal(currentViewMonth);
+  const totalPlannedBudgetedForViewMonth = getTotalMonthlyBudgeted(currentViewMonth);
   const ytdIncome = getYtdIncomeTotal();
+
+  // Calculate balance as it was at the start of the currentViewMonth
+  const balanceAtStartOfMonth = totalBalance - monthlyIncome + monthlySpending;
+  
+  // "Available to Spend" is the buffer from the start of the month, after planned budgets.
+  const availableToSpend = balanceAtStartOfMonth - totalPlannedBudgetedForViewMonth;
 
   const formattedLastModified = lastModified && isValidDate(parseISO(lastModified)) 
     ? format(parseISO(lastModified), "MMM d, yyyy 'at' h:mm a") 
@@ -147,7 +145,7 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(totalBalance)}</div>
-            <p className="text-xs text-muted-foreground">Across {accounts.length} accounts</p>
+            <p className="text-xs text-muted-foreground">Across {accounts.length} accounts (current)</p>
           </CardContent>
         </Card>
         <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300">
@@ -160,7 +158,7 @@ export default function DashboardPage() {
               {formatCurrency(availableToSpend)}
             </div>
             <p className="text-xs text-muted-foreground">
-              Remaining after planned budgets for {format(currentViewMonth, "MMMM yyyy")}.
+              Buffer from start of {format(currentViewMonth, "MMMM yyyy")} after planned budgets.
             </p>
           </CardContent>
         </Card>
