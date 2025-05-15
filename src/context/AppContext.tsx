@@ -121,14 +121,19 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         setAccounts(fetchedAccounts);
 
         const envelopesSnapshot = await getDocs(collection(db, envelopesPath));
-        const fetchedEnvelopes = envelopesSnapshot.docs.map(d => ({
-            id: d.id, ...d.data(),
-            orderIndex: typeof d.data().orderIndex === 'number' ? d.data().orderIndex : Infinity,
-            estimatedAmount: d.data().estimatedAmount === null || d.data().estimatedAmount === undefined ? undefined : d.data().estimatedAmount,
-            dueDate: d.data().dueDate === null || d.data().dueDate === undefined ? undefined : d.data().dueDate,
-        } as Envelope))
+        const fetchedEnvelopes = envelopesSnapshot.docs.map(d => {
+          const data = d.data();
+          return {
+            id: d.id, ...data,
+            category: data.category && String(data.category).trim() !== "" ? String(data.category) : "Uncategorized",
+            orderIndex: typeof data.orderIndex === 'number' ? data.orderIndex : Infinity,
+            estimatedAmount: data.estimatedAmount === null || data.estimatedAmount === undefined ? undefined : Number(data.estimatedAmount),
+            dueDate: data.dueDate === null || data.dueDate === undefined ? undefined : Number(data.dueDate),
+            budgetAmount: typeof data.budgetAmount === 'number' ? data.budgetAmount : 0, // Ensure budgetAmount is a number
+          } as Envelope;
+        })
         .sort((a, b) => a.orderIndex - b.orderIndex);
-        console.log("AppContext: Fetched Envelopes from Firestore:", JSON.stringify(fetchedEnvelopes, null, 2)); // DEBUG LOG
+        console.log("AppContext: Fetched Envelopes from Firestore:", JSON.stringify(fetchedEnvelopes, null, 2));
         setEnvelopes(fetchedEnvelopes);
 
         const transactionsQuery = query(collection(db, transactionsPath), orderBy("date", "desc"));
@@ -274,10 +279,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     if (!envelopesPath || !metadataDocRef) return;
     const { name, budgetAmount, category, estimatedAmount, dueDate } = envelopeData;
     const dataToSave: Omit<Envelope, 'id'> = {
-      userId: currentUser.uid, name, budgetAmount, category,
+      userId: currentUser.uid, name, budgetAmount: Number(budgetAmount), category,
       createdAt: formatISO(startOfDay(new Date())), orderIndex: envelopes.length,
-      ...(estimatedAmount !== undefined && { estimatedAmount }),
-      ...(dueDate !== undefined && { dueDate }),
+      ...(estimatedAmount !== undefined && { estimatedAmount: Number(estimatedAmount) }),
+      ...(dueDate !== undefined && { dueDate: Number(dueDate) }),
     };
     try {
       const docRef = doc(collection(db, envelopesPath));
@@ -305,11 +310,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
     const firestoreUpdateData: { [key: string]: any } = {};
     if (dataFromForm.name !== undefined) firestoreUpdateData.name = dataFromForm.name;
-    if (dataFromForm.budgetAmount !== undefined) firestoreUpdateData.budgetAmount = Number(dataFromForm.budgetAmount);
+    if (dataFromForm.budgetAmount !== undefined) firestoreUpdateData.budgetAmount = Number(dataFromForm.budgetAmount); else firestoreUpdateData.budgetAmount = 0;
     if (dataFromForm.category !== undefined) firestoreUpdateData.category = dataFromForm.category;
     if (dataFromForm.orderIndex !== undefined) firestoreUpdateData.orderIndex = Number(dataFromForm.orderIndex);
     
-    // Handle optional fields: use deleteField() if explicitly set to undefined/null by form, otherwise update if value provided
     if (dataFromForm.hasOwnProperty('estimatedAmount')) {
         firestoreUpdateData.estimatedAmount = (dataFromForm.estimatedAmount === undefined || dataFromForm.estimatedAmount === null || isNaN(Number(dataFromForm.estimatedAmount))) 
                                               ? deleteField() 
@@ -355,7 +359,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                 newOrdered = newOrdered.filter(cat => currentDerivedCategories.includes(cat));
                 currentDerivedCategories.forEach(cat => { if (!newOrdered.includes(cat)) newOrdered.push(cat); });
                 
-                // Ensure updateDoc is awaited and handle potential errors
                 updateDoc(metadataDocRef, { categories: currentDerivedCategories, orderedCategories: newOrdered })
                     .catch(err => console.error("AppContext: Error updating metadata in updateEnvelope:", err));
                 return newOrdered;

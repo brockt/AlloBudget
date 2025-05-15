@@ -58,8 +58,9 @@ export default function EnvelopeSummaryList() {
 
   useEffect(() => {
     const categoriesWithEnvelopes = orderedCategories.filter(cat => groupedEnvelopes[cat] && groupedEnvelopes[cat].length > 0);
-    setAccordionDefaultOpen(categoriesWithEnvelopes.length > 0 ? [categoriesWithEnvelopes[0]] : []);
-  }, [orderedCategories, envelopes]); // Recalculate when categories or envelopes change
+    // Open ALL categories that have envelopes, not just the first one.
+    setAccordionDefaultOpen(categoriesWithEnvelopes);
+  }, [orderedCategories, envelopes, currentViewMonth]); // Added currentViewMonth
 
 
   if (envelopes.length === 0) {
@@ -151,3 +152,4 @@ export default function EnvelopeSummaryList() {
     </DndContext>
   );
 }
+
