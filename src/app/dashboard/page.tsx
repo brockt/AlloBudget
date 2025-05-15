@@ -28,7 +28,8 @@ export default function DashboardPage() {
     lastModified,
     currentViewMonth,
     setCurrentViewMonth,
-    getEnvelopeSpending, // We need this per envelope
+    getEnvelopeSpending,
+    getMonthlyAllocation, // Needed for the new unspent calculation
   } = useAppContext();
 
   if (isLoading) {
@@ -57,14 +58,13 @@ export default function DashboardPage() {
   const totalPlannedBudgetedForViewMonth = getTotalMonthlyBudgeted(currentViewMonth);
   const ytdIncome = getYtdIncomeTotal();
 
-  // Calculate total actual spending from all envelopes for the currentViewMonth
-  const totalActualSpendingFromEnvelopesForMonth = envelopes.reduce((sum, envelope) => {
-    return sum + getEnvelopeSpending(envelope.id, currentViewMonth);
+  // Calculate "unspentBudgetedAmount" more precisely
+  const unspentBudgetedAmount = envelopes.reduce((sum, envelope) => {
+    const monthlyAllocation = getMonthlyAllocation(envelope.id, currentViewMonth);
+    const monthlySpending = getEnvelopeSpending(envelope.id, currentViewMonth);
+    const unspentInThisEnvelope = Math.max(0, monthlyAllocation - monthlySpending);
+    return sum + unspentInThisEnvelope;
   }, 0);
-
-  // Calculate unspent budgeted amount
-  // This is the portion of the planned budget that is still remaining in envelopes
-  const unspentBudgetedAmount = totalPlannedBudgetedForViewMonth - totalActualSpendingFromEnvelopesForMonth;
 
   // Calculate "Available to Spend"
   const availableToSpend = totalBalance - unspentBudgetedAmount;
@@ -118,7 +118,6 @@ export default function DashboardPage() {
             <TrendingDown className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            {/* This shows total spending from ALL sources, not just envelopes */}
             <div className="text-lg font-bold text-red-600 dark:text-red-500">{formatCurrency(monthlySpendingAllSources)}</div>
             <p className="text-xs text-muted-foreground">For {format(currentViewMonth, "MMMM")}</p>
           </CardContent>
@@ -166,7 +165,7 @@ export default function DashboardPage() {
               {formatCurrency(availableToSpend)}
             </div>
             <p className="text-xs text-muted-foreground">
-              Total balance minus unspent budgeted funds for {format(currentViewMonth, "MMMM yyyy")}.
+              Total balance minus unspent allocated funds in envelopes for {format(currentViewMonth, "MMMM yyyy")}.
             </p>
           </CardContent>
         </Card>
