@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { ReactNode } from 'react';
@@ -225,7 +226,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
     const { name, budgetAmount, category, estimatedAmount, dueDate } = envelopeData;
 
-    // Object to be saved to Firestore, conditionally including optional fields
     const dataToSave: {
       userId: string;
       name: string;
@@ -233,8 +233,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       category: string;
       createdAt: string;
       orderIndex: number;
-      estimatedAmount?: number; // Optional field
-      dueDate?: number;       // Optional field
+      estimatedAmount?: number; 
+      dueDate?: number;       
     } = {
       userId: currentUser.uid,
       name,
@@ -253,9 +253,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
     try {
       const docRef = doc(collection(db, envelopesPath));
-      await setDoc(docRef, dataToSave); // Use the cleaned dataToSave object
+      await setDoc(docRef, dataToSave); 
 
-      // For local state, construct the full envelope object as per the Envelope type
       const newEnvelopeWithId: Envelope = {
         id: docRef.id,
         userId: currentUser.uid,
@@ -264,14 +263,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         category,
         createdAt: dataToSave.createdAt,
         orderIndex: dataToSave.orderIndex,
-        estimatedAmount: estimatedAmount, // Can be undefined, as per Envelope type
-        dueDate: dueDate,                 // Can be undefined, as per Envelope type
+        estimatedAmount: estimatedAmount, 
+        dueDate: dueDate,                 
       };
       setEnvelopes(prev => [...prev, newEnvelopeWithId]);
 
       let updatedCategories = categories;
       let updatedOrderedCategories = orderedCategories;
-      // Use category from the original envelopeData (guaranteed by schema)
       if (!categories.some(cat => cat.toLowerCase() === envelopeData.category.toLowerCase())) {
         updatedCategories = [...categories, envelopeData.category].sort((a, b) => a.localeCompare(b));
         setCategories(updatedCategories);
@@ -285,63 +283,114 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const updateEnvelope = async (envelopeData: Partial<Envelope> & { id: string }) => {
     if (!db || !currentUser) return;
-    const { id, ...dataToUpdate } = envelopeData;
+    const { id, ...dataFromForm } = envelopeData; // Renamed for clarity
     const envelopeDocPath = getDocPath(ENVELOPES_COLLECTION, id);
     const metadataDocRef = getMetadataDocRef();
-    if (!envelopeDocPath || !metadataDocRef) return;
 
-    const cleanDataToUpdate: Partial<Envelope> = { ...dataToUpdate };
-    if (dataToUpdate.estimatedAmount === null || dataToUpdate.estimatedAmount === undefined) {
-        cleanDataToUpdate.estimatedAmount = undefined; // Or deleteField() if you want to remove it
+    if (!envelopeDocPath || !metadataDocRef) {
+        console.error("AppContext: Cannot update envelope, path or metadata ref is missing.");
+        return;
     }
-    if (dataToUpdate.dueDate === null || dataToUpdate.dueDate === undefined) {
-        cleanDataToUpdate.dueDate = undefined; // Or deleteField()
+
+    const firestoreUpdateData: { [key: string]: any } = {};
+
+    // Iterate over the fields in dataFromForm (which comes from the form)
+    // and build the object for Firestore, handling optional fields.
+    if (dataFromForm.name !== undefined) firestoreUpdateData.name = dataFromForm.name;
+    if (dataFromForm.budgetAmount !== undefined) firestoreUpdateData.budgetAmount = Number(dataFromForm.budgetAmount);
+    if (dataFromForm.category !== undefined) firestoreUpdateData.category = dataFromForm.category;
+    if (dataFromForm.orderIndex !== undefined) firestoreUpdateData.orderIndex = Number(dataFromForm.orderIndex);
+    // userId and createdAt are generally not updated from the form
+
+    // Handle optional fields explicitly: if undefined or null, use deleteField() to remove them.
+    // Check if the property exists in dataFromForm to differentiate between "not provided" and "explicitly set to undefined/null".
+    if (dataFromForm.hasOwnProperty('estimatedAmount')) {
+        if (dataFromForm.estimatedAmount === undefined || dataFromForm.estimatedAmount === null) {
+            firestoreUpdateData.estimatedAmount = deleteField();
+        } else {
+            firestoreUpdateData.estimatedAmount = Number(dataFromForm.estimatedAmount);
+        }
     }
+
+    if (dataFromForm.hasOwnProperty('dueDate')) {
+        if (dataFromForm.dueDate === undefined || dataFromForm.dueDate === null) {
+            firestoreUpdateData.dueDate = deleteField();
+        } else {
+            firestoreUpdateData.dueDate = Number(dataFromForm.dueDate);
+        }
+    }
+    
+    // console.log("AppContext: Data being sent to Firestore for envelope update:", JSON.stringify(firestoreUpdateData));
 
     try {
-      await updateDoc(doc(db, envelopeDocPath), cleanDataToUpdate);
-      let oldCategory: string | undefined;
-      let newCategory: string | undefined = cleanDataToUpdate.category;
+        await updateDoc(doc(db, envelopeDocPath), firestoreUpdateData);
 
-      setEnvelopes(prevEnvelopes => {
-        const updatedEnvelopesList = prevEnvelopes.map(env => {
-            if (env.id === id) {
-                oldCategory = env.category;
-                return { ...env, ...cleanDataToUpdate };
-            }
-            return env;
+        // Prepare data for local state update, ensuring it matches Firestore's state
+        const newLocalEnvelopeData: Partial<Envelope> = {};
+        if (firestoreUpdateData.name !== undefined) newLocalEnvelopeData.name = firestoreUpdateData.name;
+        if (firestoreUpdateData.budgetAmount !== undefined) newLocalEnvelopeData.budgetAmount = firestoreUpdateData.budgetAmount;
+        if (firestoreUpdateData.category !== undefined) newLocalEnvelopeData.category = firestoreUpdateData.category;
+        if (firestoreUpdateData.orderIndex !== undefined) newLocalEnvelopeData.orderIndex = firestoreUpdateData.orderIndex;
+
+        // For optional fields, if they were deleted in Firestore, set to undefined locally.
+        if (dataFromForm.hasOwnProperty('estimatedAmount')) {
+            newLocalEnvelopeData.estimatedAmount = (dataFromForm.estimatedAmount === undefined || dataFromForm.estimatedAmount === null) ? undefined : Number(dataFromForm.estimatedAmount);
+        }
+        if (dataFromForm.hasOwnProperty('dueDate')) {
+            newLocalEnvelopeData.dueDate = (dataFromForm.dueDate === undefined || dataFromForm.dueDate === null) ? undefined : Number(dataFromForm.dueDate);
+        }
+
+        let oldCategory: string | undefined;
+        setEnvelopes(prevEnvelopes => {
+            const updatedEnvelopesList = prevEnvelopes.map(env => {
+                if (env.id === id) {
+                    oldCategory = env.category;
+                    return { ...env, ...newLocalEnvelopeData }; // Apply the changes
+                }
+                return env;
+            });
+
+            const currentDerivedCategories = deriveCategoriesFromEnvelopes(updatedEnvelopesList);
+            setCategories(currentDerivedCategories);
+
+            setOrderedCategories(prevOrdered => {
+                let newOrdered = [...prevOrdered];
+                const newCatFromUpdate = newLocalEnvelopeData.category;
+
+                if (newCatFromUpdate && !newOrdered.includes(newCatFromUpdate)) {
+                    newOrdered.push(newCatFromUpdate);
+                }
+                if (oldCategory && oldCategory !== newCatFromUpdate && !currentDerivedCategories.includes(oldCategory)) {
+                    newOrdered = newOrdered.filter(cat => cat !== oldCategory);
+                }
+                
+                // Ensure all current categories are present and in a consistent order
+                newOrdered = newOrdered.filter(cat => currentDerivedCategories.includes(cat));
+                currentDerivedCategories.forEach(cat => { if (!newOrdered.includes(cat)) newOrdered.push(cat); });
+
+
+                updateDoc(metadataDocRef, { categories: currentDerivedCategories, orderedCategories: newOrdered })
+                    .catch(err => console.error("AppContext: Error updating metadata in updateEnvelope:", err));
+                return newOrdered;
+            });
+            return updatedEnvelopesList;
         });
-
-        const currentDerivedCategories = deriveCategoriesFromEnvelopes(updatedEnvelopesList);
-        setCategories(currentDerivedCategories); 
-
-        setOrderedCategories(prevOrdered => {
-            let newOrdered = [...prevOrdered];
-            if (newCategory && !newOrdered.includes(newCategory)) newOrdered.push(newCategory);
-            if (oldCategory && !currentDerivedCategories.includes(oldCategory)) newOrdered = newOrdered.filter(cat => cat !== oldCategory);
-            newOrdered = newOrdered.filter(cat => currentDerivedCategories.includes(cat));
-            currentDerivedCategories.forEach(cat => { if (!newOrdered.includes(cat)) newOrdered.push(cat); });
-            
-            updateDoc(metadataDocRef, { categories: currentDerivedCategories, orderedCategories: newOrdered })
-                .catch(err => console.error("Error updating metadata in updateEnvelope:", err));
-            return newOrdered;
-        });
-        return updatedEnvelopesList;
-      });
-      await updateLastModified();
-    } catch (error) { console.error("Error updating envelope:", error); }
-  };
+        await updateLastModified();
+    } catch (error) {
+        console.error("AppContext: Error updating envelope in Firestore. Details:", error);
+    }
+};
   
   const updateEnvelopeOrder = async (reorderedEnvelopes: Envelope[]) => {
     if (!db || !currentUser) {
       console.error("Firestore db or user not available for updateEnvelopeOrder");
-      setEnvelopes(reorderedEnvelopes); // Fallback to local update if db/user not available
+      setEnvelopes(reorderedEnvelopes); 
       return;
     }
     const envelopesPath = getCollectionPath(ENVELOPES_COLLECTION);
     if (!envelopesPath) {
       console.error("Could not get envelopes path for updateEnvelopeOrder");
-      setEnvelopes(reorderedEnvelopes); // Fallback to local update
+      setEnvelopes(reorderedEnvelopes); 
       return;
     }
 
@@ -349,31 +398,20 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const updatedEnvelopesForState: Envelope[] = [];
 
     reorderedEnvelopes.forEach((envelope, index) => {
-      // Create the updated envelope object with the new orderIndex for local state
       const updatedEnvelope = { ...envelope, orderIndex: index };
       updatedEnvelopesForState.push(updatedEnvelope);
-
-      // Add to batch only if the orderIndex actually changed to avoid unnecessary writes
-      // This requires comparing with the original orderIndex from the state or fetching fresh before update.
-      // For simplicity now, we update all, but this could be optimized.
-      // To optimize, we would need to compare `envelope.orderIndex` (old) with `index` (new).
-      // However, `reorderedEnvelopes` comes from the UI and might not have the most up-to-date `orderIndex` from Firestore
-      // if multiple quick reorders happen. The most robust is to update based on the new array sequence.
-      
       const envelopeDocRef = doc(db, envelopesPath, envelope.id);
       batch.update(envelopeDocRef, { orderIndex: index });
     });
 
     try {
       await batch.commit();
-      setEnvelopes(updatedEnvelopesForState); // Update local state with new orderIndices
+      setEnvelopes(updatedEnvelopesForState); 
       await updateLastModified();
       console.log("Envelope order updated successfully in Firestore and local state.");
     } catch (error) {
       console.error("Error updating envelope order in Firestore:", error);
-      // If Firestore update fails, we might want to revert local state or notify user
-      // For now, local state will reflect the attempted reorder.
-      setEnvelopes(reorderedEnvelopes); // Potentially revert to original reorderedEnvelopes if commit failed
+      setEnvelopes(reorderedEnvelopes); 
     }
   };
 
@@ -385,14 +423,16 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const currentCategorySet = new Set(categories);
     const newOrderSet = new Set(newOrder);
     if (currentCategorySet.size !== newOrderSet.size || ![...currentCategorySet].every(cat => newOrderSet.has(cat))) {
-      console.error("Category order update failed: Mismatched categories.");
+      console.error("AppContext: Category order update failed: Mismatched categories.");
       return;
     }
     try {
       await updateDoc(metadataDocRef, { orderedCategories: newOrder });
       setOrderedCategories(newOrder);
       await updateLastModified();
-    } catch (error) { console.error("Error updating category order:", error); }
+    } catch (error) {
+       console.error("AppContext: Error updating category order in Firestore. Details:", error);
+    }
   };
 
   const addTransaction = useCallback(async (transactionData: TransactionFormData) => {
@@ -441,7 +481,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         isTransfer: !!dataToUpdate.isTransfer,
     };
     
-    // Remove undefined fields to avoid overwriting with undefined in Firestore
     Object.keys(cleanedData).forEach(key => cleanedData[key as keyof typeof cleanedData] === undefined && delete cleanedData[key as keyof typeof cleanedData]);
 
 
@@ -462,7 +501,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         userId: currentUser.uid,
         name: payeeData.name,
         createdAt: formatISO(new Date()),
-        // Conditionally add category only if it has a value after trimming
         ...(payeeData.category?.trim() && { category: payeeData.category.trim() }),
     };
 
@@ -482,7 +520,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
     const cleanedData: Partial<Payee> = { name: dataToUpdate.name };
     if (dataToUpdate.category?.trim()) cleanedData.category = dataToUpdate.category.trim();
-    else cleanedData.category = undefined; // Or deleteField()
+    else cleanedData.category = undefined; 
 
     try {
       await updateDoc(doc(db, payeeDocPath), cleanedData );
@@ -573,7 +611,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         const payeesPath = getCollectionPath(PAYEES_COLLECTION);
         if(!payeesPath) return;
         const payeeDocRef = doc(collection(db, payeesPath)); 
-        const newPayeeData: Omit<Payee, 'id'> = { name: "Internal Budget Transfer", createdAt: formatISO(new Date())};
+        const newPayeeData: Omit<Payee, 'id'> = { name: "Internal Budget Transfer",userId: currentUser.uid, createdAt: formatISO(new Date())};
         await setDoc(payeeDocRef, newPayeeData);
         internalTransferPayee = {id: payeeDocRef.id, ...newPayeeData};
         setPayees(prev => [...prev, internalTransferPayee!].sort((a, b) => a.name.localeCompare(b.name)));
@@ -602,7 +640,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         const payeesPath = getCollectionPath(PAYEES_COLLECTION);
         if(!payeesPath) return;
         const payeeDocRef = doc(collection(db, payeesPath)); 
-        const newPayeeData: Omit<Payee, 'id'> = { name: "Internal Account Transfer", createdAt: formatISO(new Date())};
+        const newPayeeData: Omit<Payee, 'id'> = { name: "Internal Account Transfer", userId: currentUser.uid, createdAt: formatISO(new Date())};
         await setDoc(payeeDocRef, newPayeeData);
         internalTransferPayee = {id: payeeDocRef.id, ...newPayeeData};
         setPayees(prev => [...prev, internalTransferPayee!].sort((a, b) => a.name.localeCompare(b.name)));
@@ -752,3 +790,5 @@ export const useAppContext = () => {
   }
   return context;
 };
+
+    
