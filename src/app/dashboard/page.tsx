@@ -28,8 +28,8 @@ export default function DashboardPage() {
     lastModified,
     currentViewMonth,
     setCurrentViewMonth,
-    getMonthlyAllocation,   // Needed for new calculation
-    getEnvelopeSpending,    // Needed for new calculation
+    // getMonthlyAllocation,   // No longer needed directly for ATS calculation here
+    // getEnvelopeSpending,    // No longer needed directly for ATS calculation here
   } = useAppContext();
 
   if (isLoading) {
@@ -54,24 +54,12 @@ export default function DashboardPage() {
 
   const totalBalance = accounts.reduce((sum, acc) => sum + getAccountBalance(acc.id), 0);
   
-  // Calculate total effectively committed funds for the current view month
-  let totalEffectivelyCommitted = 0;
-  envelopes.forEach(env => {
-    const monthlyAllocation = getMonthlyAllocation(env.id, currentViewMonth);
-    if (monthlyAllocation > 0) {
-      totalEffectivelyCommitted += monthlyAllocation;
-    } else {
-      // Envelope has no budget, so consider its spending for the month as "committed"
-      const spendingThisMonth = getEnvelopeSpending(env.id, currentViewMonth);
-      totalEffectivelyCommitted += spendingThisMonth;
-    }
-  });
-
-  const availableToSpend = totalBalance - totalEffectivelyCommitted;
-  
-  // This remains the sum of all *planned* allocations for the "Budgeted" card
+  // This is the sum of all *planned* allocations for the "Budgeted" card for the current view month
   const totalPlannedBudgetedForViewMonth = getTotalMonthlyBudgeted(currentViewMonth);
 
+  // Simplified Available to Spend calculation
+  const availableToSpend = totalBalance - totalPlannedBudgetedForViewMonth;
+  
   const monthlyIncome = getMonthlyIncomeTotal(currentViewMonth);
   const monthlySpending = getMonthlySpendingTotal(currentViewMonth); // This is total actual spending
   const ytdIncome = getYtdIncomeTotal();
@@ -135,7 +123,6 @@ export default function DashboardPage() {
             <PackagePlus className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            {/* This card still shows total PLANNED budget */}
             <div className="text-lg font-bold">{formatCurrency(totalPlannedBudgetedForViewMonth)}</div>
             <p className="text-xs text-muted-foreground">Across {envelopes.length} envelopes for {format(currentViewMonth, "MMMM")}</p>
           </CardContent>
@@ -173,7 +160,7 @@ export default function DashboardPage() {
               {formatCurrency(availableToSpend)}
             </div>
             <p className="text-xs text-muted-foreground">
-              Funds remaining after planned budgets & unbudgeted spending for {format(currentViewMonth, "MMMM yyyy")}.
+              Remaining after planned budgets for {format(currentViewMonth, "MMMM yyyy")}.
             </p>
           </CardContent>
         </Card>
