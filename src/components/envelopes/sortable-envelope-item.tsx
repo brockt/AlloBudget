@@ -156,7 +156,12 @@ export function SortableEnvelopeItem({ id, envelope, onEditClick, currentViewMon
                         {hasEstimatedAmount && (<span className="ml-1.5 text-xs text-muted-foreground">(Est: ${envelope.estimatedAmount?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</span>)}
                         {dueDateString && (<span className="text-xs text-muted-foreground flex items-center mt-0.5"><CalendarClock className="mr-1 h-3 w-3" /> Due: {dueDateString}</span>)}
                     </div>
-                    <span className={`font-semibold text-sm ${availableBalance < 0 ? 'text-destructive' : 'text-green-600 dark:text-green-500'}`}>
+                    <span className={cn(
+                        "text-sm",
+                        availableBalance < 0 
+                          ? "font-bold text-destructive" 
+                          : "font-semibold text-green-600 dark:text-green-500"
+                      )}>
                         ${availableBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
                     </div>
@@ -204,3 +209,4 @@ export function SortableEnvelopeItem({ id, envelope, onEditClick, currentViewMon
     </li>
   );
 }
+
