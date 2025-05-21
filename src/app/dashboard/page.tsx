@@ -8,7 +8,7 @@ import { PageHeader } from "@/components/PageHeader";
 import Link from "next/link";
 import { DollarSign, PlusCircle, Wallet, TrendingUp, TrendingDown, Package, CalendarCheck, Edit3, ChevronLeft, ChevronRight } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import EnvelopeSummaryList from "@/components/envelopes/envelope-summary-list";
+// import EnvelopeSummaryList from "@/components/envelopes/envelope-summary-list"; // Commented out
 import { format, parseISO, isValid as isValidDate, addMonths, subMonths } from 'date-fns';
 
 const formatCurrency = (amount: number): string => {
@@ -27,7 +27,8 @@ export default function DashboardPage() {
     lastModified,
     currentViewMonth,
     setCurrentViewMonth,
-    getEffectiveMonthlyBudgetWithRollover,
+    getEffectiveMonthlyBudgetWithRollover, // Used for "Funds in Envelopes"
+    // getEnvelopeBalanceAsOfEOM, // No longer directly used for "Available to Spend" here
   } = useAppContext();
 
   if (isLoading) {
@@ -54,15 +55,16 @@ export default function DashboardPage() {
   const monthlyIncome = getMonthlyIncomeTotal(currentViewMonth);
   const monthlySpendingAllSources = getMonthlySpendingTotal(currentViewMonth);
 
-  // This is the total amount allocated to envelopes for the current month, including rollovers.
+  // Calculate total funds in envelopes for the current month
   const totalEffectiveBudgetedForViewMonth = envelopes.reduce((sum, envelope) => {
     return sum + getEffectiveMonthlyBudgetWithRollover(envelope.id, currentViewMonth);
   }, 0);
 
   const ytdIncome = getYtdIncomeTotal();
 
-  // Available to Spend = Total Account Balance - Total funds allocated to envelopes for the current month (including rollovers)
+  // Available to Spend = Total Account Balance - Total funds effectively in envelopes for the current month
   const availableToSpend = totalBalance - totalEffectiveBudgetedForViewMonth;
+
 
   const formattedLastModified = lastModified && isValidDate(parseISO(lastModified))
     ? format(parseISO(lastModified), "MMM d, yyyy 'at' h:mm a")
@@ -125,7 +127,7 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="text-lg font-bold">{formatCurrency(totalEffectiveBudgetedForViewMonth)}</div>
-            <p className="text-xs text-muted-foreground">Allocations + rollover for {format(currentViewMonth, "MMMM")}</p>
+            <p className="text-xs text-muted-foreground">Allocations + rollover for {format(currentViewMonth, "MMMM")}.</p>
           </CardContent>
         </Card>
         */}
@@ -170,6 +172,7 @@ export default function DashboardPage() {
         */}
       </div>
 
+      {/*
       <Card className="shadow-lg flex-grow flex flex-col overflow-hidden">
         <CardHeader>
           <CardTitle>Envelopes for {format(currentViewMonth, "MMMM yyyy")}</CardTitle>
@@ -178,6 +181,7 @@ export default function DashboardPage() {
           <EnvelopeSummaryList />
         </CardContent>
       </Card>
+      */}
     </div>
   );
 }
