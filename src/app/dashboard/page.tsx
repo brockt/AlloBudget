@@ -117,6 +117,7 @@ export default function DashboardPage() {
             <p className="text-xs text-muted-foreground">For {format(currentViewMonth, "MMMM")}</p>
           </CardContent>
         </Card>
+        {/*
         <Card className="shadow-md hover:shadow-lg transition-shadow duration-300">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Funds in Envelopes ({format(currentViewMonth, "MMM")})</CardTitle>
@@ -127,6 +128,7 @@ export default function DashboardPage() {
             <p className="text-xs text-muted-foreground">Allocations + rollover for {format(currentViewMonth, "MMMM")}</p>
           </CardContent>
         </Card>
+        */}
         <Card className="shadow-md hover:shadow-lg transition-shadow duration-300">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">YTD Income</CardTitle>
@@ -150,6 +152,7 @@ export default function DashboardPage() {
             <p className="text-xs text-muted-foreground">Across {accounts.length} accounts (current)</p>
           </CardContent>
         </Card>
+        {/*
         <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Available to Spend</CardTitle>
@@ -164,6 +167,7 @@ export default function DashboardPage() {
             </p>
           </CardContent>
         </Card>
+        */}
       </div>
 
       <Card className="shadow-lg flex-grow flex flex-col overflow-hidden">
