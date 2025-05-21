@@ -28,6 +28,7 @@ export default function DashboardPage() {
     setCurrentViewMonth,
     getEffectiveMonthlyBudgetWithRollover,
     getYtdIncomeTotal,
+    getEnvelopeBalanceAsOfEOM, // Added for the new calculation
   } = useAppContext();
 
   if (isLoading) {
@@ -54,12 +55,18 @@ export default function DashboardPage() {
   const monthlyIncome = getMonthlyIncomeTotal(currentViewMonth);
   const monthlySpendingAllSources = getMonthlySpendingTotal(currentViewMonth);
 
+  // This represents the total planned funding for envelopes this month (allocations + positive rollovers)
   const totalEffectiveBudgetedForViewMonth = envelopes.reduce((sum, envelope) => {
     return sum + getEffectiveMonthlyBudgetWithRollover(envelope.id, currentViewMonth);
   }, 0);
 
-  // Available to Spend = Total Account Balance - Total Amount Allocated to Envelopes for the Current Month (including rollovers)
-  const availableToSpend = totalBalance - totalEffectiveBudgetedForViewMonth;
+  // This represents the current actual positive funds held within the envelope system
+  const totalCurrentFundsInEnvelopes = envelopes.reduce((sum, envelope) => {
+    return sum + Math.max(0, getEnvelopeBalanceAsOfEOM(envelope.id, currentViewMonth));
+  }, 0);
+
+  // Available to Spend = Total Account Balance - Current Actual Positive Funds in Envelopes
+  const availableToSpend = totalBalance - totalCurrentFundsInEnvelopes;
 
   const ytdIncome = getYtdIncomeTotal();
 
@@ -118,12 +125,13 @@ export default function DashboardPage() {
         </Card>
         <Card className="shadow-md hover:shadow-lg transition-shadow duration-300">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Funds in Envelopes ({format(currentViewMonth, "MMM")})</CardTitle>
+            {/* This card shows the PLANNED funding for envelopes for the month */}
+            <CardTitle className="text-sm font-medium">Budget Plan ({format(currentViewMonth, "MMM")})</CardTitle>
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-lg font-bold">{formatCurrency(totalEffectiveBudgetedForViewMonth)}</div>
-            <p className="text-xs text-muted-foreground">Allocations + rollover for {format(currentViewMonth, "MMMM")}.</p>
+            <p className="text-xs text-muted-foreground">Planned allocations + rollover for {format(currentViewMonth, "MMMM")}.</p>
           </CardContent>
         </Card>
         <Card className="shadow-md hover:shadow-lg transition-shadow duration-300">
@@ -159,7 +167,7 @@ export default function DashboardPage() {
               {formatCurrency(availableToSpend)}
             </div>
             <p className="text-xs text-muted-foreground">
-              Total balance minus total allocated to envelopes for {format(currentViewMonth, "MMMM")}.
+              Total balance minus current positive funds held in envelopes for {format(currentViewMonth, "MMMM")}.
             </p>
           </CardContent>
         </Card>
