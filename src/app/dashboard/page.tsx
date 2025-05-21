@@ -61,9 +61,8 @@ export default function DashboardPage() {
 
   const ytdIncome = getYtdIncomeTotal();
 
-  // New definition for "Available to Spend" - Clamped at 0
-  // Total cash in accounts - Total funds allocated to envelopes for the current month (including rollovers)
-  const availableToSpend = Math.max(0, totalBalance - totalEffectiveBudgetedForViewMonth);
+  // Available to Spend = Total Account Balance - Total funds allocated to envelopes for the current month (including rollovers)
+  const availableToSpend = totalBalance - totalEffectiveBudgetedForViewMonth;
 
   const formattedLastModified = lastModified && isValidDate(parseISO(lastModified))
     ? format(parseISO(lastModified), "MMM d, yyyy 'at' h:mm a")
@@ -157,11 +156,11 @@ export default function DashboardPage() {
             <Wallet className="h-5 w-5 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold`}> {/* Removed conditional negative text color for now, as it's clamped at 0 */}
+            <div className={`text-2xl font-bold ${availableToSpend < 0 ? 'text-destructive dark:text-red-400' : ''}`}>
               {formatCurrency(availableToSpend)}
             </div>
             <p className="text-xs text-muted-foreground">
-              Unallocated cash after considering envelope funding for {format(currentViewMonth, "MMMM")}. (Minimum $0)
+              Total balance minus total allocated to envelopes for {format(currentViewMonth, "MMMM")}.
             </p>
           </CardContent>
         </Card>
@@ -178,4 +177,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
