@@ -1,110 +1,100 @@
 
 "use client";
 
-// import { useAppContext } from "@/context/AppContext"; // Commented out
+import { useAppContext } from "@/context/AppContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/PageHeader";
 import Link from "next/link";
 import { DollarSign, PlusCircle, Wallet, TrendingUp, TrendingDown, Package, CalendarCheck, Edit3, ChevronLeft, ChevronRight } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-// import EnvelopeSummaryList from "@/components/envelopes/envelope-summary-list"; // Commented out
+import EnvelopeSummaryList from "@/components/envelopes/envelope-summary-list";
 import { format, parseISO, isValid as isValidDate, addMonths, subMonths } from 'date-fns';
 
-// const formatCurrency = (amount: number): string => {
-//   return amount.toLocaleString(undefined, { style: 'currency', currency: 'USD' });
-// };
+const formatCurrency = (amount: number): string => {
+  return amount.toLocaleString(undefined, { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
 
 export default function DashboardPage() {
-  // const {
-  //   accounts,
-  //   envelopes,
-  //   getAccountBalance,
-  //   isLoading,
-  //   getMonthlyIncomeTotal,
-  //   getMonthlySpendingTotal,
-  //   lastModified,
-  //   currentViewMonth,
-  //   setCurrentViewMonth,
-  //   getEffectiveMonthlyBudgetWithRollover,
-  //   getEnvelopeSpending, // Added for more precise available to spend
-  // } = useAppContext();
+  const {
+    accounts,
+    envelopes,
+    getAccountBalance,
+    isLoading,
+    getMonthlyIncomeTotal,
+    getMonthlySpendingTotal,
+    lastModified,
+    currentViewMonth,
+    setCurrentViewMonth,
+    getEffectiveMonthlyBudgetWithRollover,
+    getYtdIncomeTotal,
+  } = useAppContext();
 
-  // if (isLoading) { // Assuming isLoading might come from somewhere else or we simplify
-  //   return (
-  //     <div className="space-y-6">
-  //       <PageHeader title="Dashboard" description="Welcome back to AlloBudget!" />
-  //       <p className="text-xs italic text-muted-foreground mb-4">Loading data...</p>
-  //       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-  //         <Skeleton className="h-28 rounded-lg" /> <Skeleton className="h-28 rounded-lg" />
-  //         <Skeleton className="h-28 rounded-lg" /> <Skeleton className="h-28 rounded-lg" />
-  //       </div>
-  //       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-  //         <Skeleton className="h-32 rounded-lg" /> <Skeleton className="h-32 rounded-lg" />
-  //       </div>
-  //       <Card className="shadow-lg">
-  //         <CardHeader><Skeleton className="h-6 w-1/3 mb-2" /><Skeleton className="h-4 w-1/2" /></CardHeader>
-  //         <CardContent><Skeleton className="h-72 rounded-lg" /></CardContent>
-  //       </Card>
-  //     </div>
-  //   );
-  // }
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <PageHeader title="Dashboard" description="Welcome back to AlloBudget!" />
+        <p className="text-xs italic text-muted-foreground mb-4">Loading data...</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <Skeleton className="h-28 rounded-lg" /> <Skeleton className="h-28 rounded-lg" />
+          <Skeleton className="h-28 rounded-lg" /> <Skeleton className="h-28 rounded-lg" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Skeleton className="h-32 rounded-lg" /> <Skeleton className="h-32 rounded-lg" />
+        </div>
+        <Card className="shadow-lg">
+          <CardHeader><Skeleton className="h-6 w-1/3 mb-2" /><Skeleton className="h-4 w-1/2" /></CardHeader>
+          <CardContent><Skeleton className="h-72 rounded-lg" /></CardContent>
+        </Card>
+      </div>
+    );
+  }
 
-  // const totalBalance = accounts.reduce((sum, acc) => sum + getAccountBalance(acc.id), 0);
-  // const monthlyIncome = getMonthlyIncomeTotal(currentViewMonth);
-  // const monthlySpendingAllSources = getMonthlySpendingTotal(currentViewMonth); // Spending from all sources
+  const totalBalance = accounts.reduce((sum, acc) => sum + getAccountBalance(acc.id), 0);
+  const monthlyIncome = getMonthlyIncomeTotal(currentViewMonth);
+  const monthlySpendingAllSources = getMonthlySpendingTotal(currentViewMonth);
 
-  // const totalEffectiveBudgetedForViewMonth = envelopes.reduce((sum, envelope) => {
-  //   return sum + getEffectiveMonthlyBudgetWithRollover(envelope.id, currentViewMonth);
-  // }, 0);
+  const totalEffectiveBudgetedForViewMonth = envelopes.reduce((sum, envelope) => {
+    return sum + getEffectiveMonthlyBudgetWithRollover(envelope.id, currentViewMonth);
+  }, 0);
 
-  // // Available to Spend = Total Account Balance - Total Amount Allocated to Envelopes for the Current Month (including rollovers)
-  // const availableToSpend = totalBalance - totalEffectiveBudgetedForViewMonth;
+  // Available to Spend = Total Account Balance - Total Amount Allocated to Envelopes for the Current Month (including rollovers)
+  const availableToSpend = totalBalance - totalEffectiveBudgetedForViewMonth;
 
-  // const ytdIncome = getYtdIncomeTotal();
+  const ytdIncome = getYtdIncomeTotal();
 
-  // const formattedLastModified = lastModified && isValidDate(parseISO(lastModified))
-  //   ? format(parseISO(lastModified), "MMM d, yyyy 'at' h:mm a")
-  //   : "Data not yet modified or unavailable.";
-  
-  //  const currentViewMonth = new Date(); // Placeholder
-  //  const setCurrentViewMonth = (fn: any) => {}; // Placeholder
-  //  const lastModified = new Date().toISOString(); // Placeholder
-
+  const formattedLastModified = lastModified && isValidDate(parseISO(lastModified))
+    ? format(parseISO(lastModified), "MMM d, yyyy 'at' h:mm a")
+    : "Data not yet modified or unavailable.";
 
   return (
     <div className="space-y-6 flex flex-col h-full">
       <PageHeader
         title="Dashboard"
-        description={`Financial overview`}
-        // description={`Financial overview for ${format(currentViewMonth, "MMMM yyyy")}`}
-        // actions={
-        //   <div className="flex items-center gap-2">
-        //     <Button variant="outline" size="icon" onClick={() => setCurrentViewMonth(date => subMonths(date, 1))} aria-label="Previous month">
-        //       <ChevronLeft className="h-4 w-4" />
-        //     </Button>
-        //     <span className="text-sm font-medium w-28 text-center">
-        //       {/* {format(currentViewMonth, "MMMM yyyy")} */}
-        //       Month Year
-        //     </span>
-        //     <Button variant="outline" size="icon" onClick={() => setCurrentViewMonth(date => addMonths(date, 1))} aria-label="Next month">
-        //       <ChevronRight className="h-4 w-4" />
-        //     </Button>
-        //     <Link href="/dashboard/transactions/new" passHref className="ml-4">
-        //       <Button>
-        //         <PlusCircle className="mr-2 h-4 w-4" /> Add Transaction
-        //       </Button>
-        //     </Link>
-        //   </div>
-        // }
+        description={`Financial overview for ${format(currentViewMonth, "MMMM yyyy")}`}
+        actions={
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="icon" onClick={() => setCurrentViewMonth(date => subMonths(date, 1))} aria-label="Previous month">
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <span className="text-sm font-medium w-28 text-center">
+              {format(currentViewMonth, "MMMM yyyy")}
+            </span>
+            <Button variant="outline" size="icon" onClick={() => setCurrentViewMonth(date => addMonths(date, 1))} aria-label="Next month">
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+            <Link href="/dashboard/transactions/new" passHref className="ml-4">
+              <Button>
+                <PlusCircle className="mr-2 h-4 w-4" /> Add Transaction
+              </Button>
+            </Link>
+          </div>
+        }
       />
-      {/* <p className="text-xs italic text-muted-foreground -mt-4 mb-4 flex items-center">
+      <p className="text-xs italic text-muted-foreground -mt-4 mb-4 flex items-center">
         <Edit3 className="mr-1.5 h-3 w-3" /> Last modified: {formattedLastModified}
-      </p> */}
-      <p>Dashboard content is loading...</p>
+      </p>
 
-      {/* All cards are commented out to simplify the page */}
-      {/*
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <Card className="shadow-md hover:shadow-lg transition-shadow duration-300">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -174,18 +164,23 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
-      */}
 
-      {/* EnvelopeSummaryList also commented out
       <Card className="shadow-lg flex-grow flex flex-col overflow-hidden">
         <CardHeader>
           <CardTitle>Envelopes for {format(currentViewMonth, "MMMM yyyy")}</CardTitle>
         </CardHeader>
         <CardContent className="flex-grow overflow-hidden">
-          <EnvelopeSummaryList />
+          {envelopes.length > 0 ? (
+            <EnvelopeSummaryList />
+          ) : (
+             <div className="flex flex-col items-center justify-center h-48 text-center border-2 border-dashed rounded-lg p-4">
+              <Package className="h-12 w-12 text-muted-foreground mb-3" />
+              <p className="text-muted-foreground">No envelopes created yet.</p>
+              <p className="text-xs text-muted-foreground mt-1">Go to the Envelopes page to add some.</p>
+            </div>
+          )}
         </CardContent>
       </Card>
-      */}
     </div>
   );
 }
