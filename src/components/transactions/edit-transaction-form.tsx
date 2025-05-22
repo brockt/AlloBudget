@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type * as z from "zod";
 import { format, parseISO, isValid as isValidDate } from "date-fns";
-import { useEffect, useState } from 'react'; // Added useState
+import { useEffect, useState } from 'react';
 
 import { Button } from "@/components/ui/button";
 import {
@@ -42,13 +42,13 @@ interface EditTransactionFormProps {
 }
 
 export function EditTransactionForm({ transaction, onSuccess }: EditTransactionFormProps) {
-  const { accounts, envelopes, payees, updateTransaction } = useAppContext();
+  const { accounts, envelopes, payees, updateTransaction, isLoading: isAppContextLoading } = useAppContext();
   const { toast } = useToast();
-  const [isDatePopoverOpen, setIsDatePopoverOpen] = useState(false); // State for date popover
+  const [isDatePopoverOpen, setIsDatePopoverOpen] = useState(false);
 
   const form = useForm<z.infer<typeof transactionSchema>>({
     resolver: zodResolver(transactionSchema),
-    defaultValues: {
+    defaultValues: { // Initial defaults before useEffect runs
       accountId: "",
       envelopeId: null,
       payeeId: "",
@@ -62,12 +62,13 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
   });
 
   useEffect(() => {
-    if (transaction) {
+    // Only reset form if transaction data and necessary context lists are available
+    if (transaction && !isAppContextLoading && accounts.length > 0 && payees.length > 0) {
       const parsedDate = transaction.date ? parseISO(transaction.date) : null;
       form.reset({
-        accountId: transaction.accountId || "", // Ensure string for Select
+        accountId: transaction.accountId || "",
         envelopeId: transaction.envelopeId || null,
-        payeeId: transaction.payeeId || "", // Ensure string for Select
+        payeeId: transaction.payeeId || "",
         amount: transaction.amount,
         type: transaction.type,
         description: transaction.description || "",
@@ -76,7 +77,7 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
         isActualIncome: transaction.isActualIncome || false,
       });
     }
-  }, [transaction, form]);
+  }, [transaction, form, accounts, payees, envelopes, isAppContextLoading]); // Added context lists and loading state to dependencies
 
   const transactionType = form.watch("type");
 
@@ -176,12 +177,15 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  {accounts.length === 0 && <SelectItem value="no-accounts-placeholder" disabled>No accounts available</SelectItem>}
-                  {accounts.map(account => (
-                    <SelectItem key={account.id} value={account.id}>
-                      {account.name}
-                    </SelectItem>
-                  ))}
+                  {accounts.length === 0 ? (
+                    <SelectItem value="no-accounts-placeholder" disabled>No accounts available</SelectItem>
+                  ) : (
+                    accounts.map(account => (
+                      <SelectItem key={account.id} value={account.id}>
+                        {account.name}
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
               <FormMessage />
@@ -202,12 +206,15 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  {payees.length === 0 && <SelectItem value="no-payees-placeholder" disabled>No payees available</SelectItem>}
-                  {payees.map(payee => (
-                    <SelectItem key={payee.id} value={payee.id}>
-                      {payee.name}
-                    </SelectItem>
-                  ))}
+                  {payees.length === 0 ? (
+                    <SelectItem value="no-payees-placeholder" disabled>No payees available</SelectItem>
+                  ) : (
+                    payees.map(payee => (
+                      <SelectItem key={payee.id} value={payee.id}>
+                        {payee.name}
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
               <FormMessage />
@@ -223,9 +230,9 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
               <FormItem>
                 <FormLabel>Envelope</FormLabel>
                 <Select
-                  onValueChange={(value) => field.onChange(value || null)}
-                  value={field.value ?? ""}
-                  required
+                  onValueChange={(value) => field.onChange(value || null)} // Ensure null if empty
+                  value={field.value ?? ""} // Handles null by showing placeholder
+                  required={transactionType === 'outflow'} // Required only for outflows
                 >
                   <FormControl>
                     <SelectTrigger>
@@ -295,10 +302,10 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
                         "w-full pl-3 text-left font-normal",
                         !field.value && "text-muted-foreground"
                       )}
-                      onClick={() => setIsDatePopoverOpen(true)} // Explicitly open
+                      onClick={() => setIsDatePopoverOpen(true)}
                     >
-                      {field.value ? (
-                        isValidDate(parseISO(field.value)) ? format(parseISO(field.value), "PPP") : <span>Pick a date</span>
+                      {field.value && isValidDate(parseISO(field.value)) ? (
+                        format(parseISO(field.value), "PPP")
                       ) : (
                         <span>Pick a date</span>
                       )}
@@ -312,9 +319,10 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
                     selected={field.value && isValidDate(parseISO(field.value)) ? parseISO(field.value) : undefined}
                     onSelect={(date) => {
                       field.onChange(date ? format(date, "yyyy-MM-dd") : "");
-                      setIsDatePopoverOpen(false); // Close popover after selection
+                      setIsDatePopoverOpen(false);
                     }}
                     initialFocus
+                    disabled={(date) => date > new Date() || date < new Date("1900-01-01")}
                   />
                 </PopoverContent>
               </Popover>
@@ -327,6 +335,7 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
           type="submit"
           className="w-full sm:w-auto"
           disabled={
+            isAppContextLoading || // Disable if context is still loading
             payees.length === 0 ||
             accounts.length === 0 ||
             (form.getValues('type') === 'outflow' && envelopes.length === 0)
@@ -339,3 +348,4 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
   );
 }
 
+    
