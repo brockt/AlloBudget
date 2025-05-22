@@ -62,9 +62,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   
   const getMetadataDocRef = useCallback(() => {
     if (!currentUser) return null;
-    // Ensure metadata is always user-specific
     return doc(db, `users/${currentUser.uid}/${APP_METADATA_COLLECTION}`, APP_METADATA_DOC_ID);
-  }, [currentUser]);
+  }, [currentUser, APP_METADATA_COLLECTION, APP_METADATA_DOC_ID]);
 
   const updateLastModified = useCallback(async (batch?: WriteBatch) => {
     if (!db || !currentUser) return;
@@ -78,13 +77,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [currentUser, getMetadataDocRef]);
 
- const persistCategoryChanges = useCallback(async (
+  const persistCategoryChanges = useCallback(async (
     newCategories: string[],
     newOrderedCategories: string[],
     batchToUse?: WriteBatch
   ) => {
     if (!currentUser) return;
-    const metadataDocRef = getMetadataDocRef(); // This now correctly points to user-specific metadata
+    const metadataDocRef = getMetadataDocRef();
     if (!metadataDocRef) {
       console.warn("AppContext (persistCategoryChanges): metadataDocRef is null.");
       return;
@@ -96,9 +95,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
     const batch = batchToUse || writeBatch(db);
     try {
-      // Use set with merge true to create if not exists, or update if exists
       batch.set(metadataDocRef, dataToPersist, { merge: true }); 
-      await updateLastModified(batch);
+      await updateLastModified(batch); // Ensure lastModified is part of the same batch if possible
       if (!batchToUse) {
         await batch.commit();
       }
@@ -111,9 +109,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     const fetchData = async () => {
-      console.log(`AppContext: fetchData triggered. User: ${currentUser?.uid}`);
       if (!currentUser || !db) {
-        console.log("AppContext: No user or DB, clearing state and returning.");
         setAccounts([]); setEnvelopes([]); setTransactions([]); setPayees([]);
         setCategories([]); setOrderedCategories([]); setLastModified(null);
         setMonthlyEnvelopeBudgets([]); setCurrentViewMonthState(startOfMonth(new Date()));
@@ -121,7 +117,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
       setIsLoading(true);
-      console.log(`AppContext: Starting data fetch for user ${currentUser.uid}...`);
       try {
         const accountsPath = getCollectionPath(ACCOUNTS_COLLECTION);
         const envelopesPath = getCollectionPath(ENVELOPES_COLLECTION);
@@ -130,13 +125,21 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         const monthlyBudgetsPath = getCollectionPath(MONTHLY_BUDGETS_COLLECTION);
 
         if (!accountsPath || !envelopesPath || !transactionsPath || !payeesPath || !monthlyBudgetsPath) {
-            console.error("AppContext: One or more collection paths are null. Aborting fetch.");
             setIsLoading(false); return;
         }
         
         const accountsSnapshot = await getDocs(collection(db, accountsPath));
-        const fetchedAccounts = accountsSnapshot.docs.map(d => ({ id: d.id, ...d.data() } as Account))
-         .sort((a,b) => a.name.localeCompare(b.name));
+        const fetchedAccounts = accountsSnapshot.docs.map(d => {
+          const data = d.data();
+          return {
+            id: d.id,
+            ...data,
+            initialBalance: (typeof data.initialBalance === 'number' && !isNaN(data.initialBalance)) ? data.initialBalance : 0,
+            createdAt: (data.createdAt && typeof data.createdAt === 'string' && isValid(parseISO(data.createdAt))) ? data.createdAt : 
+                       (data.createdAt && data.createdAt.toDate && typeof data.createdAt.toDate === 'function' && isValid(data.createdAt.toDate())) ? formatISO(data.createdAt.toDate()) :
+                       formatISO(startOfDay(new Date())),
+          } as Account;
+        }).sort((a,b) => a.name.localeCompare(b.name));
         setAccounts(fetchedAccounts);
 
         const envelopesSnapshot = await getDocs(collection(db, envelopesPath));
@@ -156,7 +159,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                        formatISO(startOfDay(new Date())),
           } as Envelope;
         }).sort((a, b) => (a.orderIndex ?? Infinity) - (b.orderIndex ?? Infinity));
-        console.log("AppContext: Fetched Envelopes from Firestore:", JSON.stringify(processedEnvelopes.map(e => ({id: e.id, name: e.name, category: e.category, orderIndex: e.orderIndex}))));
         setEnvelopes(processedEnvelopes);
 
         const transactionsQuery = query(collection(db, transactionsPath), orderBy("date", "desc"));
@@ -166,7 +168,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             description: d.data().description === null || d.data().description === undefined ? undefined : d.data().description,
             envelopeId: d.data().envelopeId === null || d.data().envelopeId === undefined ? undefined : d.data().envelopeId,
             isTransfer: !!d.data().isTransfer,
-            isActualIncome: !!d.data().isActualIncome, // Ensure this is loaded
+            isActualIncome: !!d.data().isActualIncome,
+            amount: (typeof d.data().amount === 'number' && !isNaN(d.data().amount)) ? d.data().amount : 0,
         } as Transaction));
         setTransactions(fetchedTransactions);
 
@@ -185,11 +188,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         let lmDate: string | null = null;
         const metadataDocRef = getMetadataDocRef();
         
-        // Derive categories directly from the fetched envelopes
         const actualDerivedCategories = [...new Set(processedEnvelopes.map(env => env.category || "Uncategorized"))].sort((a, b) => {
             if (a === "Uncategorized") return 1; if (b === "Uncategorized") return -1; return a.localeCompare(b);
         });
-        console.log("AppContext: Actual Derived Categories from envelopes:", actualDerivedCategories);
         
         let finalOrderedCategories: string[] = [];
         if (metadataDocRef) {
@@ -197,11 +198,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             if (metadataDocSnap.exists()) {
                 const metadata = metadataDocSnap.data();
                 const storedOrdered = Array.isArray(metadata.orderedCategories) ? metadata.orderedCategories : [];
-                console.log("AppContext: Stored Ordered Categories from metadata:", storedOrdered);
-
-                // Filter storedOrdered to only include categories that actually exist
+                
                 finalOrderedCategories = storedOrdered.filter(cat => actualDerivedCategories.includes(cat));
-                // Add any actual categories that weren't in the stored order
                 actualDerivedCategories.forEach(derivedCat => {
                     if (!finalOrderedCategories.includes(derivedCat)) {
                         finalOrderedCategories.push(derivedCat);
@@ -212,24 +210,21 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                  else if (typeof lm === 'string') lmDate = lm;
             }
         }
-        // If finalOrderedCategories is still empty but there are derived categories, initialize it
+        
         if (finalOrderedCategories.length === 0 && actualDerivedCategories.length > 0) {
-            finalOrderedCategories = [...actualDerivedCategories]; // Default order if metadata was empty/missing
-             console.log("AppContext: Initializing orderedCategories because metadata was empty/missing.");
+            finalOrderedCategories = [...actualDerivedCategories];
         }
-        // Ensure "Uncategorized" is last if it exists
+        
         if (finalOrderedCategories.includes("Uncategorized") && finalOrderedCategories.length > 1) {
             finalOrderedCategories = finalOrderedCategories.filter(c => c !== "Uncategorized");
             finalOrderedCategories.push("Uncategorized");
         }
-        console.log("AppContext: Final Ordered Categories to be set:", finalOrderedCategories);
+        
         setCategories(actualDerivedCategories); 
         setOrderedCategories(finalOrderedCategories);
         setLastModified(lmDate);
         
-        // Always persist the reconciled categories to ensure metadata is up-to-date
         await persistCategoryChanges(actualDerivedCategories, finalOrderedCategories);
-        console.log(`AppContext: Data fetching successful for user ${currentUser.uid}.`);
 
       } catch (error) {
         console.error(`AppContext: CRITICAL ERROR during fetchData for user ${currentUser.uid}:`, error);
@@ -521,16 +516,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     if (!transactionsPath) return Promise.reject(new Error("Transactions path not available"));
 
     if (!transactionData.payeeId) {
-      console.error("Cannot add transaction without payeeId.");
       return Promise.reject(new Error("Payee is required"));
     }
     const parsedDate = transactionData.date ? parseISO(transactionData.date) : null;
     if (!parsedDate || !isValid(parsedDate)) {
-      console.error("Invalid date for transaction.");
       return Promise.reject(new Error("Invalid date"));
     }
     
-    const dataToSave: Omit<Transaction, 'id' | 'userId' | 'createdAt'> & { userId: string; createdAt: string; [key: string]: any } = {
+    const dataToSave: { [key: string]: any } = { // Use a more generic type for Firestore data
         userId: currentUser.uid,
         accountId: transactionData.accountId,
         payeeId: transactionData.payeeId,
@@ -548,22 +541,23 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         dataToSave.description = deleteField(); 
     }
 
-    if (transactionData.envelopeId !== undefined) {
+    if (transactionData.envelopeId !== undefined && transactionData.envelopeId !== null && transactionData.envelopeId.trim() !== "") {
         dataToSave.envelopeId = transactionData.envelopeId; 
     } else {
         dataToSave.envelopeId = deleteField(); 
     }
-
+    
     try {
       const docRef = doc(collection(db, transactionsPath));
       const batch = writeBatch(db);
-      batch.set(docRef, dataToSave as Omit<Transaction, 'id'>); 
+      batch.set(docRef, dataToSave); 
       await updateLastModified(batch);
       await batch.commit();
 
-      const newTxForState = { ...dataToSave, id: docRef.id };
-      if (dataToSave.description === deleteField()) newTxForState.description = undefined;
-      if (dataToSave.envelopeId === deleteField()) newTxForState.envelopeId = undefined;
+      const newTxForState: Partial<Transaction> = { ...transactionData, id: docRef.id, userId: currentUser.uid, createdAt: dataToSave.createdAt, date: dataToSave.date };
+      if (dataToSave.description === deleteField()) newTxForState.description = undefined; else newTxForState.description = dataToSave.description;
+      if (dataToSave.envelopeId === deleteField()) newTxForState.envelopeId = undefined; else newTxForState.envelopeId = dataToSave.envelopeId;
+
 
       setTransactions(prev => [...prev, newTxForState as Transaction].sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime()));
       return Promise.resolve();
@@ -580,52 +574,43 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     if (!transactionDocPath) return Promise.reject(new Error("Transaction path not available"));
 
     if (!dataToUpdate.payeeId) {
-      console.error("Cannot update transaction without payeeId.");
       return Promise.reject(new Error("Payee is required"));
     }
     const parsedDate = dataToUpdate.date ? parseISO(dataToUpdate.date) : null;
     if (!parsedDate || !isValid(parsedDate)) {
-      console.error("Invalid date for transaction update.");
       return Promise.reject(new Error("Invalid date"));
     }
     
-    const cleanedData: Partial<Omit<Transaction, 'id' | 'userId' | 'createdAt'>> & { updatedAt?: FieldValue } = {
-        ...dataToUpdate,
+    const firestoreUpdateData: { [key: string]: any } = {
+        accountId: dataToUpdate.accountId,
+        payeeId: dataToUpdate.payeeId,
         amount: dataToUpdate.amount !== undefined ? Number(dataToUpdate.amount) : undefined,
-        envelopeId: dataToUpdate.envelopeId, 
-        description: dataToUpdate.description, 
+        type: dataToUpdate.type,
         date: formatISO(parsedDate),
         isTransfer: !!dataToUpdate.isTransfer,
         isActualIncome: dataToUpdate.type === 'inflow' ? (dataToUpdate.isActualIncome || false) : false,
         updatedAt: serverTimestamp() 
     };
         
-    const dataToSendToFirestore: any = {};
-    for (const key in cleanedData) {
-        if ((cleanedData as any)[key] === undefined) {
-            (dataToSendToFirestore as any)[key] = deleteField();
-        } else {
-            (dataToSendToFirestore as any)[key] = (cleanedData as any)[key];
-        }
+    if (dataToUpdate.hasOwnProperty('description')) {
+      firestoreUpdateData.description = (dataToUpdate.description && dataToUpdate.description.trim() !== "") ? dataToUpdate.description : deleteField();
     }
-    if (cleanedData.envelopeId === null) {
-        dataToSendToFirestore.envelopeId = null;
+    if (dataToUpdate.hasOwnProperty('envelopeId')) {
+      firestoreUpdateData.envelopeId = (dataToUpdate.envelopeId && dataToUpdate.envelopeId.trim() !== "" && dataToUpdate.envelopeId !== null) ? dataToUpdate.envelopeId : deleteField();
     }
-
+    
     try {
       const batch = writeBatch(db);
-      batch.update(doc(db, transactionDocPath), dataToSendToFirestore);
+      batch.update(doc(db, transactionDocPath), firestoreUpdateData);
       await updateLastModified(batch); 
       await batch.commit();
       
-      const localUpdateData = { ...dataToSendToFirestore };
-      if (localUpdateData.updatedAt) { 
-        (localUpdateData as any).updatedAt = formatISO(new Date());
-      }
-      if (localUpdateData.description === deleteField()) localUpdateData.description = undefined;
-      if (localUpdateData.envelopeId === deleteField()) localUpdateData.envelopeId = undefined;
+      const localUpdateData = { ...dataToUpdate, id, userId: currentUser.uid, date: firestoreUpdateData.date };
+      if (firestoreUpdateData.description === deleteField()) localUpdateData.description = undefined;
+      if (firestoreUpdateData.envelopeId === deleteField()) localUpdateData.envelopeId = undefined;
+      if (firestoreUpdateData.updatedAt) (localUpdateData as any).updatedAt = formatISO(new Date());
       
-      setTransactions(prev => prev.map(tx => tx.id === id ? { ...tx, ...localUpdateData } as Transaction : tx)
+      setTransactions(prev => prev.map(tx => tx.id === id ? localUpdateData as Transaction : tx)
         .sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime()));
       return Promise.resolve();
     } catch (error) {
@@ -720,7 +705,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       return Promise.resolve();
     } catch (error) { 
         console.error("Error deleting transaction:", error); 
-        return Promise.reject(error);
+        throw error; 
     }
   };
 
@@ -806,12 +791,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     
     try {
       await addTransaction({
-        accountId, envelopeId: fromEnvelopeId, payeeId: internalTransferPayee.id, amount, type: 'outflow', // Changed
+        accountId, envelopeId: fromEnvelopeId, payeeId: internalTransferPayee.id, amount, type: 'outflow',
         description: description || `Transfer to ${toEnvelope.name}`, date, isTransfer: false, isActualIncome: false,
       });
       await addTransaction({
-        accountId, envelopeId: toEnvelopeId, payeeId: internalTransferPayee.id, amount, type: 'inflow', // Changed
-        description: description || `Transfer from ${fromEnvelope.name}`, date, isTransfer: false, isActualIncome: false, // isActualIncome: false for transfers
+        accountId, envelopeId: toEnvelopeId, payeeId: internalTransferPayee.id, amount, type: 'inflow',
+        description: description || `Transfer from ${fromEnvelope.name}`, date, isTransfer: false, isActualIncome: false,
       });
     } catch (error) {
       console.error("Error during envelope fund transfer transactions:", error);
@@ -839,12 +824,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
     try {
       await addTransaction({
-          accountId: fromAccountId, envelopeId: null, payeeId: internalTransferPayee.id, amount, type: 'outflow', // Changed
+          accountId: fromAccountId, envelopeId: null, payeeId: internalTransferPayee.id, amount, type: 'outflow',
           description: description || `Transfer to ${toAccount.name}`, date, isTransfer: true, isActualIncome: false,
       });
       await addTransaction({
-          accountId: toAccountId, envelopeId: null, payeeId: internalTransferPayee.id, amount, type: 'inflow', // Changed
-          description: description || `Transfer from ${fromAccount.name}`, date, isTransfer: true, isActualIncome: false, // isActualIncome: false for transfers
+          accountId: toAccountId, envelopeId: null, payeeId: internalTransferPayee.id, amount, type: 'inflow',
+          description: description || `Transfer from ${fromAccount.name}`, date, isTransfer: true, isActualIncome: false,
       });
     } catch (error) {
         console.error("Error during account fund transfer transactions:", error);
@@ -854,13 +839,19 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const getAccountBalance = useCallback((accountId: string): number => {
     const account = accounts.find(acc => acc.id === accountId);
     if (!account) return 0;
+
+    const validInitialBalance = (typeof account.initialBalance === 'number' && !isNaN(account.initialBalance))
+      ? account.initialBalance
+      : 0;
+
     const balance = transactions.reduce((currentBalance, tx) => {
       if (tx.accountId === accountId) {
-        const txAmount = typeof tx.amount === 'number' && !isNaN(tx.amount) ? tx.amount : 0;
-        return tx.type === 'inflow' ? currentBalance + txAmount : currentBalance - txAmount; // Changed
+        const txAmount = (typeof tx.amount === 'number' && !isNaN(tx.amount)) ? tx.amount : 0;
+        return tx.type === 'inflow' ? currentBalance + txAmount : currentBalance - txAmount;
       }
       return currentBalance;
-    }, account.initialBalance);
+    }, validInitialBalance);
+
      return isNaN(balance) ? 0 : balance;
   }, [accounts, transactions]);
 
@@ -877,11 +868,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const monthEnd = endOfMonth(forMonth);
     const spending = transactions
       .filter(tx => {
-          if (tx.envelopeId !== envelopeId || tx.type !== 'outflow') return false; // Changed to 'outflow'
+          if (tx.envelopeId !== envelopeId || tx.type !== 'outflow') return false;
           const txDate = parseISO(tx.date);
           return isValid(txDate) && isWithinInterval(txDate, {start: monthStart, end: monthEnd});
       })
-      .reduce((sum, tx) => (sum + (typeof tx.amount === 'number' && !isNaN(tx.amount) ? tx.amount : 0)), 0);
+      .reduce((sum, tx) => (sum + ((typeof tx.amount === 'number' && !isNaN(tx.amount)) ? tx.amount : 0)), 0);
       return isNaN(spending) ? 0 : spending;
   }, [transactions]);
 
@@ -938,23 +929,23 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         });
   }, [transactions]);
 
-  const getMonthlyActualIncomeTotal = useCallback((forMonth: Date): number => { // Renamed
+  const getMonthlyActualIncomeTotal = useCallback((forMonth: Date): number => {
     const monthStart = startOfMonth(forMonth); const monthEnd = endOfMonth(forMonth);
     return transactions.reduce((total, tx) => {
       const txDate = parseISO(tx.date);
-      if (tx.type === 'inflow' && tx.isActualIncome && !tx.isTransfer && isValid(txDate) && isWithinInterval(txDate, { start: monthStart, end: monthEnd })) { // Changed
-        return total + (typeof tx.amount === 'number' && !isNaN(tx.amount) ? tx.amount : 0);
+      if (tx.type === 'inflow' && tx.isActualIncome && !tx.isTransfer && isValid(txDate) && isWithinInterval(txDate, { start: monthStart, end: monthEnd })) {
+        return total + ((typeof tx.amount === 'number' && !isNaN(tx.amount)) ? tx.amount : 0);
       }
       return total;
     }, 0);
   }, [transactions]);
 
-  const getMonthlyOutflowTotal = useCallback((forMonth: Date): number => { // Renamed
+  const getMonthlyOutflowTotal = useCallback((forMonth: Date): number => {
     const monthStart = startOfMonth(forMonth); const monthEnd = endOfMonth(forMonth);
     return transactions.reduce((total, tx) => {
       const txDate = parseISO(tx.date);
-      if (tx.type === 'outflow' && !tx.isTransfer && isValid(txDate) && isWithinInterval(txDate, { start: monthStart, end: monthEnd })) { // Changed
-        return total + (typeof tx.amount === 'number' && !isNaN(tx.amount) ? tx.amount : 0);
+      if (tx.type === 'outflow' && !tx.isTransfer && isValid(txDate) && isWithinInterval(txDate, { start: monthStart, end: monthEnd })) {
+        return total + ((typeof tx.amount === 'number' && !isNaN(tx.amount)) ? tx.amount : 0);
       }
       return total;
     }, 0);
@@ -963,16 +954,16 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const getTotalMonthlyBudgeted = useCallback((forMonth: Date): number => {
     return envelopes.reduce((total, env) => {
         const amountToAdd = getMonthlyAllocation(env.id, forMonth);
-        return total + (typeof amountToAdd === 'number' && !isNaN(amountToAdd) ? amountToAdd : 0);
+        return total + ((typeof amountToAdd === 'number' && !isNaN(amountToAdd)) ? amountToAdd : 0);
     }, 0);
   }, [envelopes, getMonthlyAllocation]);
 
-  const getYtdActualIncomeTotal = useCallback((): number => { // Renamed
+  const getYtdActualIncomeTotal = useCallback((): number => {
     const now = new Date(); const yearStart = startOfYear(now); const todayEnd = endOfDay(now);
     return transactions.reduce((total, tx) => {
       const txDate = parseISO(tx.date);
-      if (tx.type === 'inflow' && tx.isActualIncome && !tx.isTransfer && isValid(txDate) && isWithinInterval(txDate, { start: yearStart, end: todayEnd })) { // Changed
-        return total + (typeof tx.amount === 'number' && !isNaN(tx.amount) ? tx.amount : 0);
+      if (tx.type === 'inflow' && tx.isActualIncome && !tx.isTransfer && isValid(txDate) && isWithinInterval(txDate, { start: yearStart, end: todayEnd })) {
+        return total + ((typeof tx.amount === 'number' && !isNaN(tx.amount)) ? tx.amount : 0);
       }
       return total;
     }, 0);
@@ -987,7 +978,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       transferBetweenEnvelopes, transferBetweenAccounts,
       getAccountBalance, getAccountById, getEnvelopeById, 
       getEnvelopeSpending, getEnvelopeBalanceAsOfEOM, getMonthlyAllocation, getEffectiveMonthlyBudgetWithRollover,
-      getMonthlyActualIncomeTotal, getMonthlyOutflowTotal, getTotalMonthlyBudgeted, getYtdActualIncomeTotal, // Renamed functions
+      getMonthlyActualIncomeTotal, getMonthlyOutflowTotal, getTotalMonthlyBudgeted, getYtdActualIncomeTotal,
       getPayeeTransactions, 
       isLoading
     }}>
@@ -1003,3 +994,6 @@ export const useAppContext = () => {
   }
   return context;
 };
+
+
+    
