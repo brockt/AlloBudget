@@ -41,6 +41,7 @@ export function TransferAccountFundsForm({ onSuccess }: TransferAccountFundsForm
   const { accounts, transferBetweenAccounts, getAccountBalance } = useAppContext();
   const { toast } = useToast();
   const [sourceAccountBalance, setSourceAccountBalance] = useState<number | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false); // Added loading state
 
   const form = useForm<z.infer<typeof transferAccountFundsSchema>>({
     resolver: zodResolver(transferAccountFundsSchema),
@@ -49,18 +50,16 @@ export function TransferAccountFundsForm({ onSuccess }: TransferAccountFundsForm
       toAccountId: "",
       amount: 0,
       date: format(new Date(), "yyyy-MM-dd"),
-      description: "", // Default to empty string
+      description: "",
     },
   });
 
   const fromAccountId = form.watch("fromAccountId");
 
-  // Effect to update source account balance when selection changes
   useEffect(() => {
     if (fromAccountId) {
       const balance = getAccountBalance(fromAccountId);
       setSourceAccountBalance(balance);
-      // Trigger amount validation if amount has a value
       if (form.getValues("amount") > 0) {
         form.trigger("amount");
       }
@@ -69,13 +68,12 @@ export function TransferAccountFundsForm({ onSuccess }: TransferAccountFundsForm
     }
   }, [fromAccountId, getAccountBalance, form]);
 
-  // Custom validation rule for amount based on source account balance
   const refinedTransferSchema = transferAccountFundsSchema.refine(
     (data) => {
       if (fromAccountId && sourceAccountBalance !== null) {
         return data.amount <= sourceAccountBalance;
       }
-      return true; // Pass if no source account or balance not yet calculated
+      return true;
     },
     {
       message: "Transfer amount cannot exceed the source account's balance.",
@@ -83,35 +81,45 @@ export function TransferAccountFundsForm({ onSuccess }: TransferAccountFundsForm
     }
   );
 
-  // Re-initialize form with refined schema when balance updates
   useEffect(() => {
     const currentValues = form.getValues();
     form.reset(currentValues, {
-      // @ts-ignore - Ignore TS error due to dynamic schema refinement
+      // @ts-ignore
       resolver: zodResolver(refinedTransferSchema),
-      keepValues: true, // Keep existing values
+      keepValues: true,
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sourceAccountBalance]); // Re-run only when sourceAccountBalance updates.
+  }, [sourceAccountBalance]);
 
-  function onSubmit(values: z.infer<typeof transferAccountFundsSchema>) {
-    // Call the context function to handle the transfer and transaction creation
-    transferBetweenAccounts(values as TransferAccountFundsFormData);
-    const fromAccName = accounts.find(acc => acc.id === values.fromAccountId)?.name;
-    const toAccName = accounts.find(acc => acc.id === values.toAccountId)?.name;
-    toast({
-      title: "Transfer Successful",
-      description: `$${values.amount.toFixed(2)} transferred from "${fromAccName}" to "${toAccName}".`,
-    });
-    form.reset({
-      fromAccountId: "",
-      toAccountId: "",
-      amount: 0,
-      date: format(new Date(), "yyyy-MM-dd"),
-      description: "",
-    });
-    setSourceAccountBalance(null);
-    if (onSuccess) onSuccess();
+  async function onSubmit(values: z.infer<typeof transferAccountFundsSchema>) {
+    setIsSubmitting(true);
+    try {
+      await transferBetweenAccounts(values as TransferAccountFundsFormData);
+      const fromAccName = accounts.find(acc => acc.id === values.fromAccountId)?.name;
+      const toAccName = accounts.find(acc => acc.id === values.toAccountId)?.name;
+      toast({
+        title: "Transfer Successful",
+        description: `$${values.amount.toFixed(2)} transferred from "${fromAccName}" to "${toAccName}".`,
+      });
+      form.reset({
+        fromAccountId: "",
+        toAccountId: "",
+        amount: 0,
+        date: format(new Date(), "yyyy-MM-dd"),
+        description: "",
+      });
+      setSourceAccountBalance(null);
+      if (onSuccess) onSuccess();
+    } catch (error) {
+      console.error("Transfer failed:", error);
+      toast({
+        title: "Transfer Failed",
+        description: (error as Error)?.message || "Could not complete the transfer.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -233,7 +241,6 @@ export function TransferAccountFundsForm({ onSuccess }: TransferAccountFundsForm
             <FormItem>
               <FormLabel>Description (Optional)</FormLabel>
               <FormControl>
-                {/* Always provide a string value to the input */}
                 <Input placeholder="e.g., Move funds to savings" {...field} value={field.value ?? ""} />
               </FormControl>
               <FormMessage />
@@ -241,8 +248,8 @@ export function TransferAccountFundsForm({ onSuccess }: TransferAccountFundsForm
           )}
         />
 
-        <Button type="submit" className="w-full sm:w-auto" disabled={accounts.length < 2}>
-          <ArrowRightLeft className="mr-2 h-4 w-4" /> Transfer Funds
+        <Button type="submit" className="w-full sm:w-auto" disabled={isSubmitting || accounts.length < 2}>
+          <ArrowRightLeft className="mr-2 h-4 w-4" /> {isSubmitting ? "Transferring..." : "Transfer Funds"}
         </Button>
       </form>
     </Form>
