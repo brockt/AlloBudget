@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type * as z from "zod";
 import { format, parseISO, isValid as isValidDate } from "date-fns";
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react'; // Removed useState
 
 import { Button } from "@/components/ui/button";
 import {
@@ -44,11 +44,11 @@ interface EditTransactionFormProps {
 export function EditTransactionForm({ transaction, onSuccess }: EditTransactionFormProps) {
   const { accounts, envelopes, payees, updateTransaction, isLoading: isAppContextLoading } = useAppContext();
   const { toast } = useToast();
-  const [isDatePopoverOpen, setIsDatePopoverOpen] = useState(false);
+  // Removed isDatePopoverOpen state
 
   const form = useForm<z.infer<typeof transactionSchema>>({
     resolver: zodResolver(transactionSchema),
-    defaultValues: { // Initial minimal defaults
+    defaultValues: {
       accountId: "",
       envelopeId: null,
       payeeId: "",
@@ -62,21 +62,14 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
   });
 
   useEffect(() => {
-    if (!transaction || isAppContextLoading) {
-      return; // Don't proceed if no transaction or context is loading
-    }
+    if (transaction && !isAppContextLoading && accounts.length > 0 && payees.length > 0) {
+      // Ensure envelope list is ready if it's an outflow with an envelope
+      const outflowRequiresEnvelope = transaction.type === 'outflow' && transaction.envelopeId;
+      if (outflowRequiresEnvelope && envelopes.length === 0 && transaction.envelopeId) {
+        // console.warn("[EditTransactionForm] Outflow transaction has envelopeId but envelopes list is empty. Deferring reset.");
+        return; // Defer reset if envelope list not ready for this specific case
+      }
 
-    // Check if essential lists are populated
-    const accountsPopulated = accounts.length > 0;
-    const payeesPopulated = payees.length > 0;
-    let envelopesPopulatedForOutflow = true; // Assume true for inflows or if no envelopeId
-
-    if (transaction.type === 'outflow' && transaction.envelopeId) {
-      envelopesPopulatedForOutflow = envelopes.length > 0 && envelopes.some(e => e.id === transaction.envelopeId);
-    }
-    
-    // Only reset if all necessary data for this transaction is ready
-    if (accountsPopulated && payeesPopulated && envelopesPopulatedForOutflow) {
       const parsedDate = transaction.date ? parseISO(transaction.date) : null;
       const initialDateString = parsedDate && isValidDate(parsedDate) ? format(parsedDate, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd");
 
@@ -308,7 +301,7 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
           render={({ field }) => (
             <FormItem className="flex flex-col">
               <FormLabel>Date</FormLabel>
-              <Popover open={isDatePopoverOpen} onOpenChange={setIsDatePopoverOpen}>
+              <Popover> {/* Popover is now uncontrolled */}
                 <PopoverTrigger asChild>
                   <FormControl>
                     <Button
@@ -317,7 +310,6 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
                         "w-full pl-3 text-left font-normal",
                         !field.value && "text-muted-foreground"
                       )}
-                      onClick={() => setIsDatePopoverOpen(true)}
                     >
                       {field.value && isValidDate(parseISO(field.value)) ? (
                         format(parseISO(field.value), "PPP")
@@ -334,7 +326,7 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
                     selected={field.value && isValidDate(parseISO(field.value)) ? parseISO(field.value) : undefined}
                     onSelect={(date) => {
                       field.onChange(date ? format(date, "yyyy-MM-dd") : "");
-                      setIsDatePopoverOpen(false); // Close popover after selection
+                      // No need to manage popover state here, it will close on blur/selection by default
                     }}
                     initialFocus
                     disabled={(date) => date > new Date() || date < new Date("1900-01-01")}
@@ -353,7 +345,7 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
             isAppContextLoading || 
             payees.length === 0 ||
             accounts.length === 0 ||
-            (form.getValues('type') === 'outflow' && envelopes.length === 0)
+            (form.getValues('type') === 'outflow' && envelopes.length === 0 && transaction.envelopeId !== null) // ensure we don't disable if original was inflow
           }
         >
           <CheckCircle className="mr-2 h-4 w-4" /> Save Changes
@@ -362,3 +354,4 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
     </Form>
   );
 }
+    
