@@ -46,64 +46,55 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
   const { accounts, envelopes, payees, updateTransaction, isLoading: isAppContextLoading } = useAppContext();
   const { toast } = useToast();
   const [isDatePopoverOpen, setIsDatePopoverOpen] = useState(false);
-  const [isFormReady, setIsFormReady] = useState(false); // New state to control form rendering
+  const [isFormReady, setIsFormReady] = useState(false);
 
-  // console.log("[EditTransactionForm] Rendering with transaction:", JSON.stringify(transaction));
-  // console.log("[EditTransactionForm] Context state: isAppContextLoading:", isAppContextLoading, "Accounts:", accounts.length, "Payees:", payees.length, "Envelopes:", envelopes.length);
-
+  console.log(`[EditTF] Render: Transaction ID: ${transaction?.id}, AppLoading: ${isAppContextLoading}, Accounts: ${accounts.length}, Payees: ${payees.length}`);
 
   const form = useForm<z.infer<typeof transactionSchema>>({
     resolver: zodResolver(transactionSchema),
-    // Default values are minimal; useEffect with setValue will handle detailed initialization
-    defaultValues: {
-      type: transaction?.type || "outflow",
-      amount: transaction?.amount || 0,
-      isTransfer: transaction?.isTransfer || false,
-      isActualIncome: transaction?.isActualIncome || false,
-      date: transaction?.date ? (isValidDate(parseISO(transaction.date)) ? format(parseISO(transaction.date), "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd")) : format(new Date(), "yyyy-MM-dd"),
-      accountId: transaction?.accountId || "",
-      payeeId: transaction?.payeeId || "",
-      envelopeId: transaction?.envelopeId || null,
-      description: transaction?.description || "",
-    },
+    // Default values are set by useEffect to ensure lists are populated
   });
 
   useEffect(() => {
-    // console.log("[EditTransactionForm] useEffect triggered. Transaction:", transaction, "isAppContextLoading:", isAppContextLoading, "Accounts:", accounts.length);
+    console.log(`[EditTF useEffect] Fired. Tx ID: ${transaction?.id}, AppLoading: ${isAppContextLoading}, Accounts: ${accounts.length}, Payees: ${payees.length}`);
     if (transaction && !isAppContextLoading && accounts.length > 0 && payees.length > 0) {
       const outflowRequiresEnvelope = transaction.type === 'outflow' && transaction.envelopeId;
       if (outflowRequiresEnvelope && envelopes.length === 0 && transaction.envelopeId) {
-        // console.warn("[EditTransactionForm] Outflow transaction has envelopeId but envelopes list is empty. Form might not init correctly.");
-        setIsFormReady(false); // Keep form not ready if crucial data is missing
+        console.warn("[EditTF useEffect] Outflow tx has envelopeId but envelopes list is empty. Deferring setValue.");
+        setIsFormReady(false);
         return;
       }
 
-      // console.log("[EditTransactionForm] Attempting to set form values.");
-      form.setValue('accountId', transaction.accountId || "", { shouldDirty: false, shouldValidate: false });
-      form.setValue('payeeId', transaction.payeeId || "", { shouldDirty: false, shouldValidate: false });
-      form.setValue('envelopeId', transaction.envelopeId || null, { shouldDirty: false, shouldValidate: false });
-      form.setValue('amount', transaction.amount, { shouldDirty: false, shouldValidate: false });
-      form.setValue('type', transaction.type, { shouldDirty: false, shouldValidate: false });
-      form.setValue('description', transaction.description || "", { shouldDirty: false, shouldValidate: false });
+      const valuesToSet = {
+        accountId: transaction.accountId || "",
+        payeeId: transaction.payeeId || "",
+        envelopeId: transaction.envelopeId || null,
+        amount: transaction.amount,
+        type: transaction.type,
+        description: transaction.description || "",
+        date: transaction.date && isValidDate(parseISO(transaction.date)) ? format(parseISO(transaction.date), "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"),
+        isTransfer: transaction.isTransfer || false,
+        isActualIncome: transaction.isActualIncome || false,
+      };
+
+      console.log("[EditTF useEffect] Setting form values:", JSON.stringify(valuesToSet));
       
-      const parsedDate = transaction.date ? parseISO(transaction.date) : null;
-      const initialDateString = parsedDate && isValidDate(parsedDate) ? format(parsedDate, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd");
-      form.setValue('date', initialDateString, { shouldDirty: false, shouldValidate: false });
-      
-      form.setValue('isTransfer', transaction.isTransfer || false, { shouldDirty: false, shouldValidate: false });
-      form.setValue('isActualIncome', transaction.isActualIncome || false, { shouldDirty: false, shouldValidate: false });
-      
-      setIsFormReady(true); // Mark form as ready to render
-      // console.log("[EditTransactionForm] Form values set. AccountId:", form.getValues('accountId'));
+      Object.entries(valuesToSet).forEach(([fieldName, value]) => {
+        form.setValue(fieldName as keyof z.infer<typeof transactionSchema>, value, { shouldDirty: false, shouldValidate: true });
+      });
+
+      setIsFormReady(true);
+      console.log("[EditTF useEffect] Form marked as ready. Current form values:", JSON.stringify(form.getValues()));
     } else {
-      setIsFormReady(false); // Not ready if conditions aren't met
+      console.log("[EditTF useEffect] Conditions not met for setting values or marking form ready.");
+      setIsFormReady(false);
     }
   }, [transaction, form, accounts, payees, envelopes, isAppContextLoading]);
 
   const transactionType = form.watch("type");
 
   function onSubmit(values: z.infer<typeof transactionSchema>) {
-    // console.log("[EditTransactionForm] Submitting values:", values);
+    console.log("[EditTF onSubmit] Submitting values:", JSON.stringify(values));
     const updatedTransactionData: TransactionWithId = {
       id: transaction.id,
       ...values,
@@ -131,7 +122,7 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
   }
 
   if (!isFormReady) {
-    // console.log("[EditTransactionForm] Form not ready, showing skeletons.");
+    console.log("[EditTF Render] Form not ready, showing skeletons.");
     return (
       <div className="space-y-6 py-4">
         <Skeleton className="h-10 w-full" />
@@ -142,11 +133,12 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
     );
   }
 
-  // console.log("[EditTransactionForm] Rendering form. Current form values:", form.getValues());
+  console.log(`[EditTF Render] Form is ready. AccountId form value: ${form.getValues('accountId')}`);
 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        {/* Transaction Type Radio Group */}
         <FormField
           control={form.control}
           name="type"
@@ -185,6 +177,7 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
           )}
         />
 
+        {/* isActualIncome Checkbox (conditional) */}
         {transactionType === 'inflow' && (
           <FormField
             control={form.control}
@@ -210,6 +203,7 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
           />
         )}
 
+        {/* Account Select */}
         <FormField
           control={form.control}
           name="accountId"
@@ -223,15 +217,11 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  {accounts.length === 0 ? (
-                    <SelectItem value="no-accounts-placeholder" disabled>No accounts available</SelectItem>
-                  ) : (
-                    accounts.map(account => (
-                      <SelectItem key={account.id} value={account.id}>
-                        {account.name}
-                      </SelectItem>
-                    ))
-                  )}
+                  {accounts.map(account => (
+                    <SelectItem key={account.id} value={account.id}>
+                      {account.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               <FormMessage />
@@ -239,6 +229,7 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
           )}
         />
 
+        {/* Payee Select */}
         <FormField
           control={form.control}
           name="payeeId"
@@ -252,15 +243,11 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  {payees.length === 0 ? (
-                    <SelectItem value="no-payees-placeholder" disabled>No payees available</SelectItem>
-                  ) : (
-                    payees.map(payee => (
-                      <SelectItem key={payee.id} value={payee.id}>
-                        {payee.name}
-                      </SelectItem>
-                    ))
-                  )}
+                  {payees.map(payee => (
+                    <SelectItem key={payee.id} value={payee.id}>
+                      {payee.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               <FormMessage />
@@ -268,6 +255,7 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
           )}
         />
 
+        {/* Envelope Select (conditional) */}
         {transactionType === 'outflow' && (
           <FormField
             control={form.control}
@@ -286,17 +274,11 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                     {envelopes.length === 0 ? (
-                        <div className="px-2 py-1.5 text-sm text-muted-foreground text-center">
-                            No envelopes available.
-                        </div>
-                     ) : (
-                        envelopes.map(envelope => (
-                          <SelectItem key={envelope.id} value={envelope.id}>
-                            {envelope.name} ({envelope.category})
-                          </SelectItem>
-                        ))
-                     )}
+                     {envelopes.map(envelope => (
+                        <SelectItem key={envelope.id} value={envelope.id}>
+                          {envelope.name} ({envelope.category})
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -305,6 +287,7 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
           />
         )}
 
+        {/* Amount Input */}
         <FormField
           control={form.control}
           name="amount"
@@ -321,6 +304,7 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
           )}
         />
 
+        {/* Description Input */}
         <FormField
           control={form.control}
           name="description"
@@ -335,6 +319,7 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
           )}
         />
 
+        {/* Date Picker */}
         <FormField
           control={form.control}
           name="date"
@@ -346,10 +331,11 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
                   <FormControl>
                     <Button
                       variant={"outline"}
+                      type="button" // Ensure it's not submitting the form
                       onClick={(e) => {
-                        e.preventDefault(); // Prevent form submission
-                        // console.log("[EditTransactionForm] Date button clicked. Current isDatePopoverOpen:", isDatePopoverOpen);
-                        setIsDatePopoverOpen(prev => !prev);
+                        e.preventDefault();
+                        console.log("[EditTF] Date PopoverTrigger clicked. Current isDatePopoverOpen:", isDatePopoverOpen);
+                        setIsDatePopoverOpen((prev) => !prev);
                       }}
                       className={cn(
                         "w-full pl-3 text-left font-normal",
@@ -370,7 +356,7 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
                     mode="single"
                     selected={field.value && isValidDate(parseISO(field.value)) ? parseISO(field.value) : undefined}
                     onSelect={(date) => {
-                      // console.log("[EditTransactionForm] Date selected from Calendar:", date);
+                      console.log("[EditTF] Date selected from Calendar:", date);
                       field.onChange(date ? format(date, "yyyy-MM-dd") : "");
                       setIsDatePopoverOpen(false);
                     }}
@@ -400,5 +386,3 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
     </Form>
   );
 }
-
-    
