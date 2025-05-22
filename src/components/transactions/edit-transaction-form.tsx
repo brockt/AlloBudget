@@ -31,7 +31,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Checkbox } from "@/components/ui/checkbox"; // Import Checkbox
 import { transactionSchema } from "@/lib/schemas";
 import { useAppContext } from "@/context/AppContext";
-import type { Transaction, TransactionFormData, TransactionType } from "@/types";
+import type { Transaction, TransactionFormData, TransactionType, TransactionWithId } from "@/types"; // Added TransactionWithId
 import { CheckCircle, CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -63,9 +63,9 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
   useEffect(() => {
     if (transaction) {
       form.reset({
-        accountId: transaction.accountId,
+        accountId: transaction.accountId || "", // Ensure string or empty string
         envelopeId: transaction.envelopeId || null, 
-        payeeId: transaction.payeeId,
+        payeeId: transaction.payeeId || "",   // Ensure string or empty string
         amount: transaction.amount,
         type: transaction.type,
         description: transaction.description || "", 
@@ -213,7 +213,7 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
           )}
         />
 
-        {transactionType === 'outflow' && ( // Changed from 'expense'
+        {transactionType === 'outflow' && ( 
           <FormField
             control={form.control}
             name="envelopeId"
@@ -328,3 +328,4 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
     </Form>
   );
 }
+
