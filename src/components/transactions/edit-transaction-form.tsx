@@ -4,7 +4,7 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type * as z from "zod";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, isValid as isValidDate } from "date-fns"; // Added isValidDate
 import { useEffect } from 'react';
 
 import { Button } from "@/components/ui/button";
@@ -28,10 +28,10 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { Checkbox } from "@/components/ui/checkbox"; // Import Checkbox
+import { Checkbox } from "@/components/ui/checkbox";
 import { transactionSchema } from "@/lib/schemas";
 import { useAppContext } from "@/context/AppContext";
-import type { Transaction, TransactionFormData, TransactionType, TransactionWithId } from "@/types"; // Added TransactionWithId
+import type { Transaction, TransactionFormData, TransactionType, TransactionWithId } from "@/types";
 import { CheckCircle, CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -47,31 +47,32 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
 
   const form = useForm<z.infer<typeof transactionSchema>>({
     resolver: zodResolver(transactionSchema),
-    defaultValues: { 
+    defaultValues: {
       accountId: "",
       envelopeId: null,
       payeeId: "",
       amount: 0,
-      type: "outflow", // Default to outflow
+      type: "outflow",
       description: "",
       date: format(new Date(), "yyyy-MM-dd"),
       isTransfer: false,
-      isActualIncome: false, // Default isActualIncome
+      isActualIncome: false,
     },
   });
 
   useEffect(() => {
     if (transaction) {
+      const parsedDate = transaction.date ? parseISO(transaction.date) : null;
       form.reset({
-        accountId: transaction.accountId || "", // Ensure string or empty string
-        envelopeId: transaction.envelopeId || null, 
-        payeeId: transaction.payeeId || "",   // Ensure string or empty string
+        accountId: transaction.accountId || "",
+        envelopeId: transaction.envelopeId || null,
+        payeeId: transaction.payeeId || "",
         amount: transaction.amount,
         type: transaction.type,
-        description: transaction.description || "", 
-        date: transaction.date ? format(parseISO(transaction.date), "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"),
+        description: transaction.description || "",
+        date: parsedDate && isValidDate(parsedDate) ? format(parsedDate, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"),
         isTransfer: transaction.isTransfer || false,
-        isActualIncome: transaction.isActualIncome || false, // Load existing value
+        isActualIncome: transaction.isActualIncome || false,
       });
     }
   }, [transaction, form]);
@@ -80,11 +81,11 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
 
   function onSubmit(values: z.infer<typeof transactionSchema>) {
     const updatedTransactionData: TransactionWithId = {
-      id: transaction.id, 
+      id: transaction.id,
       ...values,
-      description: values.description || undefined, 
-      envelopeId: values.type === 'inflow' ? null : values.envelopeId, 
-      isTransfer: values.isTransfer || false, 
+      description: values.description || undefined,
+      envelopeId: values.type === 'inflow' ? null : values.envelopeId,
+      isTransfer: values.isTransfer || false,
       isActualIncome: values.type === 'inflow' ? (values.isActualIncome || false) : false,
     };
     updateTransaction(updatedTransactionData);
@@ -111,10 +112,10 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
                     if (value === 'inflow') {
                       form.setValue('envelopeId', null);
                     } else {
-                      form.setValue('isActualIncome', false); // Reset if switching to outflow
+                      form.setValue('isActualIncome', false);
                     }
                   }}
-                  value={field.value} 
+                  value={field.value}
                   className="flex flex-col space-y-1 sm:flex-row sm:space-y-0 sm:space-x-4"
                 >
                   <FormItem className="flex items-center space-x-3 space-y-0">
@@ -213,7 +214,7 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
           )}
         />
 
-        {transactionType === 'outflow' && ( 
+        {transactionType === 'outflow' && (
           <FormField
             control={form.control}
             name="envelopeId"
@@ -294,7 +295,11 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
                         !field.value && "text-muted-foreground"
                       )}
                     >
-                      {field.value ? format(parseISO(field.value), "PPP") : <span>Pick a date</span>}
+                      {field.value ? (
+                        isValidDate(parseISO(field.value)) ? format(parseISO(field.value), "PPP") : <span>Pick a date</span>
+                      ) : (
+                        <span>Pick a date</span>
+                      )}
                       <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                     </Button>
                   </FormControl>
@@ -302,7 +307,7 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
                 <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="single"
-                    selected={field.value ? parseISO(field.value) : undefined}
+                    selected={field.value && isValidDate(parseISO(field.value)) ? parseISO(field.value) : undefined}
                     onSelect={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")}
                     initialFocus
                   />
@@ -328,4 +333,3 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
     </Form>
   );
 }
-
