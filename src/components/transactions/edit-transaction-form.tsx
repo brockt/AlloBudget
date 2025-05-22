@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -27,6 +28,7 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
+import { Checkbox } from "@/components/ui/checkbox"; // Import Checkbox
 import { transactionSchema } from "@/lib/schemas";
 import { useAppContext } from "@/context/AppContext";
 import type { Transaction, TransactionFormData, TransactionType } from "@/types";
@@ -45,30 +47,31 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
 
   const form = useForm<z.infer<typeof transactionSchema>>({
     resolver: zodResolver(transactionSchema),
-    defaultValues: { // Initialize with empty/default values
+    defaultValues: { 
       accountId: "",
       envelopeId: null,
       payeeId: "",
       amount: 0,
-      type: "expense",
+      type: "outflow", // Default to outflow
       description: "",
       date: format(new Date(), "yyyy-MM-dd"),
       isTransfer: false,
+      isActualIncome: false, // Default isActualIncome
     },
   });
 
-  // Pre-fill form when transaction data is available or changes
   useEffect(() => {
     if (transaction) {
       form.reset({
         accountId: transaction.accountId,
-        envelopeId: transaction.envelopeId || null, // Ensure null if undefined
+        envelopeId: transaction.envelopeId || null, 
         payeeId: transaction.payeeId,
         amount: transaction.amount,
         type: transaction.type,
-        description: transaction.description || "", // Ensure empty string if undefined
+        description: transaction.description || "", 
         date: transaction.date ? format(parseISO(transaction.date), "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"),
         isTransfer: transaction.isTransfer || false,
+        isActualIncome: transaction.isActualIncome || false, // Load existing value
       });
     }
   }, [transaction, form]);
@@ -76,12 +79,13 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
   const transactionType = form.watch("type");
 
   function onSubmit(values: z.infer<typeof transactionSchema>) {
-    const updatedTransactionData = {
-      id: transaction.id, // Include the ID for the update function
+    const updatedTransactionData: TransactionWithId = {
+      id: transaction.id, 
       ...values,
-      description: values.description || undefined, // Ensure undefined if empty
-      envelopeId: values.type === 'income' ? null : values.envelopeId, // Reset envelope for income
-      isTransfer: values.isTransfer || false, // Ensure boolean
+      description: values.description || undefined, 
+      envelopeId: values.type === 'inflow' ? null : values.envelopeId, 
+      isTransfer: values.isTransfer || false, 
+      isActualIncome: values.type === 'inflow' ? (values.isActualIncome || false) : false,
     };
     updateTransaction(updatedTransactionData);
     toast({
@@ -104,24 +108,26 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
                 <RadioGroup
                   onValueChange={(value) => {
                     field.onChange(value as TransactionType);
-                    if (value === 'income') {
+                    if (value === 'inflow') {
                       form.setValue('envelopeId', null);
+                    } else {
+                      form.setValue('isActualIncome', false); // Reset if switching to outflow
                     }
                   }}
-                  value={field.value} // Use value instead of defaultValue for controlled component
+                  value={field.value} 
                   className="flex flex-col space-y-1 sm:flex-row sm:space-y-0 sm:space-x-4"
                 >
                   <FormItem className="flex items-center space-x-3 space-y-0">
                     <FormControl>
-                      <RadioGroupItem value="expense" />
+                      <RadioGroupItem value="outflow" />
                     </FormControl>
-                    <FormLabel className="font-normal">Expense</FormLabel>
+                    <FormLabel className="font-normal">Outflow</FormLabel>
                   </FormItem>
                   <FormItem className="flex items-center space-x-3 space-y-0">
                     <FormControl>
-                      <RadioGroupItem value="income" />
+                      <RadioGroupItem value="inflow" />
                     </FormControl>
-                    <FormLabel className="font-normal">Income</FormLabel>
+                    <FormLabel className="font-normal">Inflow</FormLabel>
                   </FormItem>
                 </RadioGroup>
               </FormControl>
@@ -129,6 +135,31 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
             </FormItem>
           )}
         />
+
+        {transactionType === 'inflow' && (
+          <FormField
+            control={form.control}
+            name="isActualIncome"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 shadow-sm">
+                <FormControl>
+                  <Checkbox
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                  />
+                </FormControl>
+                <div className="space-y-1 leading-none">
+                  <FormLabel>
+                    Mark as Actual Income?
+                  </FormLabel>
+                  <FormDescription>
+                     Check this if the inflow represents real income (e.g., salary) and not a refund or internal transfer.
+                  </FormDescription>
+                </div>
+              </FormItem>
+            )}
+          />
+        )}
 
         <FormField
           control={form.control}
@@ -182,7 +213,7 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
           )}
         />
 
-        {transactionType === 'expense' && (
+        {transactionType === 'outflow' && ( // Changed from 'expense'
           <FormField
             control={form.control}
             name="envelopeId"
@@ -282,16 +313,13 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
           )}
         />
 
-        {/* isTransfer is usually not directly editable, determined by transfer functions */}
-        {/* <FormField control={form.control} name="isTransfer" render={() => <FormItem />} /> */}
-
         <Button
           type="submit"
           className="w-full sm:w-auto"
           disabled={
             payees.length === 0 ||
             accounts.length === 0 ||
-            (form.getValues('type') === 'expense' && envelopes.length === 0)
+            (form.getValues('type') === 'outflow' && envelopes.length === 0)
           }
         >
           <CheckCircle className="mr-2 h-4 w-4" /> Save Changes

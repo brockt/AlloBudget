@@ -62,6 +62,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   
   const getMetadataDocRef = useCallback(() => {
     if (!currentUser) return null;
+    // Ensure metadata is always user-specific
     return doc(db, `users/${currentUser.uid}/${APP_METADATA_COLLECTION}`, APP_METADATA_DOC_ID);
   }, [currentUser]);
 
@@ -83,7 +84,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     batchToUse?: WriteBatch
   ) => {
     if (!currentUser) return;
-    const metadataDocRef = getMetadataDocRef();
+    const metadataDocRef = getMetadataDocRef(); // This now correctly points to user-specific metadata
     if (!metadataDocRef) {
       console.warn("AppContext (persistCategoryChanges): metadataDocRef is null.");
       return;
@@ -93,11 +94,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       orderedCategories: Array.isArray(newOrderedCategories) ? newOrderedCategories : [],
     };
 
+    const batch = batchToUse || writeBatch(db);
     try {
-      const batch = batchToUse || writeBatch(db);
-      batch.set(metadataDocRef, dataToPersist, { merge: true });
-      await updateLastModified(batch); // Ensure lastModified is updated with this batch
-      if (!batchToUse) { // If we created a new batch, commit it
+      // Use set with merge true to create if not exists, or update if exists
+      batch.set(metadataDocRef, dataToPersist, { merge: true }); 
+      await updateLastModified(batch);
+      if (!batchToUse) {
         await batch.commit();
       }
     } catch (error) {
@@ -109,7 +111,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     const fetchData = async () => {
+      console.log(`AppContext: fetchData triggered. User: ${currentUser?.uid}`);
       if (!currentUser || !db) {
+        console.log("AppContext: No user or DB, clearing state and returning.");
         setAccounts([]); setEnvelopes([]); setTransactions([]); setPayees([]);
         setCategories([]); setOrderedCategories([]); setLastModified(null);
         setMonthlyEnvelopeBudgets([]); setCurrentViewMonthState(startOfMonth(new Date()));
@@ -117,6 +121,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
       setIsLoading(true);
+      console.log(`AppContext: Starting data fetch for user ${currentUser.uid}...`);
       try {
         const accountsPath = getCollectionPath(ACCOUNTS_COLLECTION);
         const envelopesPath = getCollectionPath(ENVELOPES_COLLECTION);
@@ -151,6 +156,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                        formatISO(startOfDay(new Date())),
           } as Envelope;
         }).sort((a, b) => (a.orderIndex ?? Infinity) - (b.orderIndex ?? Infinity));
+        console.log("AppContext: Fetched Envelopes from Firestore:", JSON.stringify(processedEnvelopes.map(e => ({id: e.id, name: e.name, category: e.category, orderIndex: e.orderIndex}))));
         setEnvelopes(processedEnvelopes);
 
         const transactionsQuery = query(collection(db, transactionsPath), orderBy("date", "desc"));
@@ -160,6 +166,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             description: d.data().description === null || d.data().description === undefined ? undefined : d.data().description,
             envelopeId: d.data().envelopeId === null || d.data().envelopeId === undefined ? undefined : d.data().envelopeId,
             isTransfer: !!d.data().isTransfer,
+            isActualIncome: !!d.data().isActualIncome, // Ensure this is loaded
         } as Transaction));
         setTransactions(fetchedTransactions);
 
@@ -178,21 +185,23 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         let lmDate: string | null = null;
         const metadataDocRef = getMetadataDocRef();
         
+        // Derive categories directly from the fetched envelopes
         const actualDerivedCategories = [...new Set(processedEnvelopes.map(env => env.category || "Uncategorized"))].sort((a, b) => {
             if (a === "Uncategorized") return 1; if (b === "Uncategorized") return -1; return a.localeCompare(b);
         });
+        console.log("AppContext: Actual Derived Categories from envelopes:", actualDerivedCategories);
         
         let finalOrderedCategories: string[] = [];
-        let storedCategories: string[] = [];
-
         if (metadataDocRef) {
             const metadataDocSnap = await getDoc(metadataDocRef);
             if (metadataDocSnap.exists()) {
                 const metadata = metadataDocSnap.data();
-                storedCategories = Array.isArray(metadata.categories) ? metadata.categories : [];
                 const storedOrdered = Array.isArray(metadata.orderedCategories) ? metadata.orderedCategories : [];
-                
+                console.log("AppContext: Stored Ordered Categories from metadata:", storedOrdered);
+
+                // Filter storedOrdered to only include categories that actually exist
                 finalOrderedCategories = storedOrdered.filter(cat => actualDerivedCategories.includes(cat));
+                // Add any actual categories that weren't in the stored order
                 actualDerivedCategories.forEach(derivedCat => {
                     if (!finalOrderedCategories.includes(derivedCat)) {
                         finalOrderedCategories.push(derivedCat);
@@ -203,20 +212,24 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                  else if (typeof lm === 'string') lmDate = lm;
             }
         }
-        
+        // If finalOrderedCategories is still empty but there are derived categories, initialize it
         if (finalOrderedCategories.length === 0 && actualDerivedCategories.length > 0) {
-            finalOrderedCategories = [...actualDerivedCategories];
+            finalOrderedCategories = [...actualDerivedCategories]; // Default order if metadata was empty/missing
+             console.log("AppContext: Initializing orderedCategories because metadata was empty/missing.");
         }
+        // Ensure "Uncategorized" is last if it exists
         if (finalOrderedCategories.includes("Uncategorized") && finalOrderedCategories.length > 1) {
             finalOrderedCategories = finalOrderedCategories.filter(c => c !== "Uncategorized");
             finalOrderedCategories.push("Uncategorized");
         }
-
+        console.log("AppContext: Final Ordered Categories to be set:", finalOrderedCategories);
         setCategories(actualDerivedCategories); 
         setOrderedCategories(finalOrderedCategories);
         setLastModified(lmDate);
         
+        // Always persist the reconciled categories to ensure metadata is up-to-date
         await persistCategoryChanges(actualDerivedCategories, finalOrderedCategories);
+        console.log(`AppContext: Data fetching successful for user ${currentUser.uid}.`);
 
       } catch (error) {
         console.error(`AppContext: CRITICAL ERROR during fetchData for user ${currentUser.uid}:`, error);
@@ -359,8 +372,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       
       const batch = writeBatch(db);
       batch.set(docRef, newEnvelopeServerData);
-      await persistCategoryChanges(newLocalCategories, newLocalOrderedCategories, batch); // Pass batch
-      // updateLastModified is handled by persistCategoryChanges
+      await persistCategoryChanges(newLocalCategories, newLocalOrderedCategories, batch); 
       await batch.commit();
 
       setCategories(newLocalCategories); 
@@ -446,7 +458,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       }
         
       await persistCategoryChanges(finalLocalCategories, finalLocalOrderedCategories, batch);
-      // updateLastModified is handled by persistCategoryChanges
       await batch.commit();
 
       setCategories(finalLocalCategories); 
@@ -527,21 +538,21 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         type: transactionData.type,
         date: formatISO(parsedDate),
         createdAt: formatISO(new Date()),
-        isTransfer: transactionData.isTransfer || false, 
+        isTransfer: transactionData.isTransfer || false,
+        isActualIncome: transactionData.type === 'inflow' ? (transactionData.isActualIncome || false) : false,
     };
 
     if (transactionData.description && transactionData.description.trim() !== "") {
         dataToSave.description = transactionData.description;
     } else {
-        dataToSave.description = deleteField(); // Explicitly remove if empty or undefined
+        dataToSave.description = deleteField(); 
     }
 
     if (transactionData.envelopeId !== undefined) {
-        dataToSave.envelopeId = transactionData.envelopeId; // Can be string or null
+        dataToSave.envelopeId = transactionData.envelopeId; 
     } else {
-        dataToSave.envelopeId = deleteField(); // Explicitly remove if undefined
+        dataToSave.envelopeId = deleteField(); 
     }
-
 
     try {
       const docRef = doc(collection(db, transactionsPath));
@@ -585,6 +596,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         description: dataToUpdate.description, 
         date: formatISO(parsedDate),
         isTransfer: !!dataToUpdate.isTransfer,
+        isActualIncome: dataToUpdate.type === 'inflow' ? (dataToUpdate.isActualIncome || false) : false,
         updatedAt: serverTimestamp() 
     };
         
@@ -596,11 +608,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             (dataToSendToFirestore as any)[key] = (cleanedData as any)[key];
         }
     }
-    // Ensure envelopeId: null is preserved if that's the intent (e.g. for income tx)
     if (cleanedData.envelopeId === null) {
         dataToSendToFirestore.envelopeId = null;
     }
-
 
     try {
       const batch = writeBatch(db);
@@ -612,7 +622,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       if (localUpdateData.updatedAt) { 
         (localUpdateData as any).updatedAt = formatISO(new Date());
       }
-      // Reflect deleteField() as undefined in local state
       if (localUpdateData.description === deleteField()) localUpdateData.description = undefined;
       if (localUpdateData.envelopeId === deleteField()) localUpdateData.envelopeId = undefined;
       
@@ -760,7 +769,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       }
       
       await persistCategoryChanges(actualCategoriesAfterDelete, finalOrderedCategoriesAfterDelete, batch);
-      // updateLastModified is handled by persistCategoryChanges
       await batch.commit(); 
 
       setEnvelopes(updatedEnvelopesListForState);
@@ -798,12 +806,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     
     try {
       await addTransaction({
-        accountId, envelopeId: fromEnvelopeId, payeeId: internalTransferPayee.id, amount, type: 'expense',
-        description: description || `Transfer to ${toEnvelope.name}`, date, isTransfer: false, 
+        accountId, envelopeId: fromEnvelopeId, payeeId: internalTransferPayee.id, amount, type: 'outflow', // Changed
+        description: description || `Transfer to ${toEnvelope.name}`, date, isTransfer: false, isActualIncome: false,
       });
       await addTransaction({
-        accountId, envelopeId: toEnvelopeId, payeeId: internalTransferPayee.id, amount, type: 'income',
-        description: description || `Transfer from ${fromEnvelope.name}`, date, isTransfer: false, 
+        accountId, envelopeId: toEnvelopeId, payeeId: internalTransferPayee.id, amount, type: 'inflow', // Changed
+        description: description || `Transfer from ${fromEnvelope.name}`, date, isTransfer: false, isActualIncome: false, // isActualIncome: false for transfers
       });
     } catch (error) {
       console.error("Error during envelope fund transfer transactions:", error);
@@ -831,12 +839,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
     try {
       await addTransaction({
-          accountId: fromAccountId, envelopeId: null, payeeId: internalTransferPayee.id, amount, type: 'expense',
-          description: description || `Transfer to ${toAccount.name}`, date, isTransfer: true,
+          accountId: fromAccountId, envelopeId: null, payeeId: internalTransferPayee.id, amount, type: 'outflow', // Changed
+          description: description || `Transfer to ${toAccount.name}`, date, isTransfer: true, isActualIncome: false,
       });
       await addTransaction({
-          accountId: toAccountId, envelopeId: null, payeeId: internalTransferPayee.id, amount, type: 'income',
-          description: description || `Transfer from ${fromAccount.name}`, date, isTransfer: true,
+          accountId: toAccountId, envelopeId: null, payeeId: internalTransferPayee.id, amount, type: 'inflow', // Changed
+          description: description || `Transfer from ${fromAccount.name}`, date, isTransfer: true, isActualIncome: false, // isActualIncome: false for transfers
       });
     } catch (error) {
         console.error("Error during account fund transfer transactions:", error);
@@ -849,7 +857,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const balance = transactions.reduce((currentBalance, tx) => {
       if (tx.accountId === accountId) {
         const txAmount = typeof tx.amount === 'number' && !isNaN(tx.amount) ? tx.amount : 0;
-        return tx.type === 'income' ? currentBalance + txAmount : currentBalance - txAmount;
+        return tx.type === 'inflow' ? currentBalance + txAmount : currentBalance - txAmount; // Changed
       }
       return currentBalance;
     }, account.initialBalance);
@@ -869,7 +877,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const monthEnd = endOfMonth(forMonth);
     const spending = transactions
       .filter(tx => {
-          if (tx.envelopeId !== envelopeId || tx.type !== 'expense') return false;
+          if (tx.envelopeId !== envelopeId || tx.type !== 'outflow') return false; // Changed to 'outflow'
           const txDate = parseISO(tx.date);
           return isValid(txDate) && isWithinInterval(txDate, {start: monthStart, end: monthEnd});
       })
@@ -914,7 +922,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const balanceAtEndOfPreviousMonth = getEnvelopeBalanceAsOfEOM(envelopeId, previousMonth);
     const currentMonthAllocation = getMonthlyAllocation(envelopeId, forMonth);
     
-    // Rollover should only be positive carry-over.
     const rolloverAmount = Math.max(0, balanceAtEndOfPreviousMonth);
     
     return currentMonthAllocation + rolloverAmount;
@@ -931,29 +938,28 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         });
   }, [transactions]);
 
-  const getMonthlyIncomeTotal = useCallback((forMonth: Date): number => {
+  const getMonthlyActualIncomeTotal = useCallback((forMonth: Date): number => { // Renamed
     const monthStart = startOfMonth(forMonth); const monthEnd = endOfMonth(forMonth);
     return transactions.reduce((total, tx) => {
       const txDate = parseISO(tx.date);
-      if (tx.type === 'income' && !tx.isTransfer && isValid(txDate) && isWithinInterval(txDate, { start: monthStart, end: monthEnd })) {
+      if (tx.type === 'inflow' && tx.isActualIncome && !tx.isTransfer && isValid(txDate) && isWithinInterval(txDate, { start: monthStart, end: monthEnd })) { // Changed
         return total + (typeof tx.amount === 'number' && !isNaN(tx.amount) ? tx.amount : 0);
       }
       return total;
     }, 0);
   }, [transactions]);
 
-  const getMonthlySpendingTotal = useCallback((forMonth: Date): number => {
+  const getMonthlyOutflowTotal = useCallback((forMonth: Date): number => { // Renamed
     const monthStart = startOfMonth(forMonth); const monthEnd = endOfMonth(forMonth);
     return transactions.reduce((total, tx) => {
       const txDate = parseISO(tx.date);
-      if (tx.type === 'expense' && !tx.isTransfer && isValid(txDate) && isWithinInterval(txDate, { start: monthStart, end: monthEnd })) {
+      if (tx.type === 'outflow' && !tx.isTransfer && isValid(txDate) && isWithinInterval(txDate, { start: monthStart, end: monthEnd })) { // Changed
         return total + (typeof tx.amount === 'number' && !isNaN(tx.amount) ? tx.amount : 0);
       }
       return total;
     }, 0);
   }, [transactions]);
 
-  // This function sums up specific monthly allocations or default envelope budgets
   const getTotalMonthlyBudgeted = useCallback((forMonth: Date): number => {
     return envelopes.reduce((total, env) => {
         const amountToAdd = getMonthlyAllocation(env.id, forMonth);
@@ -961,11 +967,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }, 0);
   }, [envelopes, getMonthlyAllocation]);
 
-  const getYtdIncomeTotal = useCallback((): number => {
+  const getYtdActualIncomeTotal = useCallback((): number => { // Renamed
     const now = new Date(); const yearStart = startOfYear(now); const todayEnd = endOfDay(now);
     return transactions.reduce((total, tx) => {
       const txDate = parseISO(tx.date);
-      if (tx.type === 'income' && !tx.isTransfer && isValid(txDate) && isWithinInterval(txDate, { start: yearStart, end: todayEnd })) {
+      if (tx.type === 'inflow' && tx.isActualIncome && !tx.isTransfer && isValid(txDate) && isWithinInterval(txDate, { start: yearStart, end: todayEnd })) { // Changed
         return total + (typeof tx.amount === 'number' && !isNaN(tx.amount) ? tx.amount : 0);
       }
       return total;
@@ -981,7 +987,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       transferBetweenEnvelopes, transferBetweenAccounts,
       getAccountBalance, getAccountById, getEnvelopeById, 
       getEnvelopeSpending, getEnvelopeBalanceAsOfEOM, getMonthlyAllocation, getEffectiveMonthlyBudgetWithRollover,
-      getMonthlyIncomeTotal, getMonthlySpendingTotal, getTotalMonthlyBudgeted, getYtdIncomeTotal,
+      getMonthlyActualIncomeTotal, getMonthlyOutflowTotal, getTotalMonthlyBudgeted, getYtdActualIncomeTotal, // Renamed functions
       getPayeeTransactions, 
       isLoading
     }}>

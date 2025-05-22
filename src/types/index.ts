@@ -20,7 +20,7 @@ export interface Envelope {
   createdAt: string;
 }
 
-export type TransactionType = 'income' | 'expense';
+export type TransactionType = 'inflow' | 'outflow'; // Changed from 'income' | 'expense'
 
 export interface Transaction {
   id:string;
@@ -34,6 +34,7 @@ export interface Transaction {
   date: string; // ISO string date
   createdAt: string;
   isTransfer?: boolean;
+  isActualIncome?: boolean; // New field
 }
 
 export interface Payee {
@@ -80,6 +81,7 @@ export interface TransactionFormData {
   description?: string;
   date: string;
   isTransfer?: boolean;
+  isActualIncome?: boolean; // New field
 }
 
 export type TransactionWithId = Partial<TransactionFormData> & { id: string };
@@ -145,12 +147,13 @@ export interface AppContextType {
   getEnvelopeSpending: (envelopeId: string, forMonth: Date) => number;
   getEnvelopeBalanceAsOfEOM: (envelopeId: string, asOfEOM: Date) => number;
   getMonthlyAllocation: (envelopeId: string, forMonth: Date) => number;
-  getEffectiveMonthlyBudgetWithRollover: (envelopeId: string, forMonth: Date) => number; // New function
+  getEffectiveMonthlyBudgetWithRollover: (envelopeId: string, forMonth: Date) => number; 
 
-  getMonthlyIncomeTotal: (forMonth: Date) => number;
-  getMonthlySpendingTotal: (forMonth: Date) => number;
-  getTotalMonthlyBudgeted: (forMonth: Date) => number; // This will be sum of getMonthlyAllocation
-  getYtdIncomeTotal: () => number;
+  getMonthlyActualIncomeTotal: (forMonth: Date) => number; // Renamed
+  getMonthlyOutflowTotal: (forMonth: Date) => number; // Renamed
+  getTotalMonthlyBudgeted: (forMonth: Date) => number; 
+  getYtdActualIncomeTotal: () => number; // Renamed
   
+  getPayeeTransactions: (payeeId: string) => Transaction[]; 
   isLoading: boolean;
 }

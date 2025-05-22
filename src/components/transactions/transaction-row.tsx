@@ -4,9 +4,9 @@
 import type { Transaction } from "@/types";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { format, parseISO, isValid } from "date-fns"; // Import parseISO and isValid
+import { format, parseISO, isValid } from "date-fns"; 
 import { useAppContext } from "@/context/AppContext";
-import { ArrowUpCircle, ArrowDownCircle, Trash2, User, Pencil, Landmark } from "lucide-react"; // Added Landmark
+import { ArrowUpCircle, ArrowDownCircle, Trash2, User, Pencil, Landmark, DollarSign } from "lucide-react"; // Added DollarSign
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -25,16 +25,16 @@ import { cn } from "@/lib/utils";
 
 interface TransactionRowProps {
   transaction: Transaction;
-  onEdit: (transaction: Transaction) => void; // Add onEdit handler prop
+  onEdit: (transaction: Transaction) => void; 
 }
 
 export function TransactionRow({ transaction, onEdit }: TransactionRowProps) {
-  const { accounts, envelopes, payees, deleteTransaction } = useAppContext(); // Added payees
+  const { accounts, envelopes, payees, deleteTransaction } = useAppContext(); 
   const { toast } = useToast();
 
   const account = accounts.find(acc => acc.id === transaction.accountId);
   const envelope = transaction.envelopeId ? envelopes.find(env => env.id === transaction.envelopeId) : null;
-  const payee = transaction.payeeId ? payees.find(p => p.id === transaction.payeeId) : null; // Find payee
+  const payee = transaction.payeeId ? payees.find(p => p.id === transaction.payeeId) : null; 
 
   const handleDelete = () => {
     deleteTransaction(transaction.id)
@@ -55,12 +55,11 @@ export function TransactionRow({ transaction, onEdit }: TransactionRowProps) {
   };
 
   const handleEditClick = (event: React.MouseEvent) => {
-    event.stopPropagation(); // Prevent potential parent link navigation if row becomes clickable later
+    event.stopPropagation(); 
     onEdit(transaction);
   };
 
 
-  // Safely parse and format the date
   const transactionDate = parseISO(transaction.date);
   const formattedDate = isValid(transactionDate) ? format(transactionDate, "MMM d, yyyy") : "Invalid Date";
 
@@ -76,11 +75,14 @@ export function TransactionRow({ transaction, onEdit }: TransactionRowProps) {
           ) : (
             <span className="italic text-muted-foreground">No Payee</span>
           )}
+          {transaction.type === 'inflow' && transaction.isActualIncome && (
+            <DollarSign className="ml-1 h-3 w-3 text-green-500" title="Actual Income" />
+          )}
         </div>
-        <div className="text-xs text-muted-foreground ml-5"> {/* Indent description slightly */}
+        <div className="text-xs text-muted-foreground ml-5"> 
           {transaction.description || <span className="italic text-muted-foreground">No description</span>}
         </div>
-        <div className="text-xs text-muted-foreground flex items-center mt-0.5 ml-5"> {/* Indent account slightly */}
+        <div className="text-xs text-muted-foreground flex items-center mt-0.5 ml-5"> 
           <Landmark className="mr-1.5 h-3 w-3" />
           {account?.name || "N/A"}
         </div>
@@ -98,9 +100,9 @@ export function TransactionRow({ transaction, onEdit }: TransactionRowProps) {
       <TableCell className="text-right">
         <span className={cn(
           "font-semibold flex items-center justify-end",
-          transaction.type === 'income' ? 'text-green-600 dark:text-green-500' : 'text-red-600 dark:text-red-500'
+          transaction.type === 'inflow' ? 'text-green-600 dark:text-green-500' : 'text-red-600 dark:text-red-500' // Changed
         )}>
-          {transaction.type === 'income' ?
+          {transaction.type === 'inflow' ? // Changed
             <ArrowUpCircle className="mr-1 h-4 w-4" /> :
             <ArrowDownCircle className="mr-1 h-4 w-4" />
           }
@@ -109,12 +111,10 @@ export function TransactionRow({ transaction, onEdit }: TransactionRowProps) {
       </TableCell>
       <TableCell className="text-right">
          <div className="flex justify-end space-x-1">
-            {/* Edit Button */}
             <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary h-7 w-7" onClick={handleEditClick}>
                 <Pencil className="h-4 w-4" />
                 <span className="sr-only">Edit Transaction</span>
             </Button>
-            {/* Delete Button */}
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive h-7 w-7">

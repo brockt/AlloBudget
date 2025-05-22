@@ -21,14 +21,14 @@ export default function DashboardPage() {
     envelopes,
     getAccountBalance,
     isLoading,
-    getMonthlyIncomeTotal,
-    getMonthlySpendingTotal,
+    getMonthlyActualIncomeTotal, // Renamed
+    getMonthlyOutflowTotal,    // Renamed
     lastModified,
     currentViewMonth,
     setCurrentViewMonth,
     getEffectiveMonthlyBudgetWithRollover,
-    getYtdIncomeTotal,
-    getEnvelopeBalanceAsOfEOM, // Added for the new calculation
+    getYtdActualIncomeTotal,       // Renamed
+    getEnvelopeBalanceAsOfEOM, 
   } = useAppContext();
 
   if (isLoading) {
@@ -52,23 +52,20 @@ export default function DashboardPage() {
   }
 
   const totalBalance = accounts.reduce((sum, acc) => sum + getAccountBalance(acc.id), 0);
-  const monthlyIncome = getMonthlyIncomeTotal(currentViewMonth);
-  const monthlySpendingAllSources = getMonthlySpendingTotal(currentViewMonth);
+  const monthlyActualIncome = getMonthlyActualIncomeTotal(currentViewMonth); // Renamed
+  const monthlyOutflows = getMonthlyOutflowTotal(currentViewMonth); // Renamed
 
-  // This represents the total planned funding for envelopes this month (allocations + positive rollovers)
   const totalEffectiveBudgetedForViewMonth = envelopes.reduce((sum, envelope) => {
     return sum + getEffectiveMonthlyBudgetWithRollover(envelope.id, currentViewMonth);
   }, 0);
 
-  // This represents the current actual positive funds held within the envelope system
   const totalCurrentFundsInEnvelopes = envelopes.reduce((sum, envelope) => {
     return sum + Math.max(0, getEnvelopeBalanceAsOfEOM(envelope.id, currentViewMonth));
   }, 0);
 
-  // Available to Spend = Total Account Balance - Current Actual Positive Funds in Envelopes
   const availableToSpend = totalBalance - totalCurrentFundsInEnvelopes;
 
-  const ytdIncome = getYtdIncomeTotal();
+  const ytdActualIncome = getYtdActualIncomeTotal(); // Renamed
 
   const formattedLastModified = lastModified && isValidDate(parseISO(lastModified))
     ? format(parseISO(lastModified), "MMM d, yyyy 'at' h:mm a")
@@ -105,27 +102,26 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <Card className="shadow-md hover:shadow-lg transition-shadow duration-300">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Income ({format(currentViewMonth, "MMM")})</CardTitle>
+            <CardTitle className="text-sm font-medium">Actual Income ({format(currentViewMonth, "MMM")})</CardTitle> {/* Changed title */}
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-lg font-bold text-green-600 dark:text-green-500">{formatCurrency(monthlyIncome)}</div>
+            <div className="text-lg font-bold text-green-600 dark:text-green-500">{formatCurrency(monthlyActualIncome)}</div>
             <p className="text-xs text-muted-foreground">For {format(currentViewMonth, "MMMM")}</p>
           </CardContent>
         </Card>
         <Card className="shadow-md hover:shadow-lg transition-shadow duration-300">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Spending ({format(currentViewMonth, "MMM")})</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Outflows ({format(currentViewMonth, "MMM")})</CardTitle> {/* Changed title */}
             <TrendingDown className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-lg font-bold text-red-600 dark:text-red-500">{formatCurrency(monthlySpendingAllSources)}</div>
+            <div className="text-lg font-bold text-red-600 dark:text-red-500">{formatCurrency(monthlyOutflows)}</div>
             <p className="text-xs text-muted-foreground">For {format(currentViewMonth, "MMMM")}</p>
           </CardContent>
         </Card>
         <Card className="shadow-md hover:shadow-lg transition-shadow duration-300">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            {/* This card shows the PLANNED funding for envelopes for the month */}
             <CardTitle className="text-sm font-medium">Budget Plan ({format(currentViewMonth, "MMM")})</CardTitle>
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
@@ -136,11 +132,11 @@ export default function DashboardPage() {
         </Card>
         <Card className="shadow-md hover:shadow-lg transition-shadow duration-300">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">YTD Income</CardTitle>
+            <CardTitle className="text-sm font-medium">YTD Actual Income</CardTitle> {/* Changed title */}
             <CalendarCheck className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-lg font-bold">{formatCurrency(ytdIncome)}</div>
+            <div className="text-lg font-bold">{formatCurrency(ytdActualIncome)}</div>
             <p className="text-xs text-muted-foreground">Since start of year</p>
           </CardContent>
         </Card>

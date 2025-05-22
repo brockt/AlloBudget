@@ -19,33 +19,24 @@ export const accountSchema = z.object({
     (val) => Number(String(val)), // Convert to number
     z.number().min(0, "Initial balance cannot be negative.") // Updated message for clarity
   ),
-  // Update type to be an optional enum of the predefined types.
-  // It will be undefined if nothing is selected.
   type: z.enum(accountTypes).optional(),
-  // Add createdAt for completeness if needed elsewhere, though not in form
-  // createdAt: z.string().optional(), // Typically set server-side or in context
 });
 
 export const envelopeSchema = z.object({
   name: z.string().min(1, "Envelope name is required.").max(100, "Name too long."),
   budgetAmount: z.preprocess(
     (val) => Number(String(val)), // Convert to number
-    z.number().min(0, "Budget amount cannot be negative.") // Allow 0 budget, clearer message
+    z.number().min(0, "Budget amount cannot be negative.")
   ),
-  // Add optional estimatedAmount
   estimatedAmount: z.preprocess(
-    (val) => (val === "" || val === null || val === undefined) ? undefined : Number(String(val)), // Convert to number or undefined
+    (val) => (val === "" || val === null || val === undefined) ? undefined : Number(String(val)),
     z.number().min(0, "Estimated amount cannot be negative.").optional()
   ),
-  // Make category mandatory
   category: z.string().min(1, "Category is required.").max(100, "Category name is too long."),
-  // Add optional dueDate
   dueDate: z.preprocess(
-    (val) => (val === "" || val === null || val === undefined) ? undefined : Number(String(val)), // Convert to number or undefined
+    (val) => (val === "" || val === null || val === undefined) ? undefined : Number(String(val)),
     z.number().int().min(1).max(31, "Due day must be between 1 and 31.").optional()
   ),
-  // Add createdAt for completeness if needed elsewhere, though not in form
-  // createdAt: z.string().optional(), // Typically set server-side or in context
 });
 
 export const transactionSchema = z.object({
@@ -56,7 +47,7 @@ export const transactionSchema = z.object({
     (val) => Number(String(val)),
     z.number().positive("Amount must be positive.")
   ),
-  type: z.enum(['income', 'expense'], { required_error: "Transaction type is required." }),
+  type: z.enum(['inflow', 'outflow'], { required_error: "Transaction type is required." }), // Changed
   description: z.string().max(200, "Description too long.").optional(),
   date: z.string().refine((dateString) => {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(dateString)) return false;
@@ -65,12 +56,13 @@ export const transactionSchema = z.object({
     }, {
       message: "Invalid date format. Please use YYYY-MM-DD.",
   }),
-  isTransfer: z.boolean().optional(), // Added isTransfer field
+  isTransfer: z.boolean().optional(),
+  isActualIncome: z.boolean().optional(), // New field
 }).superRefine((data, ctx) => {
-  if (data.type === 'expense' && (!data.envelopeId || data.envelopeId.trim() === "")) {
+  if (data.type === 'outflow' && (!data.envelopeId || data.envelopeId.trim() === "")) { // Changed to 'outflow'
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      message: "Envelope is required for expense transactions.",
+      message: "Envelope is required for outflow transactions.", // Changed message
       path: ['envelopeId'],
     });
   }
@@ -103,7 +95,7 @@ export const transferEnvelopeFundsSchema = z.object({
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       message: "Source and destination envelopes cannot be the same.",
-      path: ['toEnvelopeId'], // Or ['fromEnvelopeId']
+      path: ['toEnvelopeId'], 
     });
   }
 });
@@ -129,7 +121,7 @@ export const transferAccountFundsSchema = z.object({
         ctx.addIssue({
             code: z.ZodIssueCode.custom,
             message: "Source and destination accounts cannot be the same.",
-            path: ['toAccountId'], // Or ['fromAccountId']
+            path: ['toAccountId'], 
         });
     }
 });

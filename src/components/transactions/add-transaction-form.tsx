@@ -28,6 +28,7 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
+import { Checkbox } from "@/components/ui/checkbox"; // Import Checkbox
 import { transactionSchema } from "@/lib/schemas";
 import { useAppContext } from "@/context/AppContext";
 import type { TransactionFormData, TransactionType } from "@/types";
@@ -49,7 +50,7 @@ export function AddTransactionForm({ onSuccess, navigateToTransactions = false }
 
   const [initialAccountId, setInitialAccountId] = useState<string | undefined>(undefined);
   const [formReady, setFormReady] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false); // For button state
+  const [isSubmitting, setIsSubmitting] = useState(false); 
 
   useEffect(() => {
     if (!isAppContextLoading) { 
@@ -75,12 +76,13 @@ export function AddTransactionForm({ onSuccess, navigateToTransactions = false }
       form.reset({
         accountId: initialAccountId || (accounts.length > 0 ? accounts[0].id : ""),
         envelopeId: null,
-        payeeId: payees.length > 0 ? payees[0].id : "", // Default to first payee if available
+        payeeId: payees.length > 0 ? payees[0].id : "", 
         amount: 0,
-        type: "expense",
+        type: "outflow", // Default to outflow
         description: "",
         date: format(new Date(), "yyyy-MM-dd"),
         isTransfer: false,
+        isActualIncome: false, // Default isActualIncome
       });
     }
   }, [formReady, initialAccountId, form, accounts, payees]);
@@ -94,9 +96,10 @@ export function AddTransactionForm({ onSuccess, navigateToTransactions = false }
         ...values,
         description: values.description || undefined,
         payeeId: values.payeeId,
-        envelopeId: values.type === 'income' ? null : values.envelopeId,
+        envelopeId: values.type === 'inflow' ? null : values.envelopeId,
         date: values.date,
         isTransfer: values.isTransfer || false,
+        isActualIncome: values.type === 'inflow' ? (values.isActualIncome || false) : false,
     };
 
     try {
@@ -121,10 +124,11 @@ export function AddTransactionForm({ onSuccess, navigateToTransactions = false }
             amount: 0,
             description: "",
             type: form.getValues('type'),
-            envelopeId: form.getValues('type') === 'income' ? null : (envelopes.length > 0 && form.getValues('type') === 'expense' ? form.getValues('envelopeId') : null),
-            payeeId: payees.length > 0 ? payees[0].id : "", // Reset to first payee
+            envelopeId: form.getValues('type') === 'inflow' ? null : (envelopes.length > 0 && form.getValues('type') === 'outflow' ? form.getValues('envelopeId') : null),
+            payeeId: payees.length > 0 ? payees[0].id : "", 
             date: format(new Date(), "yyyy-MM-dd"),
             isTransfer: false,
+            isActualIncome: false,
         });
 
         if (onSuccess) onSuccess();
@@ -174,8 +178,10 @@ export function AddTransactionForm({ onSuccess, navigateToTransactions = false }
                 <RadioGroup
                   onValueChange={(value) => {
                     field.onChange(value as TransactionType);
-                    if (value === 'income') {
+                    if (value === 'inflow') {
                       form.setValue('envelopeId', null);
+                    } else {
+                      form.setValue('isActualIncome', false); // Reset if switching to outflow
                     }
                   }}
                   value={field.value} 
@@ -183,15 +189,15 @@ export function AddTransactionForm({ onSuccess, navigateToTransactions = false }
                 >
                   <FormItem className="flex items-center space-x-3 space-y-0">
                     <FormControl>
-                      <RadioGroupItem value="expense" />
+                      <RadioGroupItem value="outflow" />
                     </FormControl>
-                    <FormLabel className="font-normal">Expense</FormLabel>
+                    <FormLabel className="font-normal">Outflow</FormLabel>
                   </FormItem>
                   <FormItem className="flex items-center space-x-3 space-y-0">
                     <FormControl>
-                      <RadioGroupItem value="income" />
+                      <RadioGroupItem value="inflow" />
                     </FormControl>
-                    <FormLabel className="font-normal">Income</FormLabel>
+                    <FormLabel className="font-normal">Inflow</FormLabel>
                   </FormItem>
                 </RadioGroup>
               </FormControl>
@@ -199,6 +205,31 @@ export function AddTransactionForm({ onSuccess, navigateToTransactions = false }
             </FormItem>
           )}
         />
+
+        {transactionType === 'inflow' && (
+          <FormField
+            control={form.control}
+            name="isActualIncome"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 shadow-sm">
+                <FormControl>
+                  <Checkbox
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                  />
+                </FormControl>
+                <div className="space-y-1 leading-none">
+                  <FormLabel>
+                    Mark as Actual Income?
+                  </FormLabel>
+                  <FormDescription>
+                    Check this if the inflow represents real income (e.g., salary) and not a refund or internal transfer.
+                  </FormDescription>
+                </div>
+              </FormItem>
+            )}
+          />
+        )}
 
         <FormField
           control={form.control}
@@ -256,7 +287,7 @@ export function AddTransactionForm({ onSuccess, navigateToTransactions = false }
           )}
         />
 
-        {transactionType === 'expense' && (
+        {transactionType === 'outflow' && ( // Changed from 'expense'
           <FormField
             control={form.control}
             name="envelopeId"
@@ -364,10 +395,10 @@ export function AddTransactionForm({ onSuccess, navigateToTransactions = false }
           type="submit"
           className="w-full sm:w-auto"
           disabled={
-            isSubmitting || // Disable while submitting
+            isSubmitting || 
             payees.length === 0 ||
             accounts.length === 0 ||
-            (form.getValues('type') === 'expense' && envelopes.length === 0)
+            (form.getValues('type') === 'outflow' && envelopes.length === 0)
           }
         >
           <PlusCircle className="mr-2 h-4 w-4" /> {isSubmitting ? "Adding..." : "Add Transaction"}
