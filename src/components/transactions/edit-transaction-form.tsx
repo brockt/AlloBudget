@@ -48,7 +48,7 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
 
   const form = useForm<z.infer<typeof transactionSchema>>({
     resolver: zodResolver(transactionSchema),
-    defaultValues: { // Initial defaults before useEffect runs
+    defaultValues: { // Initial minimal defaults
       accountId: "",
       envelopeId: null,
       payeeId: "",
@@ -62,9 +62,24 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
   });
 
   useEffect(() => {
-    // Only reset form if transaction data and necessary context lists are available
-    if (transaction && !isAppContextLoading && accounts.length > 0 && payees.length > 0) {
+    if (!transaction || isAppContextLoading) {
+      return; // Don't proceed if no transaction or context is loading
+    }
+
+    // Check if essential lists are populated
+    const accountsPopulated = accounts.length > 0;
+    const payeesPopulated = payees.length > 0;
+    let envelopesPopulatedForOutflow = true; // Assume true for inflows or if no envelopeId
+
+    if (transaction.type === 'outflow' && transaction.envelopeId) {
+      envelopesPopulatedForOutflow = envelopes.length > 0 && envelopes.some(e => e.id === transaction.envelopeId);
+    }
+    
+    // Only reset if all necessary data for this transaction is ready
+    if (accountsPopulated && payeesPopulated && envelopesPopulatedForOutflow) {
       const parsedDate = transaction.date ? parseISO(transaction.date) : null;
+      const initialDateString = parsedDate && isValidDate(parsedDate) ? format(parsedDate, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd");
+
       form.reset({
         accountId: transaction.accountId || "",
         envelopeId: transaction.envelopeId || null,
@@ -72,12 +87,12 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
         amount: transaction.amount,
         type: transaction.type,
         description: transaction.description || "",
-        date: parsedDate && isValidDate(parsedDate) ? format(parsedDate, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"),
+        date: initialDateString,
         isTransfer: transaction.isTransfer || false,
         isActualIncome: transaction.isActualIncome || false,
       });
     }
-  }, [transaction, form, accounts, payees, envelopes, isAppContextLoading]); // Added context lists and loading state to dependencies
+  }, [transaction, form, accounts, payees, envelopes, isAppContextLoading]);
 
   const transactionType = form.watch("type");
 
@@ -230,9 +245,9 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
               <FormItem>
                 <FormLabel>Envelope</FormLabel>
                 <Select
-                  onValueChange={(value) => field.onChange(value || null)} // Ensure null if empty
-                  value={field.value ?? ""} // Handles null by showing placeholder
-                  required={transactionType === 'outflow'} // Required only for outflows
+                  onValueChange={(value) => field.onChange(value || null)}
+                  value={field.value ?? ""}
+                  required={transactionType === 'outflow'}
                 >
                   <FormControl>
                     <SelectTrigger>
@@ -319,7 +334,7 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
                     selected={field.value && isValidDate(parseISO(field.value)) ? parseISO(field.value) : undefined}
                     onSelect={(date) => {
                       field.onChange(date ? format(date, "yyyy-MM-dd") : "");
-                      setIsDatePopoverOpen(false);
+                      setIsDatePopoverOpen(false); // Close popover after selection
                     }}
                     initialFocus
                     disabled={(date) => date > new Date() || date < new Date("1900-01-01")}
@@ -335,7 +350,7 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
           type="submit"
           className="w-full sm:w-auto"
           disabled={
-            isAppContextLoading || // Disable if context is still loading
+            isAppContextLoading || 
             payees.length === 0 ||
             accounts.length === 0 ||
             (form.getValues('type') === 'outflow' && envelopes.length === 0)
@@ -347,5 +362,3 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
     </Form>
   );
 }
-
-    
