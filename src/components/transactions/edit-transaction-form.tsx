@@ -4,8 +4,8 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type * as z from "zod";
-import { format, parseISO, isValid as isValidDate } from "date-fns"; // Added isValidDate
-import { useEffect } from 'react';
+import { format, parseISO, isValid as isValidDate } from "date-fns";
+import { useEffect, useState } from 'react'; // Added useState
 
 import { Button } from "@/components/ui/button";
 import {
@@ -44,6 +44,7 @@ interface EditTransactionFormProps {
 export function EditTransactionForm({ transaction, onSuccess }: EditTransactionFormProps) {
   const { accounts, envelopes, payees, updateTransaction } = useAppContext();
   const { toast } = useToast();
+  const [isDatePopoverOpen, setIsDatePopoverOpen] = useState(false); // State for date popover
 
   const form = useForm<z.infer<typeof transactionSchema>>({
     resolver: zodResolver(transactionSchema),
@@ -64,9 +65,9 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
     if (transaction) {
       const parsedDate = transaction.date ? parseISO(transaction.date) : null;
       form.reset({
-        accountId: transaction.accountId || "",
+        accountId: transaction.accountId || "", // Ensure string for Select
         envelopeId: transaction.envelopeId || null,
-        payeeId: transaction.payeeId || "",
+        payeeId: transaction.payeeId || "", // Ensure string for Select
         amount: transaction.amount,
         type: transaction.type,
         description: transaction.description || "",
@@ -285,7 +286,7 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
           render={({ field }) => (
             <FormItem className="flex flex-col">
               <FormLabel>Date</FormLabel>
-              <Popover>
+              <Popover open={isDatePopoverOpen} onOpenChange={setIsDatePopoverOpen}>
                 <PopoverTrigger asChild>
                   <FormControl>
                     <Button
@@ -294,6 +295,7 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
                         "w-full pl-3 text-left font-normal",
                         !field.value && "text-muted-foreground"
                       )}
+                      onClick={() => setIsDatePopoverOpen(true)} // Explicitly open
                     >
                       {field.value ? (
                         isValidDate(parseISO(field.value)) ? format(parseISO(field.value), "PPP") : <span>Pick a date</span>
@@ -308,7 +310,10 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
                   <Calendar
                     mode="single"
                     selected={field.value && isValidDate(parseISO(field.value)) ? parseISO(field.value) : undefined}
-                    onSelect={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")}
+                    onSelect={(date) => {
+                      field.onChange(date ? format(date, "yyyy-MM-dd") : "");
+                      setIsDatePopoverOpen(false); // Close popover after selection
+                    }}
                     initialFocus
                   />
                 </PopoverContent>
@@ -333,3 +338,4 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
     </Form>
   );
 }
+
