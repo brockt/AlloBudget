@@ -3,9 +3,9 @@
 
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod"; // Keep z import for infer
+import * as z from "zod";
 import { format, parseISO, isValid as isValidDate } from "date-fns";
-import { useEffect, useState } from 'react'; 
+import { useEffect, useState } from 'react';
 
 import { Button } from "@/components/ui/button";
 import {
@@ -35,6 +35,7 @@ import type { Transaction, TransactionFormData, TransactionType, TransactionWith
 import { CheckCircle, CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { Skeleton } from "@/components/ui/skeleton"; // For loading state
 
 interface EditTransactionFormProps {
   transaction: Transaction;
@@ -45,61 +46,103 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
   const { accounts, envelopes, payees, updateTransaction, isLoading: isAppContextLoading } = useAppContext();
   const { toast } = useToast();
   const [isDatePopoverOpen, setIsDatePopoverOpen] = useState(false);
+  const [isFormReady, setIsFormReady] = useState(false); // New state to control form rendering
+
+  // console.log("[EditTransactionForm] Rendering with transaction:", JSON.stringify(transaction));
+  // console.log("[EditTransactionForm] Context state: isAppContextLoading:", isAppContextLoading, "Accounts:", accounts.length, "Payees:", payees.length, "Envelopes:", envelopes.length);
+
 
   const form = useForm<z.infer<typeof transactionSchema>>({
     resolver: zodResolver(transactionSchema),
-    // Default values are minimal here; useEffect with setValue will handle detailed initialization
+    // Default values are minimal; useEffect with setValue will handle detailed initialization
     defaultValues: {
-      type: "outflow",
-      amount: 0,
-      isTransfer: false,
-      isActualIncome: false,
-      date: format(new Date(), "yyyy-MM-dd"), // Default to today if transaction.date is problematic
+      type: transaction?.type || "outflow",
+      amount: transaction?.amount || 0,
+      isTransfer: transaction?.isTransfer || false,
+      isActualIncome: transaction?.isActualIncome || false,
+      date: transaction?.date ? (isValidDate(parseISO(transaction.date)) ? format(parseISO(transaction.date), "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd")) : format(new Date(), "yyyy-MM-dd"),
+      accountId: transaction?.accountId || "",
+      payeeId: transaction?.payeeId || "",
+      envelopeId: transaction?.envelopeId || null,
+      description: transaction?.description || "",
     },
   });
 
   useEffect(() => {
+    // console.log("[EditTransactionForm] useEffect triggered. Transaction:", transaction, "isAppContextLoading:", isAppContextLoading, "Accounts:", accounts.length);
     if (transaction && !isAppContextLoading && accounts.length > 0 && payees.length > 0) {
       const outflowRequiresEnvelope = transaction.type === 'outflow' && transaction.envelopeId;
       if (outflowRequiresEnvelope && envelopes.length === 0 && transaction.envelopeId) {
-        return; 
+        // console.warn("[EditTransactionForm] Outflow transaction has envelopeId but envelopes list is empty. Form might not init correctly.");
+        setIsFormReady(false); // Keep form not ready if crucial data is missing
+        return;
       }
 
-      // Explicitly set values using form.setValue
-      form.setValue('accountId', transaction.accountId || '', { shouldDirty: false });
-      form.setValue('payeeId', transaction.payeeId || '', { shouldDirty: false });
-      form.setValue('envelopeId', transaction.envelopeId || null, { shouldDirty: false });
-      form.setValue('amount', transaction.amount, { shouldDirty: false });
-      form.setValue('type', transaction.type, { shouldDirty: false });
-      form.setValue('description', transaction.description || '', { shouldDirty: false });
-
+      // console.log("[EditTransactionForm] Attempting to set form values.");
+      form.setValue('accountId', transaction.accountId || "", { shouldDirty: false, shouldValidate: false });
+      form.setValue('payeeId', transaction.payeeId || "", { shouldDirty: false, shouldValidate: false });
+      form.setValue('envelopeId', transaction.envelopeId || null, { shouldDirty: false, shouldValidate: false });
+      form.setValue('amount', transaction.amount, { shouldDirty: false, shouldValidate: false });
+      form.setValue('type', transaction.type, { shouldDirty: false, shouldValidate: false });
+      form.setValue('description', transaction.description || "", { shouldDirty: false, shouldValidate: false });
+      
       const parsedDate = transaction.date ? parseISO(transaction.date) : null;
       const initialDateString = parsedDate && isValidDate(parsedDate) ? format(parsedDate, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd");
-      form.setValue('date', initialDateString, { shouldDirty: false });
-
-      form.setValue('isTransfer', transaction.isTransfer || false, { shouldDirty: false });
-      form.setValue('isActualIncome', transaction.isActualIncome || false, { shouldDirty: false });
+      form.setValue('date', initialDateString, { shouldDirty: false, shouldValidate: false });
+      
+      form.setValue('isTransfer', transaction.isTransfer || false, { shouldDirty: false, shouldValidate: false });
+      form.setValue('isActualIncome', transaction.isActualIncome || false, { shouldDirty: false, shouldValidate: false });
+      
+      setIsFormReady(true); // Mark form as ready to render
+      // console.log("[EditTransactionForm] Form values set. AccountId:", form.getValues('accountId'));
+    } else {
+      setIsFormReady(false); // Not ready if conditions aren't met
     }
   }, [transaction, form, accounts, payees, envelopes, isAppContextLoading]);
 
   const transactionType = form.watch("type");
 
   function onSubmit(values: z.infer<typeof transactionSchema>) {
+    // console.log("[EditTransactionForm] Submitting values:", values);
     const updatedTransactionData: TransactionWithId = {
       id: transaction.id,
       ...values,
       description: values.description || undefined,
-      envelopeId: values.type === 'inflow' ? null : values.envelopeId, // Ensure envelopeId is null for inflow
+      envelopeId: values.type === 'inflow' ? null : values.envelopeId,
       isTransfer: values.isTransfer || false,
       isActualIncome: values.type === 'inflow' ? (values.isActualIncome || false) : false,
     };
-    updateTransaction(updatedTransactionData);
-    toast({
-      title: "Transaction Updated",
-      description: `Transaction has been successfully updated.`,
-    });
-    if (onSuccess) onSuccess();
+    updateTransaction(updatedTransactionData)
+      .then(() => {
+        toast({
+          title: "Transaction Updated",
+          description: `Transaction has been successfully updated.`,
+        });
+        if (onSuccess) onSuccess();
+      })
+      .catch(error => {
+        console.error("Error updating transaction:", error);
+        toast({
+          title: "Error Updating Transaction",
+          description: (error as Error)?.message || "Could not update transaction.",
+          variant: "destructive",
+        });
+      });
   }
+
+  if (!isFormReady) {
+    // console.log("[EditTransactionForm] Form not ready, showing skeletons.");
+    return (
+      <div className="space-y-6 py-4">
+        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-10 w-1/2" />
+      </div>
+    );
+  }
+
+  // console.log("[EditTransactionForm] Rendering form. Current form values:", form.getValues());
 
   return (
     <Form {...form}>
@@ -115,9 +158,9 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
                   onValueChange={(value) => {
                     field.onChange(value as TransactionType);
                     if (value === 'inflow') {
-                      form.setValue('envelopeId', null); // Clear envelope if type changes to inflow
+                      form.setValue('envelopeId', null);
                     } else {
-                       form.setValue('isActualIncome', false); // Reset if switching to outflow
+                       form.setValue('isActualIncome', false);
                     }
                   }}
                   value={field.value}
@@ -229,12 +272,12 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
           <FormField
             control={form.control}
             name="envelopeId"
-            render={({ field }) => ( // field.value here can be string or null
+            render={({ field }) => (
               <FormItem>
                 <FormLabel>Envelope</FormLabel>
                 <Select
-                  onValueChange={(value) => field.onChange(value || null)} // Ensure null if empty
-                  value={field.value ?? ""} // Handle null for Select value
+                  onValueChange={(value) => field.onChange(value || null)}
+                  value={field.value ?? ""}
                   required={transactionType === 'outflow'}
                 >
                   <FormControl>
@@ -269,8 +312,8 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
             <FormItem>
               <FormLabel>Amount</FormLabel>
               <FormControl>
-                <Input type="number" placeholder="0.00" {...field} step="0.01" 
-                       onChange={e => field.onChange(parseFloat(e.target.value) || 0)} 
+                <Input type="number" placeholder="0.00" {...field} step="0.01"
+                       onChange={e => field.onChange(parseFloat(e.target.value) || 0)}
                        value={field.value ?? 0} />
               </FormControl>
               <FormMessage />
@@ -303,7 +346,11 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
                   <FormControl>
                     <Button
                       variant={"outline"}
-                      onClick={() => setIsDatePopoverOpen(true)}
+                      onClick={(e) => {
+                        e.preventDefault(); // Prevent form submission
+                        // console.log("[EditTransactionForm] Date button clicked. Current isDatePopoverOpen:", isDatePopoverOpen);
+                        setIsDatePopoverOpen(prev => !prev);
+                      }}
                       className={cn(
                         "w-full pl-3 text-left font-normal",
                         !field.value && "text-muted-foreground"
@@ -323,8 +370,9 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
                     mode="single"
                     selected={field.value && isValidDate(parseISO(field.value)) ? parseISO(field.value) : undefined}
                     onSelect={(date) => {
+                      // console.log("[EditTransactionForm] Date selected from Calendar:", date);
                       field.onChange(date ? format(date, "yyyy-MM-dd") : "");
-                      setIsDatePopoverOpen(false); 
+                      setIsDatePopoverOpen(false);
                     }}
                     initialFocus
                     disabled={(date) => date > new Date() || date < new Date("1900-01-01")}
@@ -339,11 +387,11 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
         <Button
           type="submit"
           className="w-full sm:w-auto"
-          disabled={ // Disable if context is loading or essential lists are empty
-            isAppContextLoading || 
+          disabled={
+            isAppContextLoading ||
             payees.length === 0 ||
             accounts.length === 0 ||
-            (form.getValues('type') === 'outflow' && envelopes.length === 0 && !!transaction.envelopeId) 
+            (form.getValues('type') === 'outflow' && !!transaction.envelopeId && envelopes.length === 0)
           }
         >
           <CheckCircle className="mr-2 h-4 w-4" /> Save Changes
@@ -352,6 +400,5 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
     </Form>
   );
 }
-    
 
     
