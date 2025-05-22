@@ -3,9 +3,9 @@
 
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import type * as z from "zod";
+import * as z from "zod"; // Keep z import for infer
 import { format, parseISO, isValid as isValidDate } from "date-fns";
-import { useEffect } from 'react'; // Removed useState
+import { useEffect, useState } from 'react'; 
 
 import { Button } from "@/components/ui/button";
 import {
@@ -44,7 +44,7 @@ interface EditTransactionFormProps {
 export function EditTransactionForm({ transaction, onSuccess }: EditTransactionFormProps) {
   const { accounts, envelopes, payees, updateTransaction, isLoading: isAppContextLoading } = useAppContext();
   const { toast } = useToast();
-  // Removed isDatePopoverOpen state
+  const [isDatePopoverOpen, setIsDatePopoverOpen] = useState(false); // For controlling date popover
 
   const form = useForm<z.infer<typeof transactionSchema>>({
     resolver: zodResolver(transactionSchema),
@@ -62,8 +62,9 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
   });
 
   useEffect(() => {
+    // Only reset form if transaction is present, context is not loading, and essential lists are populated
     if (transaction && !isAppContextLoading && accounts.length > 0 && payees.length > 0) {
-      // Ensure envelope list is ready if it's an outflow with an envelope
+      // Ensure envelope list is ready if it's an outflow with an envelopeId AND that envelopeId is not null/undefined
       const outflowRequiresEnvelope = transaction.type === 'outflow' && transaction.envelopeId;
       if (outflowRequiresEnvelope && envelopes.length === 0 && transaction.envelopeId) {
         // console.warn("[EditTransactionForm] Outflow transaction has envelopeId but envelopes list is empty. Deferring reset.");
@@ -71,7 +72,11 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
       }
 
       const parsedDate = transaction.date ? parseISO(transaction.date) : null;
-      const initialDateString = parsedDate && isValidDate(parsedDate) ? format(parsedDate, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd");
+      // Ensure initialDateString is always a valid "yyyy-MM-dd" string
+      let initialDateString = format(new Date(), "yyyy-MM-dd"); // Default to today
+      if (parsedDate && isValidDate(parsedDate)) {
+        initialDateString = format(parsedDate, "yyyy-MM-dd");
+      }
 
       form.reset({
         accountId: transaction.accountId || "",
@@ -301,11 +306,12 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
           render={({ field }) => (
             <FormItem className="flex flex-col">
               <FormLabel>Date</FormLabel>
-              <Popover> {/* Popover is now uncontrolled */}
+              <Popover open={isDatePopoverOpen} onOpenChange={setIsDatePopoverOpen}>
                 <PopoverTrigger asChild>
                   <FormControl>
                     <Button
                       variant={"outline"}
+                      onClick={() => setIsDatePopoverOpen(true)} // Explicitly open
                       className={cn(
                         "w-full pl-3 text-left font-normal",
                         !field.value && "text-muted-foreground"
@@ -326,7 +332,7 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
                     selected={field.value && isValidDate(parseISO(field.value)) ? parseISO(field.value) : undefined}
                     onSelect={(date) => {
                       field.onChange(date ? format(date, "yyyy-MM-dd") : "");
-                      // No need to manage popover state here, it will close on blur/selection by default
+                      setIsDatePopoverOpen(false); // Close popover after selection
                     }}
                     initialFocus
                     disabled={(date) => date > new Date() || date < new Date("1900-01-01")}

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react"; // Added useState
@@ -58,7 +59,7 @@ export function TransactionList({ transactions: transactionsProp, limit, showCap
         <h3 className="text-xl font-semibold text-foreground mb-2">No Transactions Found</h3>
         <p className="text-muted-foreground">There are no transactions matching the current filter.</p>
         <Image
-            src="https://picsum.photos/seed/notransactions/400/300"
+            src="https://placehold.co/400x300.png"
             alt="Illustration of an empty ledger or graph"
             width={300}
             height={225}
@@ -111,6 +112,7 @@ export function TransactionList({ transactions: transactionsProp, limit, showCap
           <div className="py-4">
             {editingTransaction && (
               <EditTransactionForm
+                key={editingTransaction.id} // Force re-mount when transaction changes
                 transaction={editingTransaction}
                 onSuccess={handleEditSuccess}
               />
