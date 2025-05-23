@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useForm, Controller } from "react-hook-form";
@@ -96,7 +95,7 @@ export function AddTransactionForm({ onSuccess, navigateToTransactions = false }
         ...values,
         description: values.description || undefined,
         payeeId: values.payeeId,
-        envelopeId: values.type === 'inflow' ? null : values.envelopeId,
+        envelopeId: values.type === 'inflow' && values.isActualIncome ? null : values.envelopeId,
         date: values.date,
         isTransfer: values.isTransfer || false,
         isActualIncome: values.type === 'inflow' ? (values.isActualIncome || false) : false,
@@ -124,7 +123,9 @@ export function AddTransactionForm({ onSuccess, navigateToTransactions = false }
             amount: 0,
             description: "",
             type: form.getValues('type'),
-            envelopeId: form.getValues('type') === 'inflow' ? null : (envelopes.length > 0 && form.getValues('type') === 'outflow' ? form.getValues('envelopeId') : null),
+            envelopeId: form.getValues('type') === 'inflow' && form.getValues('isActualIncome') 
+              ? null 
+              : (envelopes.length > 0 ? form.getValues('envelopeId') : null),
             payeeId: payees.length > 0 ? payees[0].id : "", 
             date: format(new Date(), "yyyy-MM-dd"),
             isTransfer: false,
@@ -179,7 +180,7 @@ export function AddTransactionForm({ onSuccess, navigateToTransactions = false }
                   onValueChange={(value) => {
                     field.onChange(value as TransactionType);
                     if (value === 'inflow') {
-                      form.setValue('envelopeId', null);
+                      form.setValue('isActualIncome', false); // Reset isActualIncome when changing type
                     } else {
                       form.setValue('isActualIncome', false); // Reset if switching to outflow
                     }
@@ -287,7 +288,7 @@ export function AddTransactionForm({ onSuccess, navigateToTransactions = false }
           )}
         />
 
-        {transactionType === 'outflow' && ( // Changed from 'expense'
+        {(transactionType === 'outflow' || (transactionType === 'inflow' && !form.watch('isActualIncome'))) && (
           <FormField
             control={form.control}
             name="envelopeId"

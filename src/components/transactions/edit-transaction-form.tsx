@@ -96,7 +96,8 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
       id: transaction.id,
       ...values,
       description: values.description || undefined,
-      envelopeId: values.type === 'inflow' ? null : values.envelopeId,
+      // Only set envelope to null if it's an actual income inflow
+      envelopeId: values.type === 'inflow' && values.isActualIncome ? null : values.envelopeId,
       isTransfer: values.isTransfer || false,
       isActualIncome: values.type === 'inflow' ? (values.isActualIncome || false) : false,
     };
@@ -147,7 +148,7 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
                   onValueChange={(value) => {
                     field.onChange(value as TransactionType);
                     if (value === 'inflow') {
-                      form.setValue('envelopeId', null);
+                      // Don't automatically set envelope to null for inflows anymore
                       // isActualIncome can be true for inflow, so we don't reset it here
                     } else { // outflow
                        form.setValue('isActualIncome', false); // Reset if switching to outflow
@@ -258,8 +259,8 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
           )}
         />
 
-        {/* Envelope Select (conditional) */}
-        {transactionType === 'outflow' && (
+        {/* Show envelope selector for outflows OR for inflows that are NOT actual income */}
+        {(transactionType === 'outflow' || (transactionType === 'inflow' && !form.watch('isActualIncome'))) && (
           <FormField
             control={form.control}
             name="envelopeId"
@@ -269,7 +270,7 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
                 <Select
                   onValueChange={(value) => field.onChange(value || null)} // Ensure null if empty
                   value={field.value ?? ""} // Allow empty string for placeholder, but onChange sends null
-                  required={transactionType === 'outflow'}
+                  required={transactionType === 'outflow' || (transactionType === 'inflow' && !form.watch('isActualIncome'))}
                 >
                   <FormControl>
                     <SelectTrigger>

@@ -1,4 +1,3 @@
-
 import { z } from 'zod';
 import { parseISO, isValid } from 'date-fns'; // Import date-fns functions
 
@@ -63,6 +62,15 @@ export const transactionSchema = z.object({
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       message: "Envelope is required for outflow transactions.", // Changed message
+      path: ['envelopeId'],
+    });
+  }
+  
+  // Also require an envelope for inflows that are not actual income
+  if (data.type === 'inflow' && data.isActualIncome === false && (!data.envelopeId || data.envelopeId.trim() === "")) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Envelope is required for inflows that aren't marked as actual income.",
       path: ['envelopeId'],
     });
   }
