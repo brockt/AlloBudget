@@ -132,16 +132,20 @@ export function TransferFundsForm({ onSuccess }: TransferFundsFormProps) {
                 </FormControl>
                 <SelectContent>
                   {envelopes.length === 0 && <SelectItem value="no-envelopes-placeholder" disabled>No envelopes available</SelectItem>}
-                  {envelopes.map(envelope => (
-                    <SelectItem key={envelope.id} value={envelope.id} disabled={envelope.id === form.watch("toEnvelopeId")}>
-                      {envelope.name} (Balance: ${getEnvelopeBalanceWithRollover(envelope.id).toFixed(2)})
-                    </SelectItem>
-                  ))}
+                  {envelopes.map(envelope => {
+                    const balance = getEnvelopeBalanceWithRollover(envelope.id);
+                    const displayBalance = Math.abs(balance) < 0.001 ? 0 : balance;
+                    return (
+                      <SelectItem key={envelope.id} value={envelope.id} disabled={envelope.id === form.watch("toEnvelopeId")}>
+                        {envelope.name} (Balance: ${displayBalance.toFixed(2)})
+                      </SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
               {sourceEnvelopeBalance !== null && (
                 <p className="text-xs text-muted-foreground mt-1">
-                  Available to transfer: ${sourceEnvelopeBalance.toFixed(2)}
+                  Available to transfer: ${(Math.abs(sourceEnvelopeBalance) < 0.001 ? 0 : sourceEnvelopeBalance).toFixed(2)}
                 </p>
               )}
               <FormMessage />

@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -152,11 +151,13 @@ export function SortableEnvelopeItem({ id, envelope, onEditClick, currentViewMon
                     </div>
                     <span className={cn(
                         "text-sm",
-                        availableBalance < 0
-                          ? "font-bold text-destructive dark:text-red-400" // Applied dark:text-red-400
-                          : "font-semibold text-green-600 dark:text-green-500"
+                        Math.abs(availableBalance) < 0.001 
+                          ? "font-semibold text-green-600 dark:text-green-500" // Treat values very close to zero as positive
+                          : availableBalance < 0
+                            ? "font-bold text-destructive dark:text-red-400"
+                            : "font-semibold text-green-600 dark:text-green-500"
                       )}>
-                        ${availableBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        ${(Math.abs(availableBalance) < 0.001 ? 0 : availableBalance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
                     </div>
                 </div>
