@@ -1,4 +1,3 @@
-
 "use client";
 
 import type { ReactNode } from 'react';
@@ -913,6 +912,20 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       return isNaN(spending) ? 0 : spending;
   }, [transactions]);
 
+  // New function to get envelope inflows
+  const getEnvelopeInflows = useCallback((envelopeId: string, forMonth: Date): number => {
+    const monthStart = startOfMonth(forMonth);
+    const monthEnd = endOfMonth(forMonth);
+    const inflows = transactions
+      .filter(tx => {
+          if (tx.envelopeId !== envelopeId || tx.type !== 'inflow') return false;
+          const txDate = parseISO(tx.date);
+          return isValid(txDate) && isWithinInterval(txDate, {start: monthStart, end: monthEnd});
+      })
+      .reduce((sum, tx) => (sum + ((typeof tx.amount === 'number' && !isNaN(tx.amount)) ? tx.amount : 0)), 0);
+      return isNaN(inflows) ? 0 : inflows;
+  }, [transactions]);
+
   const getMonthlyAllocation = useCallback((envelopeId: string, forMonth: Date): number => {
     const monthStr = format(forMonth, "yyyy-MM");
     const monthlyBudget = monthlyEnvelopeBudgets.find(
@@ -936,14 +949,16 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     while (isBefore(monthToProcess, addMonths(startOfMonth(asOfEOMDate),1)) || isEqual(monthToProcess, startOfMonth(asOfEOMDate))) {
         const allocatedThisMonth = getMonthlyAllocation(envelopeId, monthToProcess);
         const spentThisMonth = getEnvelopeSpending(envelopeId, monthToProcess);
+        const inflowsThisMonth = getEnvelopeInflows(envelopeId, monthToProcess);
 
         currentBalance += allocatedThisMonth;
+        currentBalance += inflowsThisMonth; // Add inflows to the envelope balance
         currentBalance -= spentThisMonth;
 
         monthToProcess = addMonths(monthToProcess, 1);
     }
     return isNaN(currentBalance) ? 0 : currentBalance;
-  }, [envelopes, getMonthlyAllocation, getEnvelopeSpending]);
+  }, [envelopes, getMonthlyAllocation, getEnvelopeSpending, getEnvelopeInflows]);
 
   const getEffectiveMonthlyBudgetWithRollover = useCallback((envelopeId: string, forMonth: Date): number => {
     const previousMonth = subMonths(startOfMonth(forMonth), 1);
