@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useForm } from "react-hook-form";
@@ -46,7 +45,7 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
   const { accounts, envelopes, payees, updateTransaction, isLoading: isAppContextLoading } = useAppContext();
   const { toast } = useToast();
   const [isFormReady, setIsFormReady] = useState(false);
-  // Removed isDatePopoverOpen state as Popover is now uncontrolled
+  const [showCalendar, setShowCalendar] = useState(false);
 
   // console.log(`[EditTF Render] Top Level. Tx ID: ${transaction?.id}, AppLoading: ${isAppContextLoading}, Accounts: ${accounts.length}, Payees: ${payees.length}`);
 
@@ -330,40 +329,44 @@ export function EditTransactionForm({ transaction, onSuccess }: EditTransactionF
           render={({ field }) => (
             <FormItem className="flex flex-col">
               <FormLabel>Date</FormLabel>
-              <Popover> {/* Popover is now uncontrolled */}
-                <PopoverTrigger asChild>
-                  <FormControl>
-                    <Button
-                      variant={"outline"}
-                      type="button"
-                      className={cn(
-                        "w-full pl-3 text-left font-normal",
-                        !field.value && "text-muted-foreground"
-                      )}
-                    >
-                      {field.value && isValidDate(parseISO(field.value)) ? (
-                        format(parseISO(field.value), "PPP")
-                      ) : (
-                        <span>Pick a date</span>
-                      )}
-                      <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                    </Button>
-                  </FormControl>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={field.value && isValidDate(parseISO(field.value)) ? parseISO(field.value) : undefined}
-                    onSelect={(date) => {
-                      // console.log("[EditTF] Date selected from Calendar:", date);
-                      field.onChange(date ? format(date, "yyyy-MM-dd") : "");
-                      // Popover should close automatically with uncontrolled behavior
+              <FormControl>
+                <div className="space-y-2">
+                  <Button
+                    variant={"outline"}
+                    className={cn(
+                      "w-full pl-3 text-left font-normal",
+                      !field.value && "text-muted-foreground"
+                    )}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setShowCalendar(!showCalendar);
                     }}
-                    initialFocus
-                    disabled={(date) => date > new Date() || date < new Date("1900-01-01")}
-                  />
-                </PopoverContent>
-              </Popover>
+                    type="button"
+                  >
+                    {field.value ? (
+                      format(parseISO(field.value), "PPP")
+                    ) : (
+                      <span>Pick a date</span>
+                    )}
+                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                  </Button>
+                  
+                  {showCalendar && (
+                    <div className="rounded-md border shadow-sm">
+                      <Calendar
+                        mode="single"
+                        selected={field.value ? parseISO(field.value) : undefined}
+                        onSelect={(date) => {
+                          field.onChange(date ? format(date, "yyyy-MM-dd") : "");
+                          setShowCalendar(false);
+                        }}
+                        initialFocus
+                        disabled={(date) => date > new Date() || date < new Date("1900-01-01")}
+                      />
+                    </div>
+                  )}
+                </div>
+              </FormControl>
               <FormMessage />
             </FormItem>
           )}
