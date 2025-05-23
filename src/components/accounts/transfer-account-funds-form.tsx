@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useForm } from "react-hook-form";
@@ -42,6 +41,7 @@ export function TransferAccountFundsForm({ onSuccess }: TransferAccountFundsForm
   const { toast } = useToast();
   const [sourceAccountBalance, setSourceAccountBalance] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false); // Added loading state
+  const [showCalendar, setShowCalendar] = useState(false);
 
   const form = useForm<z.infer<typeof transferAccountFundsSchema>>({
     resolver: zodResolver(transferAccountFundsSchema),
@@ -205,30 +205,39 @@ export function TransferAccountFundsForm({ onSuccess }: TransferAccountFundsForm
           render={({ field }) => (
             <FormItem className="flex flex-col">
               <FormLabel>Transfer Date</FormLabel>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <FormControl>
-                    <Button
-                      variant={"outline"}
-                      className={cn(
-                        "w-full pl-3 text-left font-normal",
-                        !field.value && "text-muted-foreground"
-                      )}
-                    >
-                      {field.value ? format(parseISO(field.value), "PPP") : <span>Pick a date</span>}
-                      <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                    </Button>
-                  </FormControl>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={field.value ? parseISO(field.value) : undefined}
-                    onSelect={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
+              <FormControl>
+                <div className="space-y-2">
+                  <Button
+                    variant={"outline"}
+                    className={cn(
+                      "w-full pl-3 text-left font-normal",
+                      !field.value && "text-muted-foreground"
+                    )}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setShowCalendar(!showCalendar);
+                    }}
+                    type="button"
+                  >
+                    {field.value ? format(parseISO(field.value), "PPP") : <span>Pick a date</span>}
+                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                  </Button>
+                  
+                  {showCalendar && (
+                    <div className="rounded-md border shadow-sm">
+                      <Calendar
+                        mode="single"
+                        selected={field.value ? parseISO(field.value) : undefined}
+                        onSelect={(date) => {
+                          field.onChange(date ? format(date, "yyyy-MM-dd") : "");
+                          setShowCalendar(false);
+                        }}
+                        initialFocus
+                      />
+                    </div>
+                  )}
+                </div>
+              </FormControl>
               <FormMessage />
             </FormItem>
           )}
